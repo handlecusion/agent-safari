@@ -1,0 +1,29 @@
+# Build artifacts
+.build/
+DerivedData/
+.swiftpm/
+
+# Local Python/MCP envs and caches
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+# Local runtime/socket/artifact scratch
+.tmp/
+*.sock
+*.pid
+*.log
+.DS_Store
+
+# Secrets/local env
+.env
+.env.*
+!.env.example
+
+# Generated screenshots and captures
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.pdf

@@ -18,6 +18,6 @@ jobs:
       - name: Shell syntax
         run: bash -n scripts/*.sh
       - name: Python audit tests
-        run: python3 -m pytest Tests/test_public_release_audit.py -q
+        run: python3 Tests/test_public_release_audit.py
       - name: Public release audit
         run: python3 scripts/public_release_audit.py

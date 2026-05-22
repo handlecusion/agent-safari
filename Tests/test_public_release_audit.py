@@ -1,11 +1,16 @@
 import shutil
 import subprocess
 import sys
+import tempfile
+import unittest
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
 def copy_audit_script(tmp_path: Path) -> Path:
-    source = Path(__file__).resolve().parents[1] / "scripts" / "public_release_audit.py"
+    source = REPO_ROOT / "scripts" / "public_release_audit.py"
     target = tmp_path / "public_release_audit.py"
     shutil.copy(source, target)
     return target
@@ -54,39 +59,48 @@ def run_audit(script: Path, root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_public_release_audit_passes_for_minimal_ready_repo(tmp_path: Path) -> None:
-    script = copy_audit_script(tmp_path)
-    fixture = tmp_path / "fixture"
-    fixture.mkdir()
-    write_minimal_public_ready_repo(fixture)
+class PublicReleaseAuditTests(unittest.TestCase):
+    def test_public_release_audit_passes_for_minimal_ready_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            script = copy_audit_script(tmp_path)
+            fixture = tmp_path / "fixture"
+            fixture.mkdir()
+            write_minimal_public_ready_repo(fixture)
 
-    result = run_audit(script, fixture)
+            result = run_audit(script, fixture)
 
-    assert result.returncode == 0, result.stdout
-    assert "public release audit passed" in result.stdout
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("public release audit passed", result.stdout)
+
+    def test_public_release_audit_fails_when_license_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            script = copy_audit_script(tmp_path)
+            fixture = tmp_path / "fixture"
+            fixture.mkdir()
+            write_minimal_public_ready_repo(fixture)
+            (fixture / "LICENSE").unlink()
+
+            result = run_audit(script, fixture)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("missing required file: LICENSE", result.stdout)
+
+    def test_public_release_audit_fails_on_placeholder_clone_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            script = copy_audit_script(tmp_path)
+            fixture = tmp_path / "fixture"
+            fixture.mkdir()
+            write_minimal_public_ready_repo(fixture)
+            (fixture / "README.md").write_text("git clone <repo-url> agent-safari\n", encoding="utf-8")
+
+            result = run_audit(script, fixture)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("placeholder clone URL", result.stdout)
 
 
-def test_public_release_audit_fails_when_license_missing(tmp_path: Path) -> None:
-    script = copy_audit_script(tmp_path)
-    fixture = tmp_path / "fixture"
-    fixture.mkdir()
-    write_minimal_public_ready_repo(fixture)
-    (fixture / "LICENSE").unlink()
-
-    result = run_audit(script, fixture)
-
-    assert result.returncode == 1
-    assert "missing required file: LICENSE" in result.stdout
-
-
-def test_public_release_audit_fails_on_placeholder_clone_url(tmp_path: Path) -> None:
-    script = copy_audit_script(tmp_path)
-    fixture = tmp_path / "fixture"
-    fixture.mkdir()
-    write_minimal_public_ready_repo(fixture)
-    (fixture / "README.md").write_text("git clone <repo-url> agent-safari\n", encoding="utf-8")
-
-    result = run_audit(script, fixture)
-
-    assert result.returncode == 1
-    assert "placeholder clone URL" in result.stdout
+if __name__ == "__main__":
+    unittest.main()

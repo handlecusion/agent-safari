@@ -1,0 +1,21 @@
+class AgentSafari < Formula
+  desc "Native macOS Safari/WebKit agentic browser CLI and daemon"
+  homepage "https://github.com/handlecusion/agent-safari"
+  url "https://github.com/handlecusion/agent-safari/archive/refs/tags/{{VERSION}}.tar.gz"
+  sha256 "{{SHA256}}"
+  license "MIT"
+  head "https://github.com/handlecusion/agent-safari.git", branch: "main"
+
+  depends_on :macos
+  depends_on xcode: ["15.0", :build]
+
+  def install
+    system "swift", "build", "-c", "release", "--disable-sandbox"
+    bin.install ".build/release/agent-safari"
+    prefix.install "mcp"
+  end
+
+  test do
+    assert_match "agent-safari", shell_output("#{bin}/agent-safari 2>&1", 1)
+  end
+end

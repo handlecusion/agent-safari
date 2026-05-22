@@ -147,3 +147,36 @@ import Testing
     #expect(command.method == "observe")
     #expect(command.params == [:])
 }
+
+@Test func commandRequestParsesUrlTitleAndContentAliases() throws {
+    #expect(try CommandRequest.parse(["url"]).method == "url")
+    #expect(try CommandRequest.parse(["title"]).method == "title")
+    #expect(try CommandRequest.parse(["content"]).method == "text")
+}
+
+@Test func commandRequestParsesHistoryAndViewport() throws {
+    #expect(try CommandRequest.parse(["back"]).method == "back")
+    #expect(try CommandRequest.parse(["forward"]).method == "forward")
+    #expect(try CommandRequest.parse(["reload"]).method == "reload")
+    let viewport = try CommandRequest.parse(["viewport", "1024", "768"])
+    #expect(viewport.method == "viewport")
+    #expect(viewport.params == ["width": "1024", "height": "768"])
+}
+
+@Test func commandRequestParsesNetworkExportAndNativeFallbackPolicy() throws {
+    let click = try CommandRequest.parse(["click", "#submit", "--native", "--no-fallback"])
+    #expect(click.params["fallback"] == "none")
+    let export = try CommandRequest.parse(["network-export", "/tmp/network.json", "--body-preview-bytes", "128", "--max-entries", "10"])
+    #expect(export.method == "networkExport")
+    #expect(export.params["path"] == "/tmp/network.json")
+    #expect(export.params["bodyPreviewBytes"] == "128")
+    #expect(export.params["maxEntries"] == "10")
+}
+
+@Test func commandRequestParsesSessionAndTabCommands() throws {
+    #expect(try CommandRequest.parse(["session"]).method == "session")
+    #expect(try CommandRequest.parse(["tabs"]).method == "tabs")
+    #expect(try CommandRequest.parse(["tab-new"]).method == "tabNew")
+    #expect(try CommandRequest.parse(["tab-switch", "tab-1"]).params == ["id": "tab-1"])
+    #expect(try CommandRequest.parse(["tab-close", "tab-1"]).params == ["id": "tab-1"])
+}

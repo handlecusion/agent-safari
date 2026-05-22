@@ -140,6 +140,21 @@ def create_server() -> Any:
         return _run_cli("html")
 
     @mcp.tool()
+    def title() -> dict[str, Any]:
+        """Return the current document title."""
+        return _run_cli("title")
+
+    @mcp.tool()
+    def url() -> dict[str, Any]:
+        """Return the current document URL."""
+        return _run_cli("url")
+
+    @mcp.tool()
+    def content() -> dict[str, Any]:
+        """Alias for visible page text."""
+        return _run_cli("content")
+
+    @mcp.tool()
     def snapshot() -> dict[str, Any]:
         """Return a JSON string snapshot of interactive elements."""
         return _run_cli("snapshot")
@@ -160,11 +175,13 @@ def create_server() -> Any:
         return _run_cli("screenshot-full", path, timeout=120.0)
 
     @mcp.tool()
-    def click(selector: str, native: bool = False) -> dict[str, Any]:
-        """Click a CSS selector or snapshot ref; set native=True for native coordinate click fallback."""
+    def click(selector: str, native: bool = False, fallback: bool = True) -> dict[str, Any]:
+        """Click a CSS selector or snapshot ref; set native=True for native coordinate click and fallback=False to fail if native verification fails."""
         args = [selector]
         if native:
             args.append("--native")
+        if not fallback:
+            args.append("--no-fallback")
         return _run_cli("click", *args)
 
     @mcp.tool()
@@ -216,6 +233,61 @@ def create_server() -> Any:
     def network_stop() -> dict[str, Any]:
         """Stop JavaScript fetch/XHR network capture instrumentation."""
         return _run_cli("network-stop")
+
+    @mcp.tool()
+    def network_export(path: str, body_preview_bytes: int | None = None, max_entries: int | None = None) -> dict[str, Any]:
+        """Export captured fetch/XHR entries to a redacted JSON file."""
+        args = [path]
+        if body_preview_bytes is not None:
+            args.extend(["--body-preview-bytes", str(body_preview_bytes)])
+        if max_entries is not None:
+            args.extend(["--max-entries", str(max_entries)])
+        return _run_cli("network-export", *args)
+
+    @mcp.tool()
+    def back() -> dict[str, Any]:
+        """Navigate back in WebKit history if possible."""
+        return _run_cli("back")
+
+    @mcp.tool()
+    def forward() -> dict[str, Any]:
+        """Navigate forward in WebKit history if possible."""
+        return _run_cli("forward")
+
+    @mcp.tool()
+    def reload() -> dict[str, Any]:
+        """Reload the current page."""
+        return _run_cli("reload")
+
+    @mcp.tool()
+    def viewport(width: int, height: int) -> dict[str, Any]:
+        """Resize the controlled WebKit viewport/window."""
+        return _run_cli("viewport", str(width), str(height))
+
+    @mcp.tool()
+    def session() -> dict[str, Any]:
+        """Return the current automation session metadata."""
+        return _run_cli("session")
+
+    @mcp.tool()
+    def tabs() -> dict[str, Any]:
+        """List modeled tabs for the current daemon session."""
+        return _run_cli("tabs")
+
+    @mcp.tool()
+    def tab_new() -> dict[str, Any]:
+        """Create or report the current tab placeholder in the single-WebView MVP."""
+        return _run_cli("tab-new")
+
+    @mcp.tool()
+    def tab_switch(tab_id: str) -> dict[str, Any]:
+        """Switch to a modeled tab id."""
+        return _run_cli("tab-switch", tab_id)
+
+    @mcp.tool()
+    def tab_close(tab_id: str) -> dict[str, Any]:
+        """Close a modeled tab id when supported."""
+        return _run_cli("tab-close", tab_id)
 
     return mcp
 

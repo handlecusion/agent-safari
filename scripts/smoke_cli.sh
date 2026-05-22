@@ -44,7 +44,11 @@ payload = json.loads(sys.argv[1])
 field = sys.argv[2]
 expected = sys.argv[3]
 actual = payload.get("result", {}).get(field)
-if actual != expected:
+if isinstance(actual, bool):
+    actual_text = "true" if actual else "false"
+else:
+    actual_text = str(actual)
+if actual_text != expected:
     raise SystemExit(f"Unexpected result.{field}: {actual!r} != {expected!r}; payload={payload}")
 PY
 }
@@ -74,7 +78,8 @@ result = payload.get("result", {})
 path = result.get("path") or expected_path
 if path != expected_path:
     raise SystemExit(f"Unexpected screenshot path metadata: {path!r} != {expected_path!r}")
-if result.get("fullPage") != "true":
+full_page = result.get("fullPage")
+if full_page not in ("true", True):
     raise SystemExit(f"Screenshot did not report fullPage=true: {payload}")
 if not os.path.isfile(expected_path) or os.path.getsize(expected_path) <= 0:
     raise SystemExit(f"Screenshot missing or empty: {expected_path}")
@@ -116,7 +121,11 @@ import json
 import sys
 payload = json.loads(sys.argv[1])
 result = payload.get("result", {})
-events = json.loads(result.get("events", "[]"))
+events_raw = result.get("events", [])
+if isinstance(events_raw, str):
+    events = json.loads(events_raw)
+else:
+    events = events_raw
 types = {event.get("type") for event in events}
 if "fetch" not in types or "xhr" not in types:
     raise SystemExit(f"Expected both fetch and xhr network events; saw types={types}; events={events}")
@@ -148,8 +157,11 @@ extract_refs() {
 import json
 import sys
 payload = json.loads(sys.argv[1])
-snapshot_text = payload.get("result", {}).get("snapshot", "[]")
-items = json.loads(snapshot_text)
+result = payload.get("result", {})
+items = result.get("elements")
+if items is None:
+    snapshot_text = result.get("snapshot", "[]")
+    items = json.loads(snapshot_text)
 input_ref = next((item["ref"] for item in items if item.get("tag") in {"input", "textarea"}), None)
 button_ref = next((item["ref"] for item in items if item.get("tag") == "button"), None)
 if not input_ref or not button_ref:

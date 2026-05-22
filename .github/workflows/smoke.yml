@@ -20,7 +20,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build
+      - name: Swift tests
+        run: swift test
+
+      - name: Release build smoke
+        run: swift build -c release
+
+      - name: Python wrapper and packaging syntax
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py
+
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+
+      - name: Public release audit tests
+        run: python3 Tests/test_public_release_audit.py
+
+      - name: Public release audit
+        run: python3 scripts/public_release_audit.py
+
+      - name: Build debug CLI for smoke
         run: swift build
 
       - name: Run real CLI smoke

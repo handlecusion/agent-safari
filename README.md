@@ -237,6 +237,9 @@ The MCP wrapper currently exposes these tools:
 | `navigate(url)` | Navigate the controlled WebView to a URL. | `agent-safari navigate <url>` |
 | `text()` | Return visible page text. | `agent-safari text` |
 | `html()` | Return `document.documentElement.outerHTML`. | `agent-safari html` |
+| `title()` | Return the current document title. | `agent-safari title` |
+| `url()` | Return the current document URL. | `agent-safari url` |
+| `content()` | Alias for visible page text. | `agent-safari content` |
 | `snapshot()` | Return JSON string of visible/interactable elements and `@e` refs. | `agent-safari snapshot` |
 | `evaluate(script)` | Evaluate JavaScript and return its stringified value. | `agent-safari evaluate <js>` |
 | `screenshot(path)` | Capture viewport PNG. | `agent-safari screenshot <path>` |
@@ -252,6 +255,16 @@ The MCP wrapper currently exposes these tools:
 | `network_start()` | Start fetch/XHR network capture instrumentation. | `agent-safari network-start` |
 | `network_list()` | Return captured fetch/XHR network entries. | `agent-safari network-list` |
 | `network_stop()` | Stop fetch/XHR network capture instrumentation. | `agent-safari network-stop` |
+| `network_export(path, body_preview_bytes=None, max_entries=None)` | Export redacted fetch/XHR entries to JSON. | `agent-safari network-export <path>` |
+| `back()` | Navigate back in WebKit history if possible. | `agent-safari back` |
+| `forward()` | Navigate forward in WebKit history if possible. | `agent-safari forward` |
+| `reload()` | Reload the current page. | `agent-safari reload` |
+| `viewport(width, height)` | Resize the WebKit viewport/window. | `agent-safari viewport <width> <height>` |
+| `session()` | Return current automation session metadata. | `agent-safari session` |
+| `tabs()` | List modeled tabs for the single-WebView session. | `agent-safari tabs` |
+| `tab_new()` | Report/create the current tab placeholder. | `agent-safari tab-new` |
+| `tab_switch(tab_id)` | Switch to a modeled tab id. | `agent-safari tab-switch <id>` |
+| `tab_close(tab_id)` | Close a modeled tab id when supported. | `agent-safari tab-close <id>` |
 
 
 ### Example MCP control loop
@@ -324,6 +337,7 @@ python3 scripts/smoke_mcp_wrapper.py
 
 - The current daemon controls a single WKWebView.
 - Multi-tab/session/profile isolation is not implemented yet.
+- The current MCP wrapper exposes wait commands, history commands, viewport, and single-WebView session/tab placeholders; true multi-tab/profile isolation is not implemented yet.
 - Passkey/WebAuthn automation is out of scope for the current roadmap.
 - `key` dispatches synthetic DOM keyboard events; `type` is a DOM-level text insertion helper, not full native keyboard automation.
 - Network capture is fetch/XHR instrumentation, not full proxy/CDP-style HAR capture.

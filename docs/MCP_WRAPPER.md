@@ -76,11 +76,14 @@ hermes mcp add agent-safari \
 - `navigate(url)`
 - `text()`
 - `html()`
+- `title()`
+- `url()`
+- `content()`
 - `snapshot()`
 - `evaluate(script)`
 - `screenshot(path)`
 - `screenshot_full(path)` if supported by the installed CLI
-- `click(selector, native=False)`
+- `click(selector, native=False, fallback=True)`
 - `fill(selector, value)`
 - `key(key)`
 - `type_text(text)`
@@ -91,6 +94,16 @@ hermes mcp add agent-safari \
 - `network_start()`
 - `network_list()`
 - `network_stop()`
+- `network_export(path, body_preview_bytes=None, max_entries=None)`
+- `back()`
+- `forward()`
+- `reload()`
+- `viewport(width, height)`
+- `session()`
+- `tabs()`
+- `tab_new()`
+- `tab_switch(tab_id)`
+- `tab_close(tab_id)`
 
 Most tools return the CLI result object decoded from the JSON-RPC response. For
 example, `text()` returns an object like `{ "text": "..." }`.

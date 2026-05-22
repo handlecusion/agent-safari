@@ -39,9 +39,14 @@ public struct CommandRequest: Equatable {
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("selector") }
             var selector: String?
             var native = false
+            var fallback: String?
             for arg in args.dropFirst() {
                 if arg == "--native" {
                     native = true
+                } else if arg == "--no-fallback" {
+                    fallback = "none"
+                } else if arg == "--fallback-js" || arg == "--fallback" {
+                    fallback = "js"
                 } else if selector == nil {
                     selector = arg
                 } else {
@@ -51,6 +56,7 @@ public struct CommandRequest: Equatable {
             guard let selector else { throw CommandRequestError.missingArgument("selector") }
             var params = ["selector": selector]
             if native { params["native"] = "true" }
+            if let fallback { params["fallback"] = fallback }
             return CommandRequest(method: "click", params: params)
         case "fill":
             guard args.count >= 3 else { throw CommandRequestError.missingArgument("selector/value") }
@@ -90,6 +96,52 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "networkStop", params: [:])
         case "network-list":
             return CommandRequest(method: "networkList", params: [:])
+        case "url":
+            return CommandRequest(method: "url", params: [:])
+        case "title":
+            return CommandRequest(method: "title", params: [:])
+        case "content":
+            return CommandRequest(method: "text", params: [:])
+        case "back":
+            return CommandRequest(method: "back", params: [:])
+        case "forward":
+            return CommandRequest(method: "forward", params: [:])
+        case "reload":
+            return CommandRequest(method: "reload", params: [:])
+        case "viewport":
+            guard args.count >= 3 else { throw CommandRequestError.missingArgument("width/height") }
+            return CommandRequest(method: "viewport", params: ["width": args[1], "height": args[2]])
+        case "network-export":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+            var params = ["path": args[1]]
+            var index = 2
+            while index < args.count {
+                let arg = args[index]
+                if arg == "--body-preview-bytes" {
+                    guard index + 1 < args.count else { throw CommandRequestError.missingArgument("body-preview-bytes") }
+                    params["bodyPreviewBytes"] = args[index + 1]
+                    index += 2
+                } else if arg == "--max-entries" {
+                    guard index + 1 < args.count else { throw CommandRequestError.missingArgument("max-entries") }
+                    params["maxEntries"] = args[index + 1]
+                    index += 2
+                } else {
+                    throw CommandRequestError.unknownArgument(arg)
+                }
+            }
+            return CommandRequest(method: "networkExport", params: params)
+        case "session":
+            return CommandRequest(method: "session", params: [:])
+        case "tabs":
+            return CommandRequest(method: "tabs", params: [:])
+        case "tab-new":
+            return CommandRequest(method: "tabNew", params: [:])
+        case "tab-switch":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("id") }
+            return CommandRequest(method: "tabSwitch", params: ["id": args[1]])
+        case "tab-close":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("id") }
+            return CommandRequest(method: "tabClose", params: ["id": args[1]])
         case "status":
             return CommandRequest(method: "status", params: [:])
         case "observe":

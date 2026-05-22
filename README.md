@@ -276,17 +276,19 @@ For Hermes specifically, once the server is loaded, ask the agent to use the `ag
 - CLI usage: `docs/CLI_USAGE.md`
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
 - CI/CD: `docs/CI_CD.md`
+- Packaging and distribution: `docs/PACKAGING.md`
 - Roadmap: `docs/ROADMAP.md`
 
 ## CI/CD
 
-The repository has three GitHub Actions lanes:
+The repository has four GitHub Actions lanes:
 
-- `CI`: runs on pushes and pull requests, covering Swift tests, release compilation, Python/shell syntax, audit tests, and public-release hygiene.
+- `CI`: runs on pushes and pull requests, covering Swift tests, release compilation, Python/shell syntax, npm package smoke, Homebrew formula rendering, audit tests, and public-release hygiene.
 - `macOS Smoke`: manual and weekly real-daemon smoke lane for WKWebView automation, screenshots, DOM refs, network capture, and MCP wrapper bridging.
-- `Release`: tag/manual CD lane that builds the release binary, packages a zip with checksums, uploads workflow artifacts, and publishes a GitHub Release.
+- `Release`: tag/manual CD lane that builds the release binary, packages a zip with checksums, packages npm, uploads workflow artifacts, and publishes a GitHub Release.
+- `Publish Packages`: release-published lane that publishes npm when `NPM_TOKEN` exists and updates a Homebrew tap when `HOMEBREW_TAP_REPO`/`HOMEBREW_TAP_TOKEN` exist.
 
-See `docs/CI_CD.md` for release commands and recommended branch protection settings.
+See `docs/CI_CD.md` and `docs/PACKAGING.md` for release commands and recommended branch protection settings.
 
 ## Smoke checks
 

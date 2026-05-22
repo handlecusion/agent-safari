@@ -1,0 +1,109 @@
+name: Publish Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag to publish, e.g. v0.1.0'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-packages-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  npm:
+    name: Publish npm package
+    runs-on: macos-15
+    env:
+      AGENT_SAFARI_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Package npm distribution
+        run: scripts/package_npm.sh
+
+      - name: Publish to npm
+        run: |
+          set -euo pipefail
+          if [[ -z "${NPM_TOKEN:-}" ]]; then
+            echo "NPM_TOKEN is not configured; skipping npm publish"
+            exit 0
+          fi
+          printf '//registry.npmjs.org/:_auth%s=%s\n' 'Token' "$NPM_TOKEN" > ~/.npmrc
+          npm publish .tmp/npm-package --access public
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-safari-npm-${{ env.AGENT_SAFARI_VERSION }}
+          path: .tmp/dist/*.tgz
+          if-no-files-found: error
+          retention-days: 30
+
+  homebrew:
+    name: Render or update Homebrew formula
+    runs-on: macos-15
+    env:
+      AGENT_SAFARI_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+      HOMEBREW_TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate version
+        run: |
+          set -euo pipefail
+          if [[ ! "$AGENT_SAFARI_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9][A-Za-z0-9.-]*)?$ ]]; then
+            echo "Invalid release version: $AGENT_SAFARI_VERSION" >&2
+            exit 1
+          fi
+
+      - name: Render formula
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/homebrew
+          tarball=".tmp/homebrew/agent-safari-${AGENT_SAFARI_VERSION}.tar.gz"
+          curl -fsSL "https://github.com/handlecusion/agent-safari/archive/refs/tags/${AGENT_SAFARI_VERSION}.tar.gz" -o "$tarball"
+          sha256="$(shasum -a 256 "$tarball" | awk '{print $1}')"
+          python3 scripts/render_homebrew_formula.py \
+            --version "$AGENT_SAFARI_VERSION" \
+            --sha256 "$sha256" \
+            --output .tmp/homebrew/agent-safari.rb
+          ruby -c .tmp/homebrew/agent-safari.rb
+
+      - name: Update Homebrew tap
+        run: |
+          set -euo pipefail
+          if [[ -z "${HOMEBREW_TAP_REPO:-}" || -z "${HOMEBREW_TAP_TOKEN:-}" ]]; then
+            echo "HOMEBREW_TAP_REPO variable or HOMEBREW_TAP_TOKEN secret is not configured; skipping tap update"
+            exit 0
+          fi
+          git clone "https://agent-safari:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" .tmp/homebrew-tap
+          mkdir -p .tmp/homebrew-tap/Formula
+          cp .tmp/homebrew/agent-safari.rb .tmp/homebrew-tap/Formula/agent-safari.rb
+          cd .tmp/homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/agent-safari.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew formula already up to date"
+            exit 0
+          fi
+          git commit -m "agent-safari ${AGENT_SAFARI_VERSION}"
+          git push
+
+      - name: Upload Homebrew formula artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-safari-homebrew-${{ env.AGENT_SAFARI_VERSION }}
+          path: .tmp/homebrew/agent-safari.rb
+          if-no-files-found: error
+          retention-days: 30

@@ -1,6 +1,6 @@
 # CI/CD
 
-agent-safari uses GitHub Actions for three separate lanes: fast pull-request validation, real macOS smoke testing, and release publishing.
+agent-safari uses GitHub Actions for four separate lanes: fast pull-request validation, real macOS smoke testing, release publishing, and package registry publishing.
 
 ## 1. CI: `.github/workflows/ci.yml`
 
@@ -12,6 +12,8 @@ Checks:
 - Release build compilation: `swift build -c release`
 - Python MCP wrapper syntax: `python3 -m py_compile ...`
 - Shell script syntax: `bash -n scripts/*.sh`
+- npm package smoke: `scripts/package_npm.sh` and wrapper syntax checks
+- Homebrew formula render smoke: `scripts/render_homebrew_formula.py` and Ruby syntax check
 - Public release audit tests: `python3 Tests/test_public_release_audit.py`
 - Public release hygiene audit: `python3 scripts/public_release_audit.py`
 
@@ -40,7 +42,8 @@ Release gate:
 - Runs the same core checks as CI.
 - Builds the release binary with `swift build -c release`.
 - Packages the CLI, MCP wrapper, install helper, README, and LICENSE with `scripts/package_release.sh`.
-- Uploads the zip and SHA-256 checksums as a workflow artifact.
+- Packages the npm wrapper tarball with `scripts/package_npm.sh`.
+- Uploads the zip, npm tarball, and SHA-256 checksums as workflow artifacts.
 - Publishes or updates the GitHub Release with the packaged artifacts.
 
 Tag release example:
@@ -55,6 +58,20 @@ Manual prerelease example:
 1. Open GitHub Actions.
 2. Select `Release`.
 3. Run workflow with `version` like `v0.1.0-rc.1` and `prerelease=true`.
+
+## 4. Package publishing: `.github/workflows/publish-packages.yml`
+
+Runs when a GitHub Release is published, or manually for a specific tag.
+
+Publishing behavior:
+
+- Builds the npm package from `npm/agent-safari`.
+- Publishes to npm when repository secret `NPM_TOKEN` is configured.
+- Renders the Homebrew formula from `packaging/homebrew/Formula/agent-safari.rb.template`.
+- Updates a Homebrew tap when repository variable `HOMEBREW_TAP_REPO` and secret `HOMEBREW_TAP_TOKEN` are configured.
+- Uploads package artifacts even when registry/tap secrets are absent.
+
+See `docs/PACKAGING.md` for package-specific commands and required secrets.
 
 ## Recommended repository settings
 

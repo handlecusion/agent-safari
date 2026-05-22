@@ -21,7 +21,14 @@ REQUIRED_FILES = [
     ".github/workflows/ci.yml",
     ".github/workflows/release.yml",
     ".github/workflows/smoke.yml",
+    ".github/workflows/publish-packages.yml",
     "scripts/package_release.sh",
+    "scripts/package_npm.sh",
+    "scripts/render_homebrew_formula.py",
+    "npm/agent-safari/package.json",
+    "npm/agent-safari/bin/agent-safari.js",
+    "npm/agent-safari/scripts/install.js",
+    "packaging/homebrew/Formula/agent-safari.rb.template",
 ]
 REQUIRED_CI_SNIPPETS = [
     "runs-on: macos-15",
@@ -30,6 +37,8 @@ REQUIRED_CI_SNIPPETS = [
     "swift build -c release",
     "python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py",
     "bash -n scripts/*.sh",
+    "scripts/package_npm.sh",
+    "scripts/render_homebrew_formula.py",
     "python3 scripts/public_release_audit.py",
 ]
 REQUIRED_RELEASE_SNIPPETS = [
@@ -39,6 +48,8 @@ REQUIRED_RELEASE_SNIPPETS = [
     "contents: write",
     "Validate release version",
     "scripts/package_release.sh",
+    "scripts/package_npm.sh",
+    "agent-safari.rb",
     "gh release",
     "--verify-tag",
     "--target \"$GITHUB_SHA\"",
@@ -47,6 +58,16 @@ REQUIRED_SMOKE_SNIPPETS = [
     "workflow_dispatch",
     "scripts/smoke_cli.sh",
     "python3 scripts/smoke_mcp_wrapper.py",
+    "actions/upload-artifact@v4",
+]
+REQUIRED_PUBLISH_SNIPPETS = [
+    "release:",
+    "types: [published]",
+    "NPM_TOKEN",
+    "npm publish",
+    "HOMEBREW_TAP_REPO",
+    "HOMEBREW_TAP_TOKEN",
+    "scripts/render_homebrew_formula.py",
     "actions/upload-artifact@v4",
 ]
 REQUIRED_GITIGNORE_SNIPPETS = [
@@ -157,6 +178,16 @@ def check_smoke_workflow(root: Path, errors: list[str]) -> None:
             errors.append(f"smoke workflow missing required command/snippet: {snippet}")
 
 
+def check_publish_workflow(root: Path, errors: list[str]) -> None:
+    publish = root / ".github" / "workflows" / "publish-packages.yml"
+    if not publish.is_file():
+        return
+    text = read_text(publish)
+    for snippet in REQUIRED_PUBLISH_SNIPPETS:
+        if snippet not in text:
+            errors.append(f"publish workflow missing required command/snippet: {snippet}")
+
+
 def check_gitignore(root: Path, errors: list[str]) -> None:
     gitignore = root / ".gitignore"
     if not gitignore.is_file():
@@ -210,6 +241,7 @@ def audit(root: Path) -> list[str]:
     check_ci(root, errors)
     check_release_workflow(root, errors)
     check_smoke_workflow(root, errors)
+    check_publish_workflow(root, errors)
     check_gitignore(root, errors)
     check_local_paths(root, errors)
     check_secretish_text(root, errors)

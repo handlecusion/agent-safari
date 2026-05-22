@@ -23,10 +23,20 @@ jobs:
         run: swift test
       - name: Release build smoke
         run: swift build -c release
-      - name: Python wrapper syntax
-        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py
+      - name: Python wrapper and packaging syntax
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py
       - name: Shell syntax
         run: bash -n scripts/*.sh
+      - name: npm package smoke
+        run: |
+          node --check npm/agent-safari/bin/agent-safari.js
+          node --check npm/agent-safari/scripts/install.js
+          AGENT_SAFARI_VERSION=v0.0.0-test.1 scripts/package_npm.sh
+          AGENT_SAFARI_SKIP_DOWNLOAD=1 npm --prefix npm/agent-safari run smoke
+      - name: Homebrew formula render smoke
+        run: |
+          python3 scripts/render_homebrew_formula.py --version v0.0.0-test.1 --sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef --output .tmp/homebrew/agent-safari.rb
+          ruby -c .tmp/homebrew/agent-safari.rb
       - name: Python audit tests
         run: python3 Tests/test_public_release_audit.py
       - name: Public release audit

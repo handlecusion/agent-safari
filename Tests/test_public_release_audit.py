@@ -20,6 +20,9 @@ def write_minimal_public_ready_repo(root: Path) -> None:
     (root / "scripts").mkdir(parents=True)
     (root / "mcp").mkdir()
     (root / "docs").mkdir()
+    (root / "npm" / "agent-safari" / "bin").mkdir(parents=True)
+    (root / "npm" / "agent-safari" / "scripts").mkdir(parents=True)
+    (root / "packaging" / "homebrew" / "Formula").mkdir(parents=True)
     (root / ".github" / "workflows").mkdir(parents=True)
     (root / "README.md").write_text(
         "# agent-safari\n\n"
@@ -42,6 +45,8 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "      - run: swift build -c release\n"
         "      - run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py\n"
         "      - run: bash -n scripts/*.sh\n"
+        "      - run: scripts/package_npm.sh\n"
+        "      - run: scripts/render_homebrew_formula.py\n"
         "      - run: python3 scripts/public_release_audit.py\n",
         encoding="utf-8",
     )
@@ -59,6 +64,8 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "    steps:\n"
         "      - run: echo Validate release version\n"
         "      - run: scripts/package_release.sh\n"
+        "      - run: scripts/package_npm.sh\n"
+        "      - run: echo agent-safari.rb\n"
         "      - run: gh release create v0.1.0 artifact.zip --verify-tag --target \"$GITHUB_SHA\"\n",
         encoding="utf-8",
     )
@@ -74,8 +81,29 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "      - uses: actions/upload-artifact@v4\n",
         encoding="utf-8",
     )
+    (root / ".github" / "workflows" / "publish-packages.yml").write_text(
+        "name: Publish Packages\n"
+        "on:\n"
+        "  release:\n"
+        "    types: [published]\n"
+        "jobs:\n"
+        "  npm:\n"
+        "    steps:\n"
+        "      - run: echo NPM_TOKEN npm publish\n"
+        "  homebrew:\n"
+        "    steps:\n"
+        "      - run: echo HOMEBREW_TAP_REPO HOMEBREW_TAP_TOKEN scripts/render_homebrew_formula.py\n"
+        "      - uses: actions/upload-artifact@v4\n",
+        encoding="utf-8",
+    )
     (root / "scripts" / "placeholder.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
     (root / "scripts" / "package_release.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    (root / "scripts" / "package_npm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    (root / "scripts" / "render_homebrew_formula.py").write_text("print('formula')\n", encoding="utf-8")
+    (root / "npm" / "agent-safari" / "package.json").write_text("{}\n", encoding="utf-8")
+    (root / "npm" / "agent-safari" / "bin" / "agent-safari.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (root / "npm" / "agent-safari" / "scripts" / "install.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (root / "packaging" / "homebrew" / "Formula" / "agent-safari.rb.template").write_text("class AgentSafari < Formula\nend\n", encoding="utf-8")
     (root / "mcp" / "agent_safari_mcp.py").write_text("print('ok')\n", encoding="utf-8")
     (root / "docs" / "MCP_WRAPPER.md").write_text("safe docs\n", encoding="utf-8")
 

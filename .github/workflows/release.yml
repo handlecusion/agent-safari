@@ -45,11 +45,23 @@ jobs:
       - name: Swift tests
         run: swift test
 
-      - name: Python wrapper syntax
-        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py
+      - name: Python wrapper and packaging syntax
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py
 
       - name: Shell syntax
         run: bash -n scripts/*.sh
+
+      - name: npm package smoke
+        run: |
+          node --check npm/agent-safari/bin/agent-safari.js
+          node --check npm/agent-safari/scripts/install.js
+          AGENT_SAFARI_VERSION="$AGENT_SAFARI_VERSION" scripts/package_npm.sh
+          AGENT_SAFARI_SKIP_DOWNLOAD=1 npm --prefix npm/agent-safari run smoke
+
+      - name: Homebrew formula render smoke
+        run: |
+          python3 scripts/render_homebrew_formula.py --version "$AGENT_SAFARI_VERSION" --sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef --output .tmp/homebrew/agent-safari.rb
+          ruby -c .tmp/homebrew/agent-safari.rb
 
       - name: Python audit tests
         run: python3 Tests/test_public_release_audit.py
@@ -63,12 +75,16 @@ jobs:
       - name: Package release artifact
         run: scripts/package_release.sh
 
+      - name: Package npm artifact
+        run: scripts/package_npm.sh
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: agent-safari-${{ env.AGENT_SAFARI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
           path: |
             .tmp/dist/*.zip
+            .tmp/dist/*.tgz
             .tmp/dist/checksums.txt
           if-no-files-found: error
           retention-days: 30
@@ -90,6 +106,7 @@ jobs:
 
           Artifacts:
           - CLI binary package zip
+          - npm package tarball
           - SHA-256 checksums
 
           Install from the downloaded zip:
@@ -106,9 +123,9 @@ jobs:
               edit_args+=(--prerelease)
             fi
             gh "${edit_args[@]}"
-            gh release upload "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/checksums.txt --clobber
+            gh release upload "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/*.tgz .tmp/dist/checksums.txt --clobber
           else
-            args=(release create "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/checksums.txt --title "$title" --notes-file "$notes_file")
+            args=(release create "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/*.tgz .tmp/dist/checksums.txt --title "$title" --notes-file "$notes_file")
             if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
               args+=(--verify-tag)
             else

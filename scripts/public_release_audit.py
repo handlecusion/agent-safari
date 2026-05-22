@@ -21,7 +21,7 @@ REQUIRED_FILES = [
     ".github/workflows/ci.yml",
 ]
 REQUIRED_CI_SNIPPETS = [
-    "runs-on: macos-14",
+    "runs-on: macos-15",
     "swift test",
     "python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py",
     "bash -n scripts/*.sh",

@@ -30,7 +30,7 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "on: [push, pull_request]\n"
         "jobs:\n"
         "  test:\n"
-        "    runs-on: macos-14\n"
+        "    runs-on: macos-15\n"
         "    steps:\n"
         "      - uses: actions/checkout@v4\n"
         "      - run: swift test\n"

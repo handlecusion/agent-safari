@@ -22,7 +22,7 @@ It can be used directly from shell scripts via the CLI, or from Hermes/other MCP
 Build the Swift binary and install a convenient `agent-safari` command into `~/.local/bin`:
 
 ```sh
-git clone <repo-url> agent-safari
+git clone https://github.com/handlecusion/agent-safari.git agent-safari
 cd agent-safari
 scripts/install_cli.sh
 ```
@@ -174,7 +174,7 @@ MCP client -> mcp/agent_safari_mcp.py -> agent-safari -> Unix socket daemon -> W
 The daemon must be running before MCP tools can control the browser:
 
 ```sh
-git clone <repo-url> agent-safari
+git clone https://github.com/handlecusion/agent-safari.git agent-safari
 cd agent-safari
 scripts/install_cli.sh
 agent-safari daemon --socket /tmp/agent-safari.sock

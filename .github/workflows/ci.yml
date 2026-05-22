@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift tests
+        run: swift test
+      - name: Python wrapper syntax
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+      - name: Python audit tests
+        run: python3 -m pytest Tests/test_public_release_audit.py -q
+      - name: Public release audit
+        run: python3 scripts/public_release_audit.py

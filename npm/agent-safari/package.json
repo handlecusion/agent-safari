@@ -1,0 +1,45 @@
+{
+  "name": "agent-safari",
+  "version": "0.0.0",
+  "description": "Native macOS Safari/WebKit agentic browser CLI and daemon",
+  "license": "MIT",
+  "homepage": "https://github.com/handlecusion/agent-safari#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/handlecusion/agent-safari.git"
+  },
+  "bugs": {
+    "url": "https://github.com/handlecusion/agent-safari/issues"
+  },
+  "keywords": [
+    "safari",
+    "webkit",
+    "wkwebview",
+    "browser-automation",
+    "agentic-browser",
+    "mcp"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64",
+    "x64"
+  ],
+  "bin": {
+    "agent-safari": "bin/agent-safari.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "smoke": "AGENT_SAFARI_SKIP_DOWNLOAD=1 node scripts/install.js && AGENT_SAFARI_BIN=/bin/echo node bin/agent-safari.js --version"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

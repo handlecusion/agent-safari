@@ -19,13 +19,35 @@ REQUIRED_FILES = [
     "README.md",
     ".gitignore",
     ".github/workflows/ci.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/smoke.yml",
+    "scripts/package_release.sh",
 ]
 REQUIRED_CI_SNIPPETS = [
     "runs-on: macos-15",
+    "actions/checkout@v5",
     "swift test",
+    "swift build -c release",
     "python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py",
     "bash -n scripts/*.sh",
     "python3 scripts/public_release_audit.py",
+]
+REQUIRED_RELEASE_SNIPPETS = [
+    "tags:",
+    "v*",
+    "environment: release",
+    "contents: write",
+    "Validate release version",
+    "scripts/package_release.sh",
+    "gh release",
+    "--verify-tag",
+    "--target \"$GITHUB_SHA\"",
+]
+REQUIRED_SMOKE_SNIPPETS = [
+    "workflow_dispatch",
+    "scripts/smoke_cli.sh",
+    "python3 scripts/smoke_mcp_wrapper.py",
+    "actions/upload-artifact@v4",
 ]
 REQUIRED_GITIGNORE_SNIPPETS = [
     ".build/",
@@ -115,6 +137,26 @@ def check_ci(root: Path, errors: list[str]) -> None:
             errors.append(f"CI workflow missing required command/snippet: {snippet}")
 
 
+def check_release_workflow(root: Path, errors: list[str]) -> None:
+    release = root / ".github" / "workflows" / "release.yml"
+    if not release.is_file():
+        return
+    text = read_text(release)
+    for snippet in REQUIRED_RELEASE_SNIPPETS:
+        if snippet not in text:
+            errors.append(f"release workflow missing required command/snippet: {snippet}")
+
+
+def check_smoke_workflow(root: Path, errors: list[str]) -> None:
+    smoke = root / ".github" / "workflows" / "smoke.yml"
+    if not smoke.is_file():
+        return
+    text = read_text(smoke)
+    for snippet in REQUIRED_SMOKE_SNIPPETS:
+        if snippet not in text:
+            errors.append(f"smoke workflow missing required command/snippet: {snippet}")
+
+
 def check_gitignore(root: Path, errors: list[str]) -> None:
     gitignore = root / ".gitignore"
     if not gitignore.is_file():
@@ -166,6 +208,8 @@ def audit(root: Path) -> list[str]:
     check_required_files(root, errors)
     check_readme(root, errors)
     check_ci(root, errors)
+    check_release_workflow(root, errors)
+    check_smoke_workflow(root, errors)
     check_gitignore(root, errors)
     check_local_paths(root, errors)
     check_secretish_text(root, errors)

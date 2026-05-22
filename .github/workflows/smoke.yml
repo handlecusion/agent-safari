@@ -1,0 +1,67 @@
+name: macOS Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli-smoke:
+    name: Real daemon CLI and MCP smoke
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build
+        run: swift build
+
+      - name: Run real CLI smoke
+        run: scripts/smoke_cli.sh
+
+      - name: Start daemon for MCP wrapper smoke
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp
+          rm -f /tmp/agent-safari-mcp-smoke.sock
+          .build/debug/agent-safari daemon --socket /tmp/agent-safari-mcp-smoke.sock > .tmp/mcp-smoke-daemon.log 2>&1 &
+          echo $! > .tmp/mcp-smoke-daemon.pid
+          for i in {1..150}; do
+            if [[ -S /tmp/agent-safari-mcp-smoke.sock ]]; then
+              exit 0
+            fi
+            sleep 0.2
+          done
+          cat .tmp/mcp-smoke-daemon.log
+          exit 1
+
+      - name: Run MCP wrapper smoke
+        env:
+          AGENT_SAFARI_BIN: .build/debug/agent-safari
+          AGENT_SAFARI_SOCKET: /tmp/agent-safari-mcp-smoke.sock
+          AGENT_SAFARI_SMOKE_DIR: .tmp/mcp-smoke
+        run: python3 scripts/smoke_mcp_wrapper.py
+
+      - name: Stop MCP smoke daemon
+        if: always()
+        run: |
+          if [[ -f .tmp/mcp-smoke-daemon.pid ]]; then
+            kill "$(cat .tmp/mcp-smoke-daemon.pid)" 2>/dev/null || true
+          fi
+          rm -f /tmp/agent-safari-mcp-smoke.sock
+
+      - name: Upload smoke artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-safari-smoke-artifacts
+          path: .tmp
+          if-no-files-found: ignore
+          retention-days: 7

@@ -6,13 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: Unit, syntax, and public-readiness checks
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Swift tests
         run: swift test
+      - name: Release build smoke
+        run: swift build -c release
       - name: Python wrapper syntax
         run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py
       - name: Shell syntax

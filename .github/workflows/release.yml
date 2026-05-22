@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version or pre-release label, e.g. v0.1.0-rc.1'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the GitHub release as a prerelease'
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish macOS CLI release
+    runs-on: macos-15
+    environment: release
+    env:
+      AGENT_SAFARI_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate release version
+        run: |
+          set -euo pipefail
+          if [[ ! "$AGENT_SAFARI_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9][A-Za-z0-9.-]*)?$ ]]; then
+            echo "Invalid release version: $AGENT_SAFARI_VERSION" >&2
+            echo "Expected: vMAJOR.MINOR.PATCH[-PRERELEASE]" >&2
+            exit 1
+          fi
+
+      - name: Swift tests
+        run: swift test
+
+      - name: Python wrapper syntax
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py
+
+      - name: Shell syntax
+        run: bash -n scripts/*.sh
+
+      - name: Python audit tests
+        run: python3 Tests/test_public_release_audit.py
+
+      - name: Public release audit
+        run: python3 scripts/public_release_audit.py
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Package release artifact
+        run: scripts/package_release.sh
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-safari-${{ env.AGENT_SAFARI_VERSION }}-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            .tmp/dist/*.zip
+            .tmp/dist/checksums.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || contains(github.ref_name, '-') }}
+        run: |
+          set -euo pipefail
+          title="agent-safari ${TAG_NAME}"
+          notes_file=".tmp/dist/release-notes.md"
+          mkdir -p .tmp/dist
+          cat > "$notes_file" <<NOTES
+          ## agent-safari ${TAG_NAME}
+
+          macOS WebKit agentic browser CLI release.
+
+          Artifacts:
+          - CLI binary package zip
+          - SHA-256 checksums
+
+          Install from the downloaded zip:
+
+          \`\`\`sh
+          unzip agent-safari-${TAG_NAME}-*.zip
+          cd agent-safari-${TAG_NAME}-*/
+          ./install.sh
+          \`\`\`
+          NOTES
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            edit_args=(release edit "$TAG_NAME" --title "$title" --notes-file "$notes_file")
+            if [[ "$PRERELEASE" == "true" ]]; then
+              edit_args+=(--prerelease)
+            fi
+            gh "${edit_args[@]}"
+            gh release upload "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/checksums.txt --clobber
+          else
+            args=(release create "$TAG_NAME" .tmp/dist/*.zip .tmp/dist/checksums.txt --title "$title" --notes-file "$notes_file")
+            if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+              args+=(--verify-tag)
+            else
+              args+=(--target "$GITHUB_SHA")
+            fi
+            if [[ "$PRERELEASE" == "true" ]]; then
+              args+=(--prerelease)
+            fi
+            gh "${args[@]}"
+          fi

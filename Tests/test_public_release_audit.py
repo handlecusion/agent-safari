@@ -37,14 +37,45 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "  test:\n"
         "    runs-on: macos-15\n"
         "    steps:\n"
-        "      - uses: actions/checkout@v4\n"
+        "      - uses: actions/checkout@v5\n"
         "      - run: swift test\n"
+        "      - run: swift build -c release\n"
         "      - run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py\n"
         "      - run: bash -n scripts/*.sh\n"
         "      - run: python3 scripts/public_release_audit.py\n",
         encoding="utf-8",
     )
+    (root / ".github" / "workflows" / "release.yml").write_text(
+        "name: Release\n"
+        "on:\n"
+        "  push:\n"
+        "    tags:\n"
+        "      - 'v*'\n"
+        "permissions:\n"
+        "  contents: write\n"
+        "jobs:\n"
+        "  release:\n"
+        "    environment: release\n"
+        "    steps:\n"
+        "      - run: echo Validate release version\n"
+        "      - run: scripts/package_release.sh\n"
+        "      - run: gh release create v0.1.0 artifact.zip --verify-tag --target \"$GITHUB_SHA\"\n",
+        encoding="utf-8",
+    )
+    (root / ".github" / "workflows" / "smoke.yml").write_text(
+        "name: macOS Smoke\n"
+        "on:\n"
+        "  workflow_dispatch:\n"
+        "jobs:\n"
+        "  smoke:\n"
+        "    steps:\n"
+        "      - run: scripts/smoke_cli.sh\n"
+        "      - run: python3 scripts/smoke_mcp_wrapper.py\n"
+        "      - uses: actions/upload-artifact@v4\n",
+        encoding="utf-8",
+    )
     (root / "scripts" / "placeholder.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    (root / "scripts" / "package_release.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
     (root / "mcp" / "agent_safari_mcp.py").write_text("print('ok')\n", encoding="utf-8")
     (root / "docs" / "MCP_WRAPPER.md").write_text("safe docs\n", encoding="utf-8")
 

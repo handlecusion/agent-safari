@@ -275,7 +275,18 @@ For Hermes specifically, once the server is loaded, ask the agent to use the `ag
 
 - CLI usage: `docs/CLI_USAGE.md`
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
+- CI/CD: `docs/CI_CD.md`
 - Roadmap: `docs/ROADMAP.md`
+
+## CI/CD
+
+The repository has three GitHub Actions lanes:
+
+- `CI`: runs on pushes and pull requests, covering Swift tests, release compilation, Python/shell syntax, audit tests, and public-release hygiene.
+- `macOS Smoke`: manual and weekly real-daemon smoke lane for WKWebView automation, screenshots, DOM refs, network capture, and MCP wrapper bridging.
+- `Release`: tag/manual CD lane that builds the release binary, packages a zip with checksums, uploads workflow artifacts, and publishes a GitHub Release.
+
+See `docs/CI_CD.md` for release commands and recommended branch protection settings.
 
 ## Smoke checks
 

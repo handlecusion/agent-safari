@@ -37,7 +37,9 @@ jobs:
         run: |
           python3 scripts/render_homebrew_formula.py --version v0.0.0-test.1 --sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef --output .tmp/homebrew/agent-safari.rb
           ruby -c .tmp/homebrew/agent-safari.rb
-      - name: Python audit tests
-        run: python3 Tests/test_public_release_audit.py
+      - name: Python audit and contract tests
+        run: |
+          python3 Tests/test_public_release_audit.py
+          python3 Tests/test_mcp_contract.py
       - name: Public release audit
         run: python3 scripts/public_release_audit.py

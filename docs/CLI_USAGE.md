@@ -57,7 +57,10 @@ All client commands accept `--socket <path>`.
 
 ### Navigate
 
+Prefer the normalized `open` command. `navigate` remains as a backward-compatible alias.
+
 ```sh
+.build/debug/agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
 .build/debug/agent-safari navigate 'https://example.com' --socket /tmp/agent-safari.sock
 ```
 
@@ -84,7 +87,7 @@ The result is returned as `result.value`.
 .build/debug/agent-safari snapshot --socket /tmp/agent-safari.sock
 ```
 
-The result contains `result.snapshot`, a JSON string with visible interactive elements. Each element may include:
+The result contains `result.elements`, an array with visible interactive elements. Each element may include:
 
 - `ref`: stable in-page reference such as `@e1`.
 - `tag`, `text`, `selector`, `role`, `type`, `name`.
@@ -137,26 +140,26 @@ Use wait commands to make agentic browser control less race-prone after navigati
 Viewport screenshot:
 
 ```sh
-.build/debug/agent-safari screenshot /tmp/agent-safari-viewport.png --socket /tmp/agent-safari.sock
+.build/debug/agent-safari screenshot --out /tmp/agent-safari-viewport.png --socket /tmp/agent-safari.sock
 ```
 
 Full-page screenshot:
 
 ```sh
-.build/debug/agent-safari screenshot-full /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
+.build/debug/agent-safari screenshot --full --out /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
 ```
 
 `result.path` contains the written PNG path. `result.strategy` describes whether a single full-page capture or fallback strategy was used.
 
 ## Local file navigation
 
-Generate an absolute `file://` URL and pass it to `navigate`:
+Generate an absolute `file://` URL and pass it to `open`:
 
 ```sh
 HTML=/tmp/agent-safari-smoke.html
 printf '<!doctype html><title>Smoke</title><button>OK</button>' > "$HTML"
 URL="file://$HTML"
-.build/debug/agent-safari navigate "$URL" --socket /tmp/agent-safari.sock
+.build/debug/agent-safari open "$URL" --socket /tmp/agent-safari.sock
 ```
 
 ## Smoke script
@@ -174,16 +177,17 @@ AGENT_SAFARI_SOCKET=/tmp/my-agent-safari.sock scripts/smoke_cli.sh
 AGENT_SAFARI_SMOKE_DIR=/tmp/my-agent-safari-artifacts scripts/smoke_cli.sh
 ```
 
-The smoke script builds, starts a temporary daemon, navigates to local HTML, uses snapshot refs for fill/click, exercises network capture when available, captures a full-page screenshot, and reports artifact paths.
+The smoke script builds, starts a temporary daemon, opens local HTML via `open`, uses snapshot refs for fill/click, exercises normalized `network start/list/stop`, captures a full-page screenshot through `screenshot --full --out`, and reports artifact paths.
 
 ## Network command handling
 
-Network capture commands are available as `network-start`, `network-list`, and `network-stop`. They use JavaScript fetch/XHR instrumentation and therefore do not provide full browser/proxy HAR coverage.
+Network capture commands are available as normalized `network <subcommand>` commands. Legacy `network-start`, `network-list`, and `network-stop` aliases remain available. Capture uses JavaScript fetch/XHR instrumentation and therefore does not provide full browser/proxy HAR coverage.
 
 ```sh
-.build/debug/agent-safari network-start --socket /tmp/agent-safari.sock
-.build/debug/agent-safari network-list --socket /tmp/agent-safari.sock
-.build/debug/agent-safari network-stop --socket /tmp/agent-safari.sock
+.build/debug/agent-safari network start --socket /tmp/agent-safari.sock
+.build/debug/agent-safari network list --socket /tmp/agent-safari.sock
+.build/debug/agent-safari network stop --socket /tmp/agent-safari.sock
+.build/debug/agent-safari network export /tmp/network.json --max-entries 25 --socket /tmp/agent-safari.sock
 ```
 
 ## Troubleshooting

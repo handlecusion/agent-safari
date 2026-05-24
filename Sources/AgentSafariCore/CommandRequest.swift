@@ -17,7 +17,7 @@ public struct CommandRequest: Equatable {
         }
 
         switch command {
-        case "navigate":
+        case "navigate", "open":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("url") }
             return CommandRequest(method: "navigate", params: ["url": args[1]])
         case "text":
@@ -30,8 +30,7 @@ public struct CommandRequest: Equatable {
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("javascript") }
             return CommandRequest(method: "evaluate", params: ["script": args[1]])
         case "screenshot":
-            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
-            return CommandRequest(method: "screenshot", params: ["path": args[1]])
+            return try parseScreenshotCommand(args)
         case "screenshot-full":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
             return CommandRequest(method: "screenshotFull", params: ["path": args[1]])
@@ -96,6 +95,8 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "networkStop", params: [:])
         case "network-list":
             return CommandRequest(method: "networkList", params: [:])
+        case "network":
+            return try parseNetworkCommand(args)
         case "url":
             return CommandRequest(method: "url", params: [:])
         case "title":
@@ -112,24 +113,7 @@ public struct CommandRequest: Equatable {
             guard args.count >= 3 else { throw CommandRequestError.missingArgument("width/height") }
             return CommandRequest(method: "viewport", params: ["width": args[1], "height": args[2]])
         case "network-export":
-            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
-            var params = ["path": args[1]]
-            var index = 2
-            while index < args.count {
-                let arg = args[index]
-                if arg == "--body-preview-bytes" {
-                    guard index + 1 < args.count else { throw CommandRequestError.missingArgument("body-preview-bytes") }
-                    params["bodyPreviewBytes"] = args[index + 1]
-                    index += 2
-                } else if arg == "--max-entries" {
-                    guard index + 1 < args.count else { throw CommandRequestError.missingArgument("max-entries") }
-                    params["maxEntries"] = args[index + 1]
-                    index += 2
-                } else {
-                    throw CommandRequestError.unknownArgument(arg)
-                }
-            }
-            return CommandRequest(method: "networkExport", params: params)
+            return try parseNetworkExportCommand(args)
         case "session":
             return CommandRequest(method: "session", params: [:])
         case "tabs":
@@ -149,6 +133,71 @@ public struct CommandRequest: Equatable {
         default:
             throw CommandRequestError.unknownCommand(command)
         }
+    }
+
+    private static func parseScreenshotCommand(_ args: [String]) throws -> CommandRequest {
+        var fullPage = false
+        var path: String?
+        var index = 1
+        while index < args.count {
+            let arg = args[index]
+            if arg == "--full" {
+                fullPage = true
+                index += 1
+            } else if arg == "--out" || arg == "--path" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("path") }
+                path = args[index + 1]
+                index += 2
+            } else if path == nil {
+                path = arg
+                index += 1
+            } else {
+                throw CommandRequestError.unknownArgument(arg)
+            }
+        }
+        guard let path else { throw CommandRequestError.missingArgument("path") }
+        return CommandRequest(method: fullPage ? "screenshotFull" : "screenshot", params: ["path": path])
+    }
+
+    private static func parseNetworkCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 2 else { throw CommandRequestError.missingArgument("network subcommand") }
+        switch args[1] {
+        case "start":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "networkStart", params: [:])
+        case "list":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "networkList", params: [:])
+        case "stop":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "networkStop", params: [:])
+        case "export":
+            guard args.count >= 3 else { throw CommandRequestError.missingArgument("path") }
+            return try parseNetworkExportCommand(["network-export"] + Array(args.dropFirst(2)))
+        default:
+            throw CommandRequestError.unknownArgument(args[1])
+        }
+    }
+
+    private static func parseNetworkExportCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+        var params = ["path": args[1]]
+        var index = 2
+        while index < args.count {
+            let arg = args[index]
+            if arg == "--body-preview-bytes" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("body-preview-bytes") }
+                params["bodyPreviewBytes"] = args[index + 1]
+                index += 2
+            } else if arg == "--max-entries" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("max-entries") }
+                params["maxEntries"] = args[index + 1]
+                index += 2
+            } else {
+                throw CommandRequestError.unknownArgument(arg)
+            }
+        }
+        return CommandRequest(method: "networkExport", params: params)
     }
 
     private static func parseTimeoutMs(_ args: [String], startingAt startIndex: Int) throws -> String? {

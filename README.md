@@ -60,10 +60,10 @@ By default this uses `/tmp/agent-safari.sock`, writes logs to `.tmp/agent-safari
 In another terminal, control it:
 
 ```sh
-agent-safari navigate 'https://example.com' --socket /tmp/agent-safari.sock
+agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
 agent-safari text --socket /tmp/agent-safari.sock
 agent-safari snapshot --socket /tmp/agent-safari.sock
-agent-safari screenshot-full /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
+agent-safari screenshot --full --out /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
 ```
 
 The daemon opens a native WebKit window. CLI commands print one JSON response line. Successful responses have `"ok": true` and a `result` object.
@@ -76,13 +76,15 @@ All client commands accept `--socket <path>`. Default socket path is `/tmp/agent
 agent-safari daemon [--focus-window] [--socket /tmp/agent-safari.sock]
 agent-safari status [--socket /tmp/agent-safari.sock]
 agent-safari observe [--socket /tmp/agent-safari.sock]
-agent-safari navigate <url> [--socket /tmp/agent-safari.sock]
+agent-safari open <url> [--socket /tmp/agent-safari.sock]
+agent-safari navigate <url> [--socket /tmp/agent-safari.sock]  # backward-compatible alias
 agent-safari text [--socket /tmp/agent-safari.sock]
 agent-safari html [--socket /tmp/agent-safari.sock]
 agent-safari snapshot [--socket /tmp/agent-safari.sock]
 agent-safari evaluate <javascript> [--socket /tmp/agent-safari.sock]
-agent-safari screenshot <path> [--socket /tmp/agent-safari.sock]
-agent-safari screenshot-full <path> [--socket /tmp/agent-safari.sock]
+agent-safari screenshot --out <path> [--socket /tmp/agent-safari.sock]
+agent-safari screenshot --full --out <path> [--socket /tmp/agent-safari.sock]
+agent-safari screenshot-full <path> [--socket /tmp/agent-safari.sock]  # backward-compatible alias
 agent-safari click <selector-or-ref> [--native] [--socket /tmp/agent-safari.sock]
 agent-safari fill <selector-or-ref> <value> [--socket /tmp/agent-safari.sock]
 agent-safari key <key> [--socket /tmp/agent-safari.sock]
@@ -91,7 +93,11 @@ agent-safari wait <ms> [--socket /tmp/agent-safari.sock]
 agent-safari wait-for-selector <selector> [--timeout <ms>] [--socket /tmp/agent-safari.sock]
 agent-safari wait-for-text <text> [--timeout <ms>] [--socket /tmp/agent-safari.sock]
 agent-safari wait-for-idle [--timeout <ms>] [--socket /tmp/agent-safari.sock]
-agent-safari network-start [--socket /tmp/agent-safari.sock]
+agent-safari network start [--socket /tmp/agent-safari.sock]
+agent-safari network list [--socket /tmp/agent-safari.sock]
+agent-safari network stop [--socket /tmp/agent-safari.sock]
+agent-safari network export <path> [--body-preview-bytes <n>] [--max-entries <n>] [--socket /tmp/agent-safari.sock]
+agent-safari network-start [--socket /tmp/agent-safari.sock]  # backward-compatible alias
 agent-safari network-list [--socket /tmp/agent-safari.sock]
 agent-safari network-stop [--socket /tmp/agent-safari.sock]
 ```
@@ -103,7 +109,7 @@ agent-safari network-stop [--socket /tmp/agent-safari.sock]
 Example:
 
 ```sh
-agent-safari navigate 'https://example.com' --socket /tmp/agent-safari.sock
+agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
 agent-safari snapshot --socket /tmp/agent-safari.sock
 agent-safari click '@e1' --native --socket /tmp/agent-safari.sock
 agent-safari fill '@e2' 'hello@example.com' --socket /tmp/agent-safari.sock
@@ -135,13 +141,13 @@ agent-safari wait-for-idle --timeout 10000 --socket /tmp/agent-safari.sock
 Viewport screenshot:
 
 ```sh
-agent-safari screenshot /tmp/viewport.png --socket /tmp/agent-safari.sock
+agent-safari screenshot --out /tmp/viewport.png --socket /tmp/agent-safari.sock
 ```
 
 Full-page screenshot:
 
 ```sh
-agent-safari screenshot-full /tmp/full-page.png --socket /tmp/agent-safari.sock
+agent-safari screenshot --full --out /tmp/full-page.png --socket /tmp/agent-safari.sock
 ```
 
 `screenshot-full` uses single-rect capture for modest pages and tiled scroll/stitching for large vertical pages.
@@ -151,10 +157,10 @@ agent-safari screenshot-full /tmp/full-page.png --socket /tmp/agent-safari.sock
 Network capture is an MVP implemented by injected JavaScript instrumentation for `fetch` and `XMLHttpRequest`.
 
 ```sh
-agent-safari network-start --socket /tmp/agent-safari.sock
-agent-safari navigate 'http://127.0.0.1:9876/index.html' --socket /tmp/agent-safari.sock
-agent-safari network-list --socket /tmp/agent-safari.sock
-agent-safari network-stop --socket /tmp/agent-safari.sock
+agent-safari network start --socket /tmp/agent-safari.sock
+agent-safari open 'http://127.0.0.1:9876/index.html' --socket /tmp/agent-safari.sock
+agent-safari network list --socket /tmp/agent-safari.sock
+agent-safari network stop --socket /tmp/agent-safari.sock
 ```
 
 Limitations:
@@ -278,7 +284,7 @@ click(selector="@e1", native=True)
 fill(selector="@e2", value="hello@example.com")
 type_text(text=" extra")
 wait_for_idle(timeout_ms=10000)
-screenshot_full(path="/tmp/agent-safari-full.png")
+screenshot_full(path="/tmp/agent-safari-full.png")  # CLI: screenshot --full --out <path>
 evaluate(script="document.title")
 ```
 
@@ -323,9 +329,9 @@ AGENT_SAFARI_SOCKET=/tmp/agent-safari.sock \
 python3 scripts/smoke_mcp_wrapper.py
 ```
 
-`smoke_cli.sh` builds the Swift package, starts a daemon on a temporary socket, navigates to a generated local HTML page, exercises snapshot refs, fill, click, evaluate, network capture if available, and full-page screenshot, then cleans up.
+`smoke_cli.sh` builds the Swift package, starts a daemon on a temporary socket, opens a generated local HTML page via the normalized `open` alias, exercises snapshot refs, fill, click, evaluate, normalized `network start/list/stop`, and `screenshot --full --out`, then cleans up.
 
-`smoke_mcp_wrapper.py` imports `_run_cli` from `mcp/agent_safari_mcp.py` and calls CLI-backed MCP wrapper operations against an already running daemon. It verifies `status` first, then exercises `network-start`, `network-list`, and `network-stop` around the existing navigation/evaluate/screenshot path. It uses `AGENT_SAFARI_BIN` and `AGENT_SAFARI_SOCKET` when set, and exits successfully with a skip message if no daemon is reachable.
+`smoke_mcp_wrapper.py` imports `_run_cli` from `mcp/agent_safari_mcp.py`, validates the `--tools-json` MCP contract, and calls CLI-backed MCP wrapper operations against an already running daemon. It verifies `status` first, then exercises normalized `network start`, `network list`, and `network stop` around the existing open/evaluate/screenshot path. It uses `AGENT_SAFARI_BIN` and `AGENT_SAFARI_SOCKET` when set, and exits successfully with a skip message if no daemon is reachable.
 
 ## Useful environment variables
 

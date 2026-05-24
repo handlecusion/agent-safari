@@ -13,7 +13,9 @@ Environment:
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -24,6 +26,35 @@ if str(MCP_DIR) not in sys.path:
     sys.path.insert(0, str(MCP_DIR))
 
 from agent_safari_mcp import _run_cli  # noqa: E402
+
+
+def assert_tools_json_contract() -> None:
+    completed = subprocess.run(
+        [sys.executable, str(MCP_DIR / "agent_safari_mcp.py"), "--tools-json"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    tools = json.loads(completed.stdout)
+    names = {tool.get("name") for tool in tools}
+    required = {
+        "navigate",
+        "snapshot",
+        "click",
+        "fill",
+        "screenshot_full",
+        "network_start",
+        "network_list",
+        "network_stop",
+    }
+    missing = required - names
+    if missing:
+        raise RuntimeError(f"tools-json contract missing required tools: {sorted(missing)}")
+    network = {tool["name"]: tool for tool in tools if str(tool.get("name", "")).startswith("network_")}
+    for name in ("network_start", "network_list", "network_stop"):
+        if network[name].get("result") != ["capturing", "count", "events"]:
+            raise RuntimeError(f"unexpected {name} result contract: {network[name]}")
+    print(f"[smoke_mcp_wrapper] tools-json ok: {len(tools)} tools")
 
 
 def file_url(path: Path) -> str:
@@ -70,6 +101,7 @@ def main() -> int:
 
     print(f"[smoke_mcp_wrapper] using binary: {os.environ.get('AGENT_SAFARI_BIN', '<wrapper default>')}")
     print(f"[smoke_mcp_wrapper] using socket: {os.environ.get('AGENT_SAFARI_SOCKET', '<wrapper default>')}")
+    assert_tools_json_contract()
 
     if not daemon_available():
         return 0

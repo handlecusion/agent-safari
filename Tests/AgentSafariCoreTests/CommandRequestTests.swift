@@ -99,6 +99,13 @@ import Testing
     #expect(command.params == ["timeoutMs": "3000"])
 }
 
+@Test func commandRequestParsesOpenAliasAsNavigate() throws {
+    let command = try CommandRequest.parse(["open", "https://example.com"])
+
+    #expect(command.method == "navigate")
+    #expect(command.params == ["url": "https://example.com"])
+}
+
 @Test func commandRequestParsesSnapshot() throws {
     let command = try CommandRequest.parse(["snapshot"])
 
@@ -111,6 +118,16 @@ import Testing
 
     #expect(command.method == "screenshotFull")
     #expect(command.params == ["path": "/tmp/full-page.png"])
+}
+
+@Test func commandRequestParsesScreenshotOutAndFullFlags() throws {
+    let viewport = try CommandRequest.parse(["screenshot", "--out", "/tmp/viewport.png"])
+    #expect(viewport.method == "screenshot")
+    #expect(viewport.params == ["path": "/tmp/viewport.png"])
+
+    let full = try CommandRequest.parse(["screenshot", "--full", "--out", "/tmp/full-page.png"])
+    #expect(full.method == "screenshotFull")
+    #expect(full.params == ["path": "/tmp/full-page.png"])
 }
 
 @Test func commandRequestParsesNetworkStart() throws {
@@ -146,6 +163,25 @@ import Testing
 
     #expect(command.method == "observe")
     #expect(command.params == [:])
+}
+
+@Test func commandRequestParsesNetworkSubcommands() throws {
+    let start = try CommandRequest.parse(["network", "start"])
+    #expect(start.method == "networkStart")
+    #expect(start.params == [:])
+
+    let list = try CommandRequest.parse(["network", "list"])
+    #expect(list.method == "networkList")
+    #expect(list.params == [:])
+
+    let stop = try CommandRequest.parse(["network", "stop"])
+    #expect(stop.method == "networkStop")
+    #expect(stop.params == [:])
+
+    let export = try CommandRequest.parse(["network", "export", "/tmp/network.json", "--max-entries", "5"])
+    #expect(export.method == "networkExport")
+    #expect(export.params["path"] == "/tmp/network.json")
+    #expect(export.params["maxEntries"] == "5")
 }
 
 @Test func commandRequestParsesUrlTitleAndContentAliases() throws {

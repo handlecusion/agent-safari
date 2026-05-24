@@ -106,14 +106,24 @@ hermes mcp add agent-safari \
 - `tab_close(tab_id)`
 
 Most tools return the CLI result object decoded from the JSON-RPC response. For
-example, `text()` returns an object like `{ "text": "..." }`.
+example, `text()` returns an object like `{ "text": "..." }`. The wrapper also
+publishes a machine-readable contract for tests, agents, and docs:
+
+```sh
+python3 mcp/agent_safari_mcp.py --tools-json
+```
+
+That JSON lists each tool name, short description, normalized CLI equivalent,
+and expected top-level result keys. CI locks this with `Tests/test_mcp_contract.py`.
 
 ## Local checks
 
 ```sh
 python3 -m py_compile mcp/agent_safari_mcp.py
 python3 mcp/agent_safari_mcp.py --check
+python3 mcp/agent_safari_mcp.py --tools-json
 python3 mcp/agent_safari_mcp.py --help
+python3 Tests/test_mcp_contract.py
 ```
 
 If you installed the MCP SDK into `.venv-mcp`, replace `python3` with

@@ -21,6 +21,42 @@ from typing import Any
 DEFAULT_SOCKET = "/tmp/agent-safari.sock"
 DEFAULT_SCREENSHOT_PATH = str(Path.home() / ".agent-safari" / "artifacts" / "screenshot.png")
 
+TOOL_CONTRACTS: list[dict[str, Any]] = [
+    {"name": "status", "description": "Return daemon/page status for the controlled WebView.", "cli": ["status"], "result": ["url", "title", "isLoading"]},
+    {"name": "observe", "description": "Return read-only page state for agent loops.", "cli": ["observe"], "result": ["url", "title", "readyState", "isLoading", "networkCapturing", "activeElementTag"]},
+    {"name": "navigate", "description": "Navigate the controlled WebView to a URL.", "cli": ["open", "<url>"], "result": ["url"]},
+    {"name": "text", "description": "Return visible page text.", "cli": ["text"], "result": ["text"]},
+    {"name": "html", "description": "Return document.documentElement.outerHTML.", "cli": ["html"], "result": ["html"]},
+    {"name": "title", "description": "Return the current document title.", "cli": ["title"], "result": ["title"]},
+    {"name": "url", "description": "Return the current document URL.", "cli": ["url"], "result": ["url"]},
+    {"name": "content", "description": "Alias for visible page text.", "cli": ["content"], "result": ["text"]},
+    {"name": "snapshot", "description": "Return visible/interactable elements with stable @e refs.", "cli": ["snapshot"], "result": ["schemaVersion", "elements"]},
+    {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>"], "result": ["value"]},
+    {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>"], "result": ["path", "width", "height", "fullPage"]},
+    {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>"], "result": ["path", "width", "height", "fullPage", "strategy"]},
+    {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>"], "result": ["selector", "clicked"]},
+    {"name": "fill", "description": "Fill an input-like element matching a CSS selector or snapshot ref.", "cli": ["fill", "<selector-or-ref>", "<value>"], "result": ["selector", "filled"]},
+    {"name": "key", "description": "Dispatch synthetic DOM keyboard events.", "cli": ["key", "<key>"], "result": ["key"]},
+    {"name": "type_text", "description": "Insert text into the active input, textarea, or contenteditable element.", "cli": ["type", "<text>"], "result": ["text"]},
+    {"name": "wait", "description": "Sleep for the requested number of milliseconds in the daemon queue.", "cli": ["wait", "<ms>"], "result": ["waitedMs"]},
+    {"name": "wait_for_selector", "description": "Wait until a CSS selector exists in the current document.", "cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "result": ["found", "selector"]},
+    {"name": "wait_for_text", "description": "Wait until document.body text contains supplied text.", "cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "result": ["found", "text"]},
+    {"name": "wait_for_idle", "description": "Wait until page load/fetch/XHR activity is idle.", "cli": ["wait-for-idle", "--timeout", "<ms>"], "result": ["idle", "readyState"]},
+    {"name": "network_start", "description": "Start JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "start"], "result": ["capturing", "count", "events"]},
+    {"name": "network_list", "description": "Return captured fetch/XHR network entries.", "cli": ["network", "list"], "result": ["capturing", "count", "events"]},
+    {"name": "network_stop", "description": "Stop JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "stop"], "result": ["capturing", "count", "events"]},
+    {"name": "network_export", "description": "Export captured fetch/XHR entries to a redacted JSON file.", "cli": ["network", "export", "<path>"], "result": ["path", "count"]},
+    {"name": "back", "description": "Navigate back in WebKit history if possible.", "cli": ["back"], "result": ["url"]},
+    {"name": "forward", "description": "Navigate forward in WebKit history if possible.", "cli": ["forward"], "result": ["url"]},
+    {"name": "reload", "description": "Reload the current page.", "cli": ["reload"], "result": ["url"]},
+    {"name": "viewport", "description": "Resize the controlled WebKit viewport/window.", "cli": ["viewport", "<width>", "<height>"], "result": ["width", "height"]},
+    {"name": "session", "description": "Return current automation session metadata.", "cli": ["session"], "result": ["sessionId", "activeTabId"]},
+    {"name": "tabs", "description": "List modeled tabs for the current daemon session.", "cli": ["tabs"], "result": ["tabs", "activeTabId"]},
+    {"name": "tab_new", "description": "Create or report current tab placeholder in the single-WebView MVP.", "cli": ["tab-new"], "result": ["tabId"]},
+    {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "result": ["tabId"]},
+    {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "result": ["tabId", "closed"]},
+]
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -127,7 +163,7 @@ def create_server() -> Any:
     @mcp.tool()
     def navigate(url: str) -> dict[str, Any]:
         """Navigate the controlled Safari WebView to a URL."""
-        return _run_cli("navigate", url, timeout=60.0)
+        return _run_cli("open", url, timeout=60.0)
 
     @mcp.tool()
     def text() -> dict[str, Any]:
@@ -167,12 +203,12 @@ def create_server() -> Any:
     @mcp.tool()
     def screenshot(path: str = DEFAULT_SCREENSHOT_PATH) -> dict[str, Any]:
         """Capture a viewport screenshot as a PNG file."""
-        return _run_cli("screenshot", path, timeout=60.0)
+        return _run_cli("screenshot", "--out", path, timeout=60.0)
 
     @mcp.tool()
     def screenshot_full(path: str = DEFAULT_SCREENSHOT_PATH) -> dict[str, Any]:
         """Capture a full-page screenshot if supported by the installed CLI."""
-        return _run_cli("screenshot-full", path, timeout=120.0)
+        return _run_cli("screenshot", "--full", "--out", path, timeout=120.0)
 
     @mcp.tool()
     def click(selector: str, native: bool = False, fallback: bool = True) -> dict[str, Any]:
@@ -222,27 +258,27 @@ def create_server() -> Any:
     @mcp.tool()
     def network_start() -> dict[str, Any]:
         """Start JavaScript fetch/XHR network capture instrumentation."""
-        return _run_cli("network-start")
+        return _run_cli("network", "start")
 
     @mcp.tool()
     def network_list() -> dict[str, Any]:
         """Return captured fetch/XHR network entries."""
-        return _run_cli("network-list")
+        return _run_cli("network", "list")
 
     @mcp.tool()
     def network_stop() -> dict[str, Any]:
         """Stop JavaScript fetch/XHR network capture instrumentation."""
-        return _run_cli("network-stop")
+        return _run_cli("network", "stop")
 
     @mcp.tool()
     def network_export(path: str, body_preview_bytes: int | None = None, max_entries: int | None = None) -> dict[str, Any]:
         """Export captured fetch/XHR entries to a redacted JSON file."""
-        args = [path]
+        args = ["export", path]
         if body_preview_bytes is not None:
             args.extend(["--body-preview-bytes", str(body_preview_bytes)])
         if max_entries is not None:
             args.extend(["--max-entries", str(max_entries)])
-        return _run_cli("network-export", *args)
+        return _run_cli("network", *args)
 
     @mcp.tool()
     def back() -> dict[str, Any]:
@@ -303,7 +339,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="validate wrapper configuration without starting the MCP server",
     )
+    parser.add_argument(
+        "--tools-json",
+        action="store_true",
+        help="print the stable MCP tool contract as JSON and exit",
+    )
     args = parser.parse_args(argv)
+
+    if args.tools_json:
+        print(json.dumps(TOOL_CONTRACTS, indent=2, sort_keys=True))
+        return 0
 
     if args.check:
         binary = agent_safari_bin()

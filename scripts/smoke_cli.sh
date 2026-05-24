@@ -250,8 +250,8 @@ if ! wait_for_socket; then
 fi
 
 URL="file://$HTML"
-log "navigating to $URL"
-response="$(run_cli navigate "$URL")"
+log "opening $URL via normalized CLI alias"
+response="$(run_cli open "$URL")"
 assert_ok_json "$response"
 
 log "snapshotting interactive elements"
@@ -300,15 +300,15 @@ if value != "clicked:smoke-value":
 PY
 
 log "capturing full-page screenshot"
-response="$(run_cli screenshot-full "$SHOT")"
+response="$(run_cli screenshot --full --out "$SHOT")"
 assert_ok_json "$response"
 png_summary="$(assert_full_page_png "$response" "$SHOT")"
 log "verified full-page screenshot $png_summary"
 
 usage="$($BIN 2>&1 || true)"
-if printf '%s\n' "$usage" | grep -E 'network-(start|stop)' >/dev/null; then
-  log "network commands advertised; verifying network-start/list/stop capture fetch and XHR"
-  response="$(run_cli network-start)"
+if printf '%s\n' "$usage" | grep -E 'network( |$)|network-(start|stop)' >/dev/null; then
+  log "network commands advertised; verifying normalized network start/list/stop capture fetch and XHR"
+  response="$(run_cli network start)"
   assert_ok_json "$response"
   response="$(run_cli evaluate "window.runAgentSafariNetworkSmoke && window.runAgentSafariNetworkSmoke(); true")"
   assert_ok_json "$response"
@@ -316,11 +316,11 @@ if printf '%s\n' "$usage" | grep -E 'network-(start|stop)' >/dev/null; then
   assert_ok_json "$response"
   response="$(run_cli wait-for-idle --timeout 5000)"
   assert_ok_json "$response"
-  response="$(run_cli network-list)"
+  response="$(run_cli network list)"
   assert_ok_json "$response"
   network_summary="$(assert_network_events "$response")"
   log "verified network-list $network_summary"
-  response="$(run_cli network-stop)"
+  response="$(run_cli network stop)"
   assert_ok_json "$response"
   assert_result_field "$response" "capturing" "false"
   network_summary="$(assert_network_events "$response")"

@@ -4,6 +4,7 @@ import Testing
 @Test func metadataClientCommandsParseWithoutUnknownCommand() throws {
     let commandArguments: [String: [String]] = [
         "navigate": ["https://example.com"],
+        "open": ["https://example.com"],
         "text": [],
         "html": [],
         "content": [],
@@ -26,6 +27,7 @@ import Testing
         "reload": [],
         "viewport": ["1280", "720"],
         "network-start": [],
+        "network": ["list"],
         "network-list": [],
         "network-stop": [],
         "network-export": ["/tmp/network.json"],

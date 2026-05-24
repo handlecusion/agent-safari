@@ -85,8 +85,30 @@ def test_network_tools_advertise_structured_result_shape() -> None:
         assert tools[name]["result"] == ["capturing", "count", "events"]
 
 
+def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
+    tools = {tool["name"]: tool for tool in load_contract()}
+    expected = {
+        "screenshot": {"cli": ["screenshot", "--out", "<path>"], "input": ["path"]},
+        "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"]},
+        "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"]},
+        "click": {"cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"], "input": ["selector", "native", "fallback"]},
+        "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"]},
+        "wait_for_text": {"cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "input": ["text", "timeout_ms"]},
+        "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"]},
+        "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"]},
+        "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"]},
+    }
+    for name, contract in expected.items():
+        assert tools[name]["cli"] == contract["cli"], name
+        assert tools[name]["input"] == contract["input"], name
+
+
 def main() -> int:
-    for test in (test_tools_json_lists_stable_tool_contract, test_network_tools_advertise_structured_result_shape):
+    for test in (
+        test_tools_json_lists_stable_tool_contract,
+        test_network_tools_advertise_structured_result_shape,
+        test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs,
+    ):
         test()
     print("mcp contract tests passed")
     return 0

@@ -237,3 +237,39 @@ import Testing
     #expect(command.method == "screenshotElement")
     #expect(command.params == ["selector": "#login", "path": "/tmp/login.png"])
 }
+
+
+@Test func commandRequestParsesExpandedScreenshotForms() throws {
+    let elementAfterOut = try CommandRequest.parse(["screenshot", "--out", "/tmp/card.png", "--element", "@e4"])
+    #expect(elementAfterOut.method == "screenshotElement")
+    #expect(elementAfterOut.params == ["selector": "@e4", "path": "/tmp/card.png"])
+
+    let selectorAlias = try CommandRequest.parse(["screenshot", "--selector", "#card", "--path", "/tmp/card.png"])
+    #expect(selectorAlias.method == "screenshotElement")
+    #expect(selectorAlias.params == ["selector": "#card", "path": "/tmp/card.png"])
+}
+
+@Test func commandRequestParsesWaitForTextDefaultAndTimeoutAlias() throws {
+    let defaultTimeout = try CommandRequest.parse(["wait-for-text", "Ready"])
+    #expect(defaultTimeout.method == "waitForText")
+    #expect(defaultTimeout.params == ["text": "Ready", "timeoutMs": "10000"])
+
+    let timeout = try CommandRequest.parse(["wait-for-text", "Ready", "--timeout", "2500"])
+    #expect(timeout.method == "waitForText")
+    #expect(timeout.params == ["text": "Ready", "timeoutMs": "2500"])
+}
+
+@Test func commandRequestParsesNetworkExportSubcommandWithAllOptions() throws {
+    let export = try CommandRequest.parse(["network", "export", "/tmp/network.har.json", "--body-preview-bytes", "512", "--max-entries", "25"])
+    #expect(export.method == "networkExport")
+    #expect(export.params == ["path": "/tmp/network.har.json", "bodyPreviewBytes": "512", "maxEntries": "25"])
+}
+
+@Test func commandRequestParsesNativeClickFallbackPolicyAliases() throws {
+    let fallback = try CommandRequest.parse(["click", "@e5", "--native", "--fallback-js"])
+    #expect(fallback.method == "click")
+    #expect(fallback.params == ["selector": "@e5", "native": "true", "fallback": "js"])
+
+    let fallbackAlias = try CommandRequest.parse(["click", "@e5", "--native", "--fallback"])
+    #expect(fallbackAlias.params == ["selector": "@e5", "native": "true", "fallback": "js"])
+}

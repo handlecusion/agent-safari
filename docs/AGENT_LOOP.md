@@ -75,9 +75,9 @@ python3 scripts/smoke_real_world.py
 
 The smoke runner exercises the recommended loop across five local scenarios and writes a human-readable report plus machine-readable data:
 
-- `REPORT.md` for summary and embedded screenshots
-- `data/scenario-results.json` for structured results
-- `captures/*.png` for viewport, full-page, and element evidence
+- `REPORT.md` for summary, native-click delivery metadata, and embedded screenshots
+- `data/scenario-results.json` for structured results, including screenshot byte size and dimensions
+- `captures/*.png` for viewport, full-page, and element evidence; the runner asserts files are non-empty PNGs and that the long full-page capture is taller than the viewport capture
 - `daemon.log` for daemon diagnostics
 
 Useful controls:
@@ -94,5 +94,5 @@ See `docs/RELEASE_CHECKLIST.md` for the full non-GUI and GUI release gate.
 ## Failure policy
 
 - If a ref action fails, run `snapshot` again before retrying.
-- If native click is not observed, the default fallback uses JavaScript click. Use `--no-fallback` when native-only verification matters.
+- If native click is not observed, the default fallback uses JavaScript click and the click result records `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, and `nativeError`. Use `--no-fallback` when native-only verification matters.
 - If waiting times out, capture `observe`, `snapshot`, `text`, and a screenshot before deciding the next action.

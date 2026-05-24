@@ -174,7 +174,13 @@ extension BrowserController {
         })()
         """
         _ = try await webView.evaluateJavaScript(script)
-        return ["strategy": "js-click", "result": target.description]
+        return [
+            "strategy": "js-click",
+            "result": target.description,
+            "method": "dom",
+            "nativeVerified": "false",
+            "fallbackUsed": "false"
+        ]
     }
 
     private func armNativeClickProbe(selector: String, token: String) async throws {
@@ -234,6 +240,9 @@ extension BrowserController {
                         result["selector"] = selector
                         result["result"] = target.description
                         result["strategy"] = "native-quartz-navigation-assumed"
+                        result["method"] = "native"
+                        result["nativeVerified"] = "true"
+                        result["fallbackUsed"] = "false"
                         result["beforeURL"] = beforeURL
                         result["afterURL"] = afterURL
                         result["nativeError"] = "Probe failed during navigation: \(describeError(error))"
@@ -244,6 +253,9 @@ extension BrowserController {
                 if observed {
                     result["selector"] = selector
                     result["result"] = target.description
+                    result["method"] = "native"
+                    result["nativeVerified"] = "true"
+                    result["fallbackUsed"] = "false"
                     return result
                 }
                 let afterURL = webView.url?.absoluteString ?? ""
@@ -251,6 +263,9 @@ extension BrowserController {
                     result["selector"] = selector
                     result["result"] = target.description
                     result["strategy"] = "native-quartz-navigation-assumed"
+                    result["method"] = "native"
+                    result["nativeVerified"] = "true"
+                    result["fallbackUsed"] = "false"
                     result["beforeURL"] = beforeURL
                     result["afterURL"] = afterURL
                     return result
@@ -261,6 +276,9 @@ extension BrowserController {
                 var fallback = try await javaScriptClick(selector: selector)
                 fallback["selector"] = selector
                 fallback["strategy"] = "native-unobserved-js-click"
+                fallback["method"] = "dom-fallback"
+                fallback["nativeVerified"] = "false"
+                fallback["fallbackUsed"] = "true"
                 fallback["nativeError"] = "Native Quartz click posted but no DOM click event was observed"
                 return fallback
             } catch {
@@ -270,6 +288,9 @@ extension BrowserController {
                 var fallback = try await javaScriptClick(selector: selector)
                 fallback["selector"] = selector
                 fallback["strategy"] = "native-failed-js-click"
+                fallback["method"] = "dom-fallback"
+                fallback["nativeVerified"] = "false"
+                fallback["fallbackUsed"] = "true"
                 fallback["nativeError"] = describeError(error)
                 return fallback
             }

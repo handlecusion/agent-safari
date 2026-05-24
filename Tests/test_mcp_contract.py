@@ -91,7 +91,11 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "screenshot": {"cli": ["screenshot", "--out", "<path>"], "input": ["path"]},
         "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"]},
         "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"]},
-        "click": {"cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"], "input": ["selector", "native", "fallback"]},
+        "click": {
+            "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"],
+            "input": ["selector", "native", "fallback"],
+            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError"],
+        },
         "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"]},
         "wait_for_text": {"cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "input": ["text", "timeout_ms"]},
         "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"]},
@@ -101,6 +105,8 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
     for name, contract in expected.items():
         assert tools[name]["cli"] == contract["cli"], name
         assert tools[name]["input"] == contract["input"], name
+        if "result" in contract:
+            assert tools[name]["result"] == contract["result"], name
 
 
 def main() -> int:

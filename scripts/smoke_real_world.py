@@ -13,6 +13,7 @@ import html
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import textwrap
@@ -95,6 +96,64 @@ def run_cli(*args: str, timeout: int = 20, check: bool = True):
 def result_payload(record):
     parsed = record.get('json') or {}
     return parsed.get('result') or {}
+
+
+def png_dimensions(path: Path) -> tuple[int, int]:
+    header = path.read_bytes()[:24]
+    if len(header) < 24 or header[:8] != b'\x89PNG\r\n\x1a\n' or header[12:16] != b'IHDR':
+        raise AssertionError(f'not a PNG screenshot artifact: {path}')
+    return struct.unpack('>II', header[16:24])
+
+
+def screenshot_artifact(path: Path | str, min_width: int = 1, min_height: int = 1) -> dict:
+    image = Path(path)
+    if not image.exists() or image.stat().st_size <= 0:
+        raise AssertionError(f'screenshot artifact missing or empty: {image}')
+    width, height = png_dimensions(image)
+    if width < min_width or height < min_height:
+        raise AssertionError(
+            f'screenshot artifact has implausible dimensions: {image} {width}x{height} '
+            f'(expected >= {min_width}x{min_height})'
+        )
+    return {'path': str(image), 'bytes': image.stat().st_size, 'width': width, 'height': height}
+
+
+def assert_full_page_taller_than_viewport(full_path: Path | str, viewport_path: Path | str) -> dict:
+    full = screenshot_artifact(full_path, min_width=100, min_height=100)
+    viewport = screenshot_artifact(viewport_path, min_width=100, min_height=100)
+    if full['height'] <= viewport['height']:
+        raise AssertionError(f'full-page screenshot is not taller than viewport: full={full} viewport={viewport}')
+    return {'full': full, 'viewport': viewport}
+
+
+def _bool_metadata(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered == 'true':
+            return True
+        if lowered == 'false':
+            return False
+    raise AssertionError(f'expected boolean metadata string, got {value!r}')
+
+
+def native_click_delivery(payload: dict, strict_native: bool) -> dict:
+    missing = [key for key in ('method', 'nativeVerified', 'fallbackUsed') if key not in payload]
+    if missing:
+        raise AssertionError(f'missing native click metadata: {missing}; payload={payload}')
+    method = str(payload['method'])
+    native_verified = _bool_metadata(payload['nativeVerified'])
+    fallback_used = _bool_metadata(payload['fallbackUsed'])
+    acceptable = method == 'native' and native_verified and not fallback_used
+    if not strict_native:
+        acceptable = acceptable or (method == 'dom-fallback' and not native_verified and fallback_used)
+    return {
+        'method': method,
+        'nativeVerified': native_verified,
+        'fallbackUsed': fallback_used,
+        'acceptable': acceptable,
+    }
 
 
 def snapshot_elements(record) -> list[dict]:
@@ -307,15 +366,18 @@ def main():
         steps.append(run_cli('wait-for-text', '제출 완료', '--timeout', '5000'))
         cap1, _ = screenshot('01_form_after_submit')
         cap1e, _ = screenshot('01_result_element', selector='#result')
+        cap1_artifact = screenshot_artifact(cap1, min_width=100, min_height=100)
+        cap1e_artifact = screenshot_artifact(cap1e, min_width=20, min_height=20)
         eval1 = run_cli('evaluate', "document.getElementById('result').textContent")
-        scenario('1. Snapshot refs + form action', 'snapshot @e refs로 input/textarea/button을 찾아 fill/click 후 상태 영역을 element screenshot으로 검증', steps, [cap1, cap1e], {'refs': {'name': name_ref, 'memo': memo_ref, 'submit': submit_ref}, 'resultText': result_payload(eval1).get('value')}, 'PASS' if '제출 완료: 현윤성 / agent-safari 5 scenario smoke' in str(result_payload(eval1)) else 'CHECK')
+        scenario('1. Snapshot refs + form action', 'snapshot @e refs로 input/textarea/button을 찾아 fill/click 후 상태 영역을 element screenshot으로 검증', steps, [cap1, cap1e], {'refs': {'name': name_ref, 'memo': memo_ref, 'submit': submit_ref}, 'resultText': result_payload(eval1).get('value'), 'screenshots': [cap1_artifact, cap1e_artifact]}, 'PASS' if '제출 완료: 현윤성 / agent-safari 5 scenario smoke' in str(result_payload(eval1)) else 'CHECK')
 
         # Scenario 2: full page screenshot.
         steps = [run_cli('open', file_url(FIX / 'long.html')), run_cli('wait-for-text', 'END-OF-LONG-PAGE', '--timeout', '5000')]
         cap2, _ = screenshot('02_long_full_page', full=True)
         cap2v, _ = screenshot('02_long_viewport')
+        screenshot_comparison = assert_full_page_taller_than_viewport(cap2, cap2v)
         info2 = run_cli('evaluate', 'JSON.stringify({height: document.documentElement.scrollHeight, viewport: innerHeight, title: document.title})')
-        scenario('2. Tall page full screenshot', '긴 페이지에서 full-page capture와 viewport capture를 비교해 tiled screenshot 경로를 검증', steps, [cap2, cap2v], {'pageInfo': result_payload(info2).get('value'), 'fullBytes': Path(cap2).stat().st_size, 'viewportBytes': Path(cap2v).stat().st_size}, 'PASS' if Path(cap2).stat().st_size > Path(cap2v).stat().st_size else 'CHECK')
+        scenario('2. Tall page full screenshot', '긴 페이지에서 full-page capture와 viewport capture를 비교해 tiled screenshot 경로를 검증', steps, [cap2, cap2v], {'pageInfo': result_payload(info2).get('value'), 'screenshots': screenshot_comparison}, 'PASS' if screenshot_comparison['full']['height'] > screenshot_comparison['viewport']['height'] else 'CHECK')
 
         # Scenario 3: fetch/XHR network export.
         steps = [run_cli('open', base + '/network.html'), run_cli('network', 'start'), run_cli('click', '#load'), run_cli('wait-for-text', 'hello from xhr', '--timeout', '5000')]
@@ -325,8 +387,9 @@ def main():
         har = json.loads(net_export_path.read_text(encoding='utf-8'))
         resource_timing_count = har.get('agentSafari', {}).get('resourceTimingCount', 0)
         cap3, _ = screenshot('03_network_after_load')
+        cap3_artifact = screenshot_artifact(cap3, min_width=100, min_height=100)
         events = result_payload(net_list).get('events', [])
-        scenario('3. Fetch/XHR + resource timing network capture', 'JS fetch/XHR instrumentation과 PerformanceResourceTiming 기반 parser-driven resource export를 검증', steps + [net_list, net_export], [cap3], {'eventCount': len(events), 'types': [e.get('type') for e in events], 'resourceTimingCount': resource_timing_count, 'export': str(net_export_path)}, 'PASS' if len(events) >= 2 and resource_timing_count >= 1 else 'CHECK')
+        scenario('3. Fetch/XHR + resource timing network capture', 'JS fetch/XHR instrumentation과 PerformanceResourceTiming 기반 parser-driven resource export를 검증', steps + [net_list, net_export], [cap3], {'eventCount': len(events), 'types': [e.get('type') for e in events], 'resourceTimingCount': resource_timing_count, 'export': str(net_export_path), 'screenshot': cap3_artifact}, 'PASS' if len(events) >= 2 and resource_timing_count >= 1 else 'CHECK')
 
         # Scenario 4: true tab/session/profile behavior.
         steps = [run_cli('open', file_url(FIX / 'tab-a.html'))]
@@ -336,10 +399,12 @@ def main():
         session_after_new = run_cli('session')
         steps.extend([tab_new, tabs_after_new, session_after_new])
         cap4b, _ = screenshot('04_tab_b_active')
+        cap4b_artifact = screenshot_artifact(cap4b, min_width=100, min_height=100)
         steps.append(run_cli('tab-switch', 'tab-1'))
         cap4a, _ = screenshot('04_tab_a_restored')
+        cap4a_artifact = screenshot_artifact(cap4a, min_width=100, min_height=100)
         tabs_after_switch = run_cli('tabs')
-        scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch)}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
+        scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch), 'screenshots': [cap4b_artifact, cap4a_artifact]}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
 
         # Scenario 5: native click, type, viewport, observe.
         steps = [run_cli('viewport', '900', '640'), run_cli('open', file_url(FIX / 'native.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
@@ -352,11 +417,11 @@ def main():
         steps.append(run_cli('type', 'typed by agent-safari'))
         after = run_cli('observe')
         cap5, _ = screenshot('05_native_click_and_type')
+        cap5_artifact = screenshot_artifact(cap5, min_width=100, min_height=100)
         eval5 = run_cli('evaluate', "JSON.stringify({state:document.getElementById('state').textContent, typed:document.getElementById('typed').value, w:innerWidth, h:innerHeight})")
-        native_strategy = result_payload(native_click).get('strategy', '')
-        native_ok = native_strategy.startswith('native-') and native_strategy not in ('native-unobserved-js-click', 'native-failed-js-click')
-        fallback_ok = native_strategy in ('native-unobserved-js-click', 'native-failed-js-click') and not STRICT_NATIVE
-        scenario('5. Native click + synthetic type + viewport', 'native click을 우선 시도하고 기본 smoke에서는 JS fallback까지, AGENT_SAFARI_STRICT_NATIVE=1에서는 no-fallback native-only를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': result_payload(native_click), 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after)}, 'PASS' if (native_ok or fallback_ok) and 'native click observed' in str(result_payload(eval5)) and 'typed by agent-safari' in str(result_payload(eval5)) else 'CHECK')
+        native_payload = result_payload(native_click)
+        native_delivery = native_click_delivery(native_payload, strict_native=STRICT_NATIVE)
+        scenario('5. Native click + synthetic type + viewport', 'native click을 우선 시도하고 기본 smoke에서는 JS fallback까지, AGENT_SAFARI_STRICT_NATIVE=1에서는 no-fallback native-only를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in str(result_payload(eval5)) and 'typed by agent-safari' in str(result_payload(eval5)) else 'CHECK')
 
         json_dump(DATA / 'scenario-results.json', SCENARIOS)
         make_contact_sheet()
@@ -422,8 +487,8 @@ def make_report():
     lines.append('## Notes / gaps found')
     lines.append('')
     lines.append('- Network export now includes fetch/XHR entries plus parser-driven resource timing entries. Resource timing entries do not include request/response headers or body data.')
-    lines.append('- Native click reports the selected strategy. Default smoke permits JS fallback after a native miss; set `AGENT_SAFARI_STRICT_NATIVE=1` to make native-only delivery a hard gate.')
-    lines.append('- In the current local session strict native delivery is still environment-sensitive; fallback evidence is explicit in `nativeClick.strategy`.')
+    lines.append('- Native click reports the selected strategy plus explicit `method`, `nativeVerified`, and `fallbackUsed` metadata. Default smoke permits JS fallback after a native miss; set `AGENT_SAFARI_STRICT_NATIVE=1` to make native-only delivery a hard gate.')
+    lines.append('- In the current local session strict native delivery is still environment-sensitive; fallback evidence is explicit in `nativeClick.method`, `nativeClick.fallbackUsed`, and `nativeClick.nativeError`.')
     lines.append('- The tab scenario uses actual WKWebView tab model on current HEAD; this is stronger than the older wiki limitation that described placeholders only.')
     lines.append('- This report is a smoke evidence bundle, not a full browser conformance suite.')
     (OUT / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')

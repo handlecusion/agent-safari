@@ -31,7 +31,8 @@ Expected result:
 - stdout prints `report=<artifact-dir>/REPORT.md` and `artifacts=<artifact-dir>`.
 - `<artifact-dir>/REPORT.md` reports `5/5 PASS`.
 - `<artifact-dir>/data/scenario-results.json` exists.
-- screenshots exist under `<artifact-dir>/captures/`.
+- screenshots exist under `<artifact-dir>/captures/` and `scenario-results.json` includes screenshot byte size and PNG dimensions.
+- the tall-page scenario shows the full-page PNG height greater than the viewport PNG height.
 - daemon output exists at `<artifact-dir>/daemon.log`.
 
 Useful options:
@@ -49,7 +50,7 @@ For stricter native-click verification:
 AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
 ```
 
-Strict native mode may require macOS Accessibility permission and a usable foreground GUI session. Default smoke allows a documented JavaScript fallback after a native miss and records the selected strategy in the report.
+Strict native mode may require macOS Accessibility permission and a usable foreground GUI session. Default smoke allows a documented JavaScript fallback after a native miss and records the selected strategy plus explicit click metadata: `method`, `nativeVerified`, `fallbackUsed`, and `nativeError` when fallback is used.
 
 ## Packaging dry-runs
 

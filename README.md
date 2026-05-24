@@ -126,6 +126,15 @@ agent-safari click 'button[type="submit"]' --socket /tmp/agent-safari.sock
 agent-safari fill 'input[name="email"]' 'hello@example.com' --socket /tmp/agent-safari.sock
 ```
 
+Native click semantics are explicit in the JSON result:
+
+- default `click <selector>` uses DOM `element.click()` and returns `method: "dom"`, `nativeVerified: false`, `fallbackUsed: false`.
+- `click <selector> --native` first posts native macOS mouse events. If the DOM click probe observes the event, it returns `method: "native"`, `nativeVerified: true`, `fallbackUsed: false`.
+- `click <selector> --native` may fall back to DOM click if the native event cannot be verified. That returns `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, plus `nativeError`.
+- `click <selector> --native --no-fallback` disables fallback and fails if native delivery cannot be verified. This is useful for release smoke and permission checks.
+
+If native verification is flaky, check that the daemon is running in a logged-in macOS GUI session, the WebKit window can become foreground, and the app/terminal has macOS Accessibility permission when strict native input is required.
+
 ### Wait commands
 
 Wait commands help coordinate navigation, DOM changes, and asynchronous page work:
@@ -348,7 +357,7 @@ cd agent-safari
 python3 scripts/smoke_real_world.py
 ```
 
-`smoke_real_world.py` runs five WebKit scenarios against generated local fixtures: snapshot refs/forms, full-page and element screenshots, fetch/XHR plus resource-timing network export, tab/session behavior, and native-click/type/viewport behavior. It prints `report=<artifact-dir>/REPORT.md` and `artifacts=<artifact-dir>` on success. The artifact directory contains `REPORT.md`, `data/scenario-results.json`, `captures/*.png`, and `daemon.log`.
+`smoke_real_world.py` runs five WebKit scenarios against generated local fixtures: snapshot refs/forms, full-page and element screenshots, fetch/XHR plus resource-timing network export, tab/session behavior, and native-click/type/viewport behavior. It prints `report=<artifact-dir>/REPORT.md` and `artifacts=<artifact-dir>` on success. The artifact directory contains `REPORT.md`, `data/scenario-results.json`, `captures/*.png`, and `daemon.log`. The runner validates PNG files with stdlib header checks, records screenshot byte size and dimensions, asserts the long full-page capture is taller than the viewport capture, and records native-click delivery metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError` when present).
 
 Useful release-smoke options:
 

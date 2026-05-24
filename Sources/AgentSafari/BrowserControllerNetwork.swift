@@ -55,6 +55,29 @@ extension BrowserController {
             responseHeaders: redactHeaders(event.responseHeaders),
             requestBodyPreview: trimBody(event.requestBodyPreview)
           }));
+          var resourceTimings = [];
+          try {
+            resourceTimings = (performance.getEntriesByType('resource') || []).map((resource) => ({
+              type: 'resource-timing',
+              phase: 'complete',
+              initiatorType: resource.initiatorType || '',
+              method: 'GET',
+              url: resource.name || '',
+              responseURL: resource.name || '',
+              status: 0,
+              statusText: 'resource-timing',
+              startedAt: resource.startTime || 0,
+              endedAt: (resource.startTime || 0) + (resource.duration || 0),
+              durationMs: Math.round((resource.duration || 0) * 1000) / 1000,
+              transferSize: resource.transferSize || 0,
+              encodedBodySize: resource.encodedBodySize || 0,
+              decodedBodySize: resource.decodedBodySize || 0,
+              requestHeaders: {},
+              responseHeaders: {},
+              wallTime: new Date(Date.now() - Math.max(0, performance.now() - (resource.startTime || 0))).toISOString(),
+              source: 'performance-resource-timing'
+            })).filter((resource) => resource.url && !events.some((event) => (event.responseURL || event.url) === resource.url));
+          } catch (_) {}
           const entries = events.map((event) => ({
             startedDateTime: event.wallTime || new Date().toISOString(),
             time: typeof event.durationMs === 'number' ? event.durationMs : 0,
@@ -83,7 +106,34 @@ extension BrowserController {
             cache: {},
             timings: { send: 0, wait: typeof event.durationMs === 'number' ? event.durationMs : 0, receive: 0 },
             _agentSafari: event
-          }));
+          })).concat(resourceTimings.map((resource) => ({
+            startedDateTime: resource.wallTime || new Date().toISOString(),
+            time: typeof resource.durationMs === 'number' ? resource.durationMs : 0,
+            request: {
+              method: 'GET',
+              url: resource.url || '',
+              httpVersion: 'HTTP/2',
+              headers: [],
+              queryString: [],
+              cookies: [],
+              headersSize: -1,
+              bodySize: 0
+            },
+            response: {
+              status: 0,
+              statusText: 'resource-timing',
+              httpVersion: 'HTTP/2',
+              headers: [],
+              cookies: [],
+              content: { size: resource.encodedBodySize || resource.transferSize || -1, mimeType: '' },
+              redirectURL: '',
+              headersSize: -1,
+              bodySize: resource.transferSize || -1
+            },
+            cache: {},
+            timings: { send: 0, wait: typeof resource.durationMs === 'number' ? resource.durationMs : 0, receive: 0 },
+            _agentSafari: resource
+          })));
           const artifact = {
             log: {
               version: '1.2',
@@ -94,9 +144,10 @@ extension BrowserController {
             agentSafari: {
               schemaVersion: 1,
               captureType: 'fetch-xhr-js-instrumentation',
-              limitations: ['fetch/xhr only', 'no parser-driven resources', 'no websocket frames'],
+              limitations: ['fetch/xhr has request/response metadata', 'parser-driven resources are included from PerformanceResourceTiming only', 'no request/response headers for parser-driven resources', 'no websocket frames', 'no service-worker internals'],
               redacted: true,
-              eventCount: events.length
+              eventCount: events.length,
+              resourceTimingCount: resourceTimings.length
             }
           };
           return JSON.stringify(artifact, null, 2);

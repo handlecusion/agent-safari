@@ -74,6 +74,7 @@ extension BrowserController {
 
     private func dispatchNativeClick(at target: ElementHitTarget) throws -> [String: String] {
         window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(webView)
         NSApp.activate(ignoringOtherApps: true)
 
         let viewPoint = CGPoint(x: target.viewportCenter.x, y: webView.bounds.height - target.viewportCenter.y)
@@ -85,23 +86,62 @@ extension BrowserController {
 
         let maxScreenY = NSScreen.screens.map { $0.frame.maxY }.max() ?? screenPoint.y
         let quartzPoint = CGPoint(x: screenPoint.x, y: maxScreenY - screenPoint.y)
-        guard let eventSource = CGEventSource(stateID: .combinedSessionState),
-              let cgMouseDown = CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseDown, mouseCursorPosition: quartzPoint, mouseButton: .left),
-              let cgMouseUp = CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseUp, mouseCursorPosition: quartzPoint, mouseButton: .left) else {
-            throw AgentSafariError.nativeInputFailed("Failed to create Quartz mouse events")
+        if let eventSource = CGEventSource(stateID: .combinedSessionState),
+           let cgMouseMove = CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: quartzPoint, mouseButton: .left),
+           let cgMouseDown = CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseDown, mouseCursorPosition: quartzPoint, mouseButton: .left),
+           let cgMouseUp = CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseUp, mouseCursorPosition: quartzPoint, mouseButton: .left) {
+            cgMouseMove.post(tap: .cgSessionEventTap)
+            usleep(30_000)
+            cgMouseDown.post(tap: .cgSessionEventTap)
+            usleep(50_000)
+            cgMouseUp.post(tap: .cgSessionEventTap)
+            return [
+                "strategy": "native-quartz-session",
+                "viewportX": String(format: "%.1f", target.viewportCenter.x),
+                "viewportY": String(format: "%.1f", target.viewportCenter.y),
+                "windowX": String(format: "%.1f", windowPoint.x),
+                "windowY": String(format: "%.1f", windowPoint.y),
+                "screenX": String(format: "%.1f", screenPoint.x),
+                "screenY": String(format: "%.1f", screenPoint.y)
+            ]
         }
 
-        cgMouseDown.post(tap: .cghidEventTap)
-        cgMouseUp.post(tap: .cghidEventTap)
-        return [
-            "strategy": "native-quartz",
-            "viewportX": String(format: "%.1f", target.viewportCenter.x),
-            "viewportY": String(format: "%.1f", target.viewportCenter.y),
-            "windowX": String(format: "%.1f", windowPoint.x),
-            "windowY": String(format: "%.1f", windowPoint.y),
-            "screenX": String(format: "%.1f", screenPoint.x),
-            "screenY": String(format: "%.1f", screenPoint.y)
-        ]
+        let timestamp = ProcessInfo.processInfo.systemUptime
+        if let mouseDown = NSEvent.mouseEvent(
+            with: .leftMouseDown,
+            location: windowPoint,
+            modifierFlags: [],
+            timestamp: timestamp,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 0,
+            clickCount: 1,
+            pressure: 1
+        ), let mouseUp = NSEvent.mouseEvent(
+            with: .leftMouseUp,
+            location: windowPoint,
+            modifierFlags: [],
+            timestamp: timestamp + 0.01,
+            windowNumber: window.windowNumber,
+            context: nil,
+            eventNumber: 1,
+            clickCount: 1,
+            pressure: 0
+        ) {
+            window.sendEvent(mouseDown)
+            window.sendEvent(mouseUp)
+            return [
+                "strategy": "native-nsevent",
+                "viewportX": String(format: "%.1f", target.viewportCenter.x),
+                "viewportY": String(format: "%.1f", target.viewportCenter.y),
+                "windowX": String(format: "%.1f", windowPoint.x),
+                "windowY": String(format: "%.1f", windowPoint.y),
+                "screenX": String(format: "%.1f", screenPoint.x),
+                "screenY": String(format: "%.1f", screenPoint.y)
+            ]
+        }
+
+        throw AgentSafariError.nativeInputFailed("Failed to create native mouse events")
     }
 
     private func javaScriptClick(selector: String) async throws -> [String: String] {

@@ -64,6 +64,33 @@ agent-safari network stop
 
 The export is HAR-like JSON with `log.version`, `log.creator`, `log.entries`, and `agentSafari` metadata. It is intentionally marked as fetch/XHR JavaScript instrumentation, not proxy-grade full browser capture.
 
+
+## Release smoke loop
+
+Before relying on a release candidate, run the GUI smoke from a logged-in macOS session:
+
+```sh
+python3 scripts/smoke_real_world.py
+```
+
+The smoke runner exercises the recommended loop across five local scenarios and writes a human-readable report plus machine-readable data:
+
+- `REPORT.md` for summary and embedded screenshots
+- `data/scenario-results.json` for structured results
+- `captures/*.png` for viewport, full-page, and element evidence
+- `daemon.log` for daemon diagnostics
+
+Useful controls:
+
+```sh
+python3 scripts/smoke_real_world.py --out-dir .tmp/release-smoke
+python3 scripts/smoke_real_world.py --socket /tmp/agent-safari-release-smoke.sock
+python3 scripts/smoke_real_world.py --skip-build
+AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
+```
+
+See `docs/RELEASE_CHECKLIST.md` for the full non-GUI and GUI release gate.
+
 ## Failure policy
 
 - If a ref action fails, run `snapshot` again before retrying.

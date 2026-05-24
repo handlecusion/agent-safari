@@ -341,17 +341,38 @@ python3 scripts/smoke_mcp_wrapper.py
 
 `smoke_mcp_wrapper.py` imports `_run_cli` from `mcp/agent_safari_mcp.py`, validates the `--tools-json` MCP contract, and calls CLI-backed MCP wrapper operations against an already running daemon. It verifies `status` first, then exercises normalized `network start`, `network list`, and `network stop` around the existing open/evaluate/screenshot path. It uses `AGENT_SAFARI_BIN` and `AGENT_SAFARI_SOCKET` when set, and exits successfully with a skip message if no daemon is reachable.
 
+Real-world GUI smoke:
+
+```sh
+cd agent-safari
+python3 scripts/smoke_real_world.py
+```
+
+`smoke_real_world.py` runs five WebKit scenarios against generated local fixtures: snapshot refs/forms, full-page and element screenshots, fetch/XHR plus resource-timing network export, tab/session behavior, and native-click/type/viewport behavior. It prints `report=<artifact-dir>/REPORT.md` and `artifacts=<artifact-dir>` on success. The artifact directory contains `REPORT.md`, `data/scenario-results.json`, `captures/*.png`, and `daemon.log`.
+
+Useful release-smoke options:
+
+```sh
+python3 scripts/smoke_real_world.py --out-dir .tmp/release-smoke
+python3 scripts/smoke_real_world.py --socket /tmp/agent-safari-release-smoke.sock
+python3 scripts/smoke_real_world.py --skip-build
+AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
+```
+
+The full release gate is documented in `docs/RELEASE_CHECKLIST.md`.
+
 ## Useful environment variables
 
 - `AGENT_SAFARI_BIN`: path to the built `agent-safari` binary for wrapper/smoke scripts.
 - `AGENT_SAFARI_SOCKET`: Unix socket path for daemon and client commands.
-- `AGENT_SAFARI_SMOKE_DIR`: optional directory for smoke artifacts.
+- `AGENT_SAFARI_SMOKE_DIR`: optional directory for real-world smoke artifacts.
+- `AGENT_SAFARI_STRICT_NATIVE`: set to `1` to make native-click fallback a hard failure in `scripts/smoke_real_world.py`.
 
 ## Current limitations
 
-- The current daemon controls a single WKWebView.
-- Multi-tab/session/profile isolation is not implemented yet.
-- The current MCP wrapper exposes wait commands, history commands, viewport, and single-WebView session/tab placeholders; true multi-tab/profile isolation is not implemented yet.
+- The current daemon controls a modeled WKWebView tab set inside a single native WebKit window.
+- Profile persistence/isolation is daemon-level; use `--profile` and `--ephemeral` deliberately.
+- The MCP wrapper exposes wait commands, history commands, viewport, session, and tab commands, but it remains a thin CLI wrapper rather than a separate browser runtime.
 - Passkey/WebAuthn automation is out of scope for the current roadmap.
 - `key` dispatches synthetic DOM keyboard events; `type` is a DOM-level text insertion helper, not full native keyboard automation.
 - Network capture is fetch/XHR instrumentation, not full proxy/CDP-style HAR capture.

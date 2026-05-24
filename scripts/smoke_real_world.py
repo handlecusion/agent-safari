@@ -7,6 +7,7 @@ network export, tabs/session/profile state, and native no-fallback click.
 """
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import html
 import json
@@ -21,14 +22,40 @@ from pathlib import Path
 from threading import Thread
 from urllib.parse import quote
 
-ROOT = Path('/Users/ys/Code/agent-safari')
+ROOT = Path(__file__).resolve().parents[1]
 BIN = ROOT / '.build' / 'debug' / 'agent-safari'
 RUN_ID = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-OUT = ROOT / '.tmp' / f'agent-safari-5-scenarios-{RUN_ID}'
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description='Run five real WebKit smoke scenarios and generate a screenshot report.'
+    )
+    parser.add_argument(
+        '--out-dir',
+        default=os.environ.get('AGENT_SAFARI_SMOKE_DIR') or os.environ.get('AGENT_SAFARI_SMOKE_OUT'),
+        help='Artifact directory. Defaults to .tmp/agent-safari-5-scenarios-<timestamp>. '
+             'Can also be set with AGENT_SAFARI_SMOKE_DIR.',
+    )
+    parser.add_argument(
+        '--socket',
+        default=os.environ.get('AGENT_SAFARI_SOCKET'),
+        help='Unix socket path for the temporary daemon. Defaults to <out-dir>/agent-safari.sock.',
+    )
+    parser.add_argument(
+        '--skip-build',
+        action='store_true',
+        help='Skip swift build/test preflight when the binary and tests were already verified.',
+    )
+    return parser.parse_args()
+
+
+ARGS = parse_args()
+OUT = Path(ARGS.out_dir).expanduser().resolve() if ARGS.out_dir else ROOT / '.tmp' / f'agent-safari-5-scenarios-{RUN_ID}'
 FIX = OUT / 'fixtures'
 CAP = OUT / 'captures'
 DATA = OUT / 'data'
-SOCKET = OUT / 'agent-safari.sock'
+SOCKET = Path(ARGS.socket).expanduser().resolve() if ARGS.socket else OUT / 'agent-safari.sock'
 LOG = OUT / 'daemon.log'
 
 SCENARIOS: list[dict] = []
@@ -250,8 +277,9 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     CAP.mkdir(parents=True, exist_ok=True)
     DATA.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['swift', 'build'], cwd=ROOT, check=True)
-    subprocess.run(['swift', 'test'], cwd=ROOT, check=True)
+    if not ARGS.skip_build:
+        subprocess.run(['swift', 'build'], cwd=ROOT, check=True)
+        subprocess.run(['swift', 'test'], cwd=ROOT, check=True)
 
     # Create fixtures after knowing HTTP base.
     server, base = start_http_server(FIX)
@@ -349,7 +377,8 @@ def main():
         except FileNotFoundError:
             pass
 
-    print(OUT)
+    print(f'report={OUT / "REPORT.md"}')
+    print(f'artifacts={OUT}')
 
 
 def make_report():

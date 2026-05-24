@@ -49,6 +49,40 @@ extension BrowserController {
             return (element.innerText || element.textContent || element.getAttribute('aria-label') || element.getAttribute('title') || '').replace(new RegExp('\\\\s+', 'g'), ' ').trim();
           };
 
+          const labelTextFor = (element) => {
+            const id = element.id;
+            if (id) {
+              const label = document.querySelector(`label[for="${cssEscape(id)}"]`);
+              if (label) return textFor(label);
+            }
+            const wrappingLabel = element.closest && element.closest('label');
+            return wrappingLabel ? textFor(wrappingLabel) : '';
+          };
+
+          const roleFor = (element) => {
+            const explicit = element.getAttribute('role');
+            if (explicit) return explicit;
+            const tag = (element.tagName || '').toLowerCase();
+            const type = (element.getAttribute('type') || '').toLowerCase();
+            if (tag === 'a' && element.getAttribute('href')) return 'link';
+            if (tag === 'button') return 'button';
+            if (tag === 'select') return 'combobox';
+            if (tag === 'textarea') return 'textbox';
+            if (tag === 'input') {
+              if (['button','submit','reset'].includes(type)) return 'button';
+              if (type === 'checkbox') return 'checkbox';
+              if (type === 'radio') return 'radio';
+              if (type === 'range') return 'slider';
+              return 'textbox';
+            }
+            if (element.isContentEditable) return 'textbox';
+            return '';
+          };
+
+          const nameFor = (element) => {
+            return element.getAttribute('aria-label') || element.getAttribute('title') || element.getAttribute('alt') || labelTextFor(element) || textFor(element) || element.getAttribute('name') || element.id || '';
+          };
+
           const isCandidate = (element) => {
             const tag = (element.tagName || '').toLowerCase();
             if (['a', 'button', 'input', 'select', 'textarea', 'summary', 'label'].includes(tag)) return true;
@@ -73,16 +107,20 @@ extension BrowserController {
             const centerY = rect.top + rect.height / 2;
             const viewportIntersecting = rect.bottom >= 0 && rect.right >= 0 && rect.top <= window.innerHeight && rect.left <= window.innerWidth;
             const centerHit = viewportIntersecting ? document.elementFromPoint(Math.min(Math.max(centerX, 0), window.innerWidth - 1), Math.min(Math.max(centerY, 0), window.innerHeight - 1)) : null;
-            const accessibleName = element.getAttribute('aria-label') || element.getAttribute('title') || element.getAttribute('alt') || textFor(element);
+            const accessibleName = nameFor(element);
+            const inferredRole = roleFor(element);
             snapshot.push({
               ref: refFor(element),
+              refSource: 'weakmap',
               tag: (element.tagName || '').toLowerCase(),
               text: textFor(element).slice(0, 200),
               selector: selectorFor(element),
-              role: element.getAttribute('role') || '',
+              role: inferredRole,
+              explicitRole: element.getAttribute('role') || '',
               type: element.getAttribute('type') || '',
               name: element.getAttribute('name') || '',
               accessibleName: String(accessibleName || '').slice(0, 200),
+              label: labelTextFor(element).slice(0, 200),
               ariaLabel: element.getAttribute('aria-label') || '',
               placeholder: element.getAttribute('placeholder') || '',
               href: element.href || element.getAttribute('href') || '',

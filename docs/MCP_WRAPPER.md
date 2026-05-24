@@ -83,6 +83,7 @@ hermes mcp add agent-safari \
 - `evaluate(script)`
 - `screenshot(path)`
 - `screenshot_full(path)` if supported by the installed CLI
+- `screenshot_element(selector, path)`
 - `click(selector, native=False, fallback=True)`
 - `fill(selector, value)`
 - `key(key)`
@@ -101,7 +102,7 @@ hermes mcp add agent-safari \
 - `viewport(width, height)`
 - `session()`
 - `tabs()`
-- `tab_new()`
+- `tab_new(url=None)`
 - `tab_switch(tab_id)`
 - `tab_close(tab_id)`
 
@@ -114,7 +115,8 @@ python3 mcp/agent_safari_mcp.py --tools-json
 ```
 
 That JSON lists each tool name, short description, normalized CLI equivalent,
-and expected top-level result keys. CI locks this with `Tests/test_mcp_contract.py`.
+input names, `contractVersion`, and expected top-level result keys. CI locks this
+with `Tests/test_mcp_contract.py`.
 
 ## Local checks
 

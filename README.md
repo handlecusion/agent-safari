@@ -64,6 +64,7 @@ agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
 agent-safari text --socket /tmp/agent-safari.sock
 agent-safari snapshot --socket /tmp/agent-safari.sock
 agent-safari screenshot --full --out /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
+agent-safari screenshot-element '@e1' --out /tmp/agent-safari-element.png --socket /tmp/agent-safari.sock
 ```
 
 The daemon opens a native WebKit window. CLI commands print one JSON response line. Successful responses have `"ok": true` and a `result` object.
@@ -73,7 +74,7 @@ The daemon opens a native WebKit window. CLI commands print one JSON response li
 All client commands accept `--socket <path>`. Default socket path is `/tmp/agent-safari.sock`.
 
 ```sh
-agent-safari daemon [--focus-window] [--socket /tmp/agent-safari.sock]
+agent-safari daemon [--focus-window] [--profile <name>] [--ephemeral] [--socket /tmp/agent-safari.sock]
 agent-safari status [--socket /tmp/agent-safari.sock]
 agent-safari observe [--socket /tmp/agent-safari.sock]
 agent-safari open <url> [--socket /tmp/agent-safari.sock]
@@ -84,6 +85,8 @@ agent-safari snapshot [--socket /tmp/agent-safari.sock]
 agent-safari evaluate <javascript> [--socket /tmp/agent-safari.sock]
 agent-safari screenshot --out <path> [--socket /tmp/agent-safari.sock]
 agent-safari screenshot --full --out <path> [--socket /tmp/agent-safari.sock]
+agent-safari screenshot-element <selector-or-ref> --out <path> [--socket /tmp/agent-safari.sock]
+agent-safari screenshot --element <selector-or-ref> --out <path> [--socket /tmp/agent-safari.sock]
 agent-safari screenshot-full <path> [--socket /tmp/agent-safari.sock]  # backward-compatible alias
 agent-safari click <selector-or-ref> [--native] [--socket /tmp/agent-safari.sock]
 agent-safari fill <selector-or-ref> <value> [--socket /tmp/agent-safari.sock]
@@ -170,6 +173,11 @@ Limitations:
 - Does not yet implement proxy-grade HAR export, WebSocket frame capture, or service-worker-level capture.
 
 ## MCP usage
+
+See also:
+
+- `docs/AGENT_LOOP.md` for the observe -> act -> wait -> verify browser-agent loop.
+- `docs/PROFILE_PERSISTENCE.md` for profile, cookie, and session persistence behavior.
 
 The MCP server is a Python stdio wrapper around the Swift CLI:
 

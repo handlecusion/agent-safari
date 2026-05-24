@@ -41,6 +41,13 @@ SOCKET="/tmp/agent-safari.$$.sock"
 .build/debug/agent-safari daemon --socket "$SOCKET"
 ```
 
+Select a named persistent profile contract or an isolated non-persistent data store:
+
+```sh
+.build/debug/agent-safari daemon --profile qa --socket /tmp/agent-safari-qa.sock
+.build/debug/agent-safari daemon --ephemeral --socket /tmp/agent-safari-ephemeral.sock
+```
+
 ## Response format
 
 Client commands print one JSON line. Success looks like:
@@ -151,6 +158,14 @@ Full-page screenshot:
 
 `result.path` contains the written PNG path. `result.strategy` describes whether a single full-page capture or fallback strategy was used.
 
+Element screenshot using a CSS selector or latest snapshot ref:
+
+```sh
+.build/debug/agent-safari snapshot --socket /tmp/agent-safari.sock
+.build/debug/agent-safari screenshot-element '@e2' --out /tmp/button.png --socket /tmp/agent-safari.sock
+.build/debug/agent-safari screenshot --element '#submit' --out /tmp/submit.png --socket /tmp/agent-safari.sock
+```
+
 ## Local file navigation
 
 Generate an absolute `file://` URL and pass it to `open`:
@@ -177,7 +192,7 @@ AGENT_SAFARI_SOCKET=/tmp/my-agent-safari.sock scripts/smoke_cli.sh
 AGENT_SAFARI_SMOKE_DIR=/tmp/my-agent-safari-artifacts scripts/smoke_cli.sh
 ```
 
-The smoke script builds, starts a temporary daemon, opens local HTML via `open`, uses snapshot refs for fill/click, exercises normalized `network start/list/stop`, captures a full-page screenshot through `screenshot --full --out`, and reports artifact paths.
+The smoke script builds, starts a temporary daemon, opens local HTML via `open`, uses snapshot refs for fill/click, exercises normalized `network start/list/stop`, captures a full-page screenshot through `screenshot --full --out`, verifies modeled tabs, captures an element screenshot, exports HAR-like network JSON, and reports artifact paths.
 
 ## Network command handling
 
@@ -189,6 +204,13 @@ Network capture commands are available as normalized `network <subcommand>` comm
 .build/debug/agent-safari network stop --socket /tmp/agent-safari.sock
 .build/debug/agent-safari network export /tmp/network.json --max-entries 25 --socket /tmp/agent-safari.sock
 ```
+
+The exported JSON is HAR-like: `log.version`, `log.creator`, `log.entries`, and `agentSafari` metadata. It remains fetch/XHR-only JavaScript instrumentation.
+
+## Agent loop and persistence docs
+
+- `docs/AGENT_LOOP.md` documents the recommended observe -> act -> wait -> verify loop.
+- `docs/PROFILE_PERSISTENCE.md` documents profile/session persistence behavior and roadmap.
 
 ## Troubleshooting
 

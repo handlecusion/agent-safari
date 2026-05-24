@@ -35,3 +35,18 @@ import Testing
     #expect(options.focusWindow == false)
     #expect(options.positionalArguments == ["daemon"])
 }
+
+@Test func cliOptionsParsesProfileAndEphemeralFlags() {
+    let options = CLIOptions.parse(["daemon", "--profile", "qa", "--ephemeral"])
+
+    #expect(options.profileName == "qa")
+    #expect(options.ephemeral == true)
+    #expect(options.positionalArguments == ["daemon"])
+}
+
+@Test func cliOptionsDefaultsToDefaultPersistentProfile() {
+    let options = CLIOptions.parse(["daemon"])
+
+    #expect(options.profileName == "default")
+    #expect(options.ephemeral == false)
+}

@@ -24,6 +24,7 @@ EXPECTED_TOOLS = {
     "evaluate",
     "screenshot",
     "screenshot_full",
+    "screenshot_element",
     "click",
     "fill",
     "key",
@@ -74,6 +75,8 @@ def test_tools_json_lists_stable_tool_contract() -> None:
         assert isinstance(tool.get("description"), str) and tool["description"]
         assert isinstance(tool.get("cli"), list) and tool["cli"]
         assert isinstance(tool.get("result"), list)
+        assert tool.get("contractVersion") == 1
+        assert isinstance(tool.get("input"), list)
 
 
 def test_network_tools_advertise_structured_result_shape() -> None:

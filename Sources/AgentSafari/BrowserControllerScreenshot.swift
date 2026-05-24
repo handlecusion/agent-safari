@@ -51,6 +51,61 @@ extension BrowserController {
         ]
     }
 
+    func screenshotElement(selector: String, path: String) async throws -> [String: String] {
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const target = \(selectorLiteral);
+          const resolveElement = (target) => {
+            if (target.startsWith('@e')) {
+              const refs = window.__agentSafariSnapshotRefs;
+              if (!refs || typeof refs.get !== 'function') throw new Error(`Snapshot refs are not available for ${target}; run snapshot first.`);
+              const candidates = [...document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'), ...document.querySelectorAll('*')];
+              const seen = new Set();
+              for (const element of candidates) {
+                if (seen.has(element)) continue;
+                seen.add(element);
+                if (refs.get(element) === target) return element;
+              }
+              throw new Error(`No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
+            }
+            const element = document.querySelector(target);
+            if (!element) throw new Error(`No element found for selector: ${target}`);
+            return element;
+          };
+          const element = resolveElement(target);
+          element.scrollIntoView({ block: 'center', inline: 'center' });
+          const rect = element.getBoundingClientRect();
+          if (!rect || rect.width <= 0 || rect.height <= 0) throw new Error(`Element has no screenshot bounds: ${target}`);
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        })()
+        """
+        guard let result = try await webView.evaluateJavaScript(script) as? [String: Any] else {
+            throw AgentSafariError.elementResolutionFailed(selector)
+        }
+        let rect = NSRect(
+            x: CGFloat((result["x"] as? NSNumber)?.doubleValue ?? 0),
+            y: CGFloat((result["y"] as? NSNumber)?.doubleValue ?? 0),
+            width: CGFloat((result["width"] as? NSNumber)?.doubleValue ?? 0),
+            height: CGFloat((result["height"] as? NSNumber)?.doubleValue ?? 0)
+        ).intersection(webView.bounds)
+        guard rect.width > 0, rect.height > 0 else { throw AgentSafariError.elementResolutionFailed(selector) }
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = rect
+        let image = try await webView.takeSnapshot(configuration: configuration)
+        let url = try writePNG(image, path: path)
+        return [
+            "path": url.path,
+            "fullPage": "false",
+            "element": selector,
+            "width": String(Int(rect.width.rounded())),
+            "height": String(Int(rect.height.rounded())),
+            "x": String(Int(rect.origin.x.rounded())),
+            "y": String(Int(rect.origin.y.rounded())),
+            "strategy": "element-rect"
+        ]
+    }
+
     private func writeTiledFullPageScreenshot(pageSize: CGSize, path: String) async throws -> URL {
         let viewport = webView.bounds.size
         let pageWidth = max(1, min(pageSize.width, viewport.width))

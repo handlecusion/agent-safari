@@ -55,7 +55,51 @@ extension BrowserController {
             responseHeaders: redactHeaders(event.responseHeaders),
             requestBodyPreview: trimBody(event.requestBodyPreview)
           }));
-          return JSON.stringify(events, null, 2);
+          const entries = events.map((event) => ({
+            startedDateTime: event.wallTime || new Date().toISOString(),
+            time: typeof event.durationMs === 'number' ? event.durationMs : 0,
+            request: {
+              method: event.method || 'GET',
+              url: event.url || event.responseURL || '',
+              httpVersion: 'HTTP/2',
+              headers: Object.entries(event.requestHeaders || {}).map(([name, value]) => ({ name, value: String(value) })),
+              queryString: [],
+              cookies: [],
+              headersSize: -1,
+              bodySize: event.requestBodyPreview ? String(event.requestBodyPreview).length : 0,
+              postData: event.requestBodyPreview ? { mimeType: '', text: String(event.requestBodyPreview) } : undefined
+            },
+            response: {
+              status: event.status || 0,
+              statusText: event.statusText || event.phase || '',
+              httpVersion: 'HTTP/2',
+              headers: Object.entries(event.responseHeaders || {}).map(([name, value]) => ({ name, value: String(value) })),
+              cookies: [],
+              content: { size: -1, mimeType: (event.responseHeaders && event.responseHeaders['content-type']) || '' },
+              redirectURL: '',
+              headersSize: -1,
+              bodySize: -1
+            },
+            cache: {},
+            timings: { send: 0, wait: typeof event.durationMs === 'number' ? event.durationMs : 0, receive: 0 },
+            _agentSafari: event
+          }));
+          const artifact = {
+            log: {
+              version: '1.2',
+              creator: { name: 'agent-safari', version: '0.2.0' },
+              pages: [{ startedDateTime: new Date().toISOString(), id: 'page_1', title: document.title || '', pageTimings: {} }],
+              entries
+            },
+            agentSafari: {
+              schemaVersion: 1,
+              captureType: 'fetch-xhr-js-instrumentation',
+              limitations: ['fetch/xhr only', 'no parser-driven resources', 'no websocket frames'],
+              redacted: true,
+              eventCount: events.length
+            }
+          };
+          return JSON.stringify(artifact, null, 2);
         })()
         """
         let value = try await webView.evaluateJavaScript(script)
@@ -65,8 +109,16 @@ extension BrowserController {
         try json.write(to: url, atomically: true, encoding: .utf8)
         let countValue = JSONValue.parseJSONText(json)
         let count: Int
-        if case .array(let events) = countValue { count = events.count } else { count = 0 }
-        return ["path": url.path, "count": String(count), "redacted": "true"]
+        if case .object(let object) = countValue,
+           case .object(let log)? = object["log"],
+           case .array(let entries)? = log["entries"] {
+            count = entries.count
+        } else if case .array(let events) = countValue {
+            count = events.count
+        } else {
+            count = 0
+        }
+        return ["path": url.path, "count": String(count), "redacted": "true", "schema": "har-like", "schemaVersion": "1"]
     }
 
     private func networkCapturingString() async throws -> String {

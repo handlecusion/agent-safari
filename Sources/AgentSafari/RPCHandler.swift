@@ -47,6 +47,10 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
         case "screenshotFull":
             let path = params["path"] ?? "\(NSHomeDirectory())/.agent-safari/artifacts/screenshot-full.png"
             result = JSONValue.fromStringMap(try await browser.screenshotFull(path: path))
+        case "screenshotElement":
+            guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
+            let path = params["path"] ?? "\(NSHomeDirectory())/.agent-safari/artifacts/screenshot-element.png"
+            result = JSONValue.fromStringMap(try await browser.screenshotElement(selector: selector, path: path))
         case "click":
             guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
             result = JSONValue.fromStringMap(try await browser.click(selector: selector, native: params["native"] == "true", fallbackPolicy: params["fallback"] ?? "js"))
@@ -91,7 +95,7 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
             let tabs = try await browser.tabs()
             result = .object(["tabs": JSONValue.parseJSONText(tabs["tabs"] ?? "[]"), "activeTabId": .string(tabs["activeTabId"] ?? "")])
         case "tabNew":
-            result = JSONValue.fromStringMap(try await browser.tabNew())
+            result = JSONValue.fromStringMap(try await browser.tabNew(url: params["url"]))
         case "tabSwitch":
             guard let id = params["id"] else { throw AgentSafariError.missingParam("id") }
             result = JSONValue.fromStringMap(try await browser.tabSwitch(id: id))

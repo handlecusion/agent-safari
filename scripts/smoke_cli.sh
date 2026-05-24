@@ -7,6 +7,8 @@ SOCKET="${AGENT_SAFARI_SOCKET:-/tmp/agent-safari-smoke.$$.sock}"
 SMOKE_DIR="${AGENT_SAFARI_SMOKE_DIR:-$(mktemp -d /tmp/agent-safari-smoke.XXXXXX)}"
 HTML="$SMOKE_DIR/smoke.html"
 SHOT="$SMOKE_DIR/full-page.png"
+ELEMENT_SHOT="$SMOKE_DIR/element.png"
+NETWORK_EXPORT="$SMOKE_DIR/network.har.json"
 DAEMON_PID=""
 
 cleanup() {
@@ -305,6 +307,34 @@ assert_ok_json "$response"
 png_summary="$(assert_full_page_png "$response" "$SHOT")"
 log "verified full-page screenshot $png_summary"
 
+log "capturing element screenshot"
+response="$(run_cli screenshot-element "$BUTTON_REF" --out "$ELEMENT_SHOT")"
+assert_ok_json "$response"
+python3 - "$response" "$ELEMENT_SHOT" <<'PY'
+import json, os, sys
+payload = json.loads(sys.argv[1])
+path = payload.get('result', {}).get('path')
+if path != sys.argv[2] or not os.path.isfile(path) or os.path.getsize(path) <= 0:
+    raise SystemExit(f"element screenshot missing or empty: {payload}")
+PY
+
+log "verifying tab/session model"
+response="$(run_cli session)"
+assert_ok_json "$response"
+assert_result_field "$response" "tabCount" "1"
+response="$(run_cli tab-new "$URL")"
+assert_ok_json "$response"
+assert_result_field "$response" "created" "true"
+response="$(run_cli tabs)"
+assert_ok_json "$response"
+python3 - "$response" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+tabs = payload.get('result', {}).get('tabs', [])
+if len(tabs) < 2 or not any(tab.get('active') for tab in tabs):
+    raise SystemExit(f"expected at least two modeled tabs with one active: {payload}")
+PY
+
 usage="$($BIN 2>&1 || true)"
 if printf '%s\n' "$usage" | grep -E 'network( |$)|network-(start|stop)' >/dev/null; then
   log "network commands advertised; verifying normalized network start/list/stop capture fetch and XHR"
@@ -320,6 +350,17 @@ if printf '%s\n' "$usage" | grep -E 'network( |$)|network-(start|stop)' >/dev/nu
   assert_ok_json "$response"
   network_summary="$(assert_network_events "$response")"
   log "verified network-list $network_summary"
+  response="$(run_cli network export "$NETWORK_EXPORT" --max-entries 25 --body-preview-bytes 256)"
+  assert_ok_json "$response"
+  assert_result_field "$response" "schema" "har-like"
+  python3 - "$NETWORK_EXPORT" <<'PY'
+import json, sys
+artifact = json.load(open(sys.argv[1]))
+if artifact.get('log', {}).get('version') != '1.2' or not isinstance(artifact.get('log', {}).get('entries'), list):
+    raise SystemExit(f"not a HAR-like export: {artifact}")
+if artifact.get('agentSafari', {}).get('schemaVersion') != 1:
+    raise SystemExit(f"missing agentSafari schema metadata: {artifact}")
+PY
   response="$(run_cli network stop)"
   assert_ok_json "$response"
   assert_result_field "$response" "capturing" "false"

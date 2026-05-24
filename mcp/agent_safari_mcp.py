@@ -34,6 +34,7 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>"], "result": ["value"]},
     {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>"], "result": ["path", "width", "height", "fullPage"]},
     {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>"], "result": ["path", "width", "height", "fullPage", "strategy"]},
+    {"name": "screenshot_element", "description": "Capture a screenshot clipped to a CSS selector or snapshot ref.", "cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"], "result": ["path", "width", "height", "element", "strategy"]},
     {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>"], "result": ["selector", "clicked"]},
     {"name": "fill", "description": "Fill an input-like element matching a CSS selector or snapshot ref.", "cli": ["fill", "<selector-or-ref>", "<value>"], "result": ["selector", "filled"]},
     {"name": "key", "description": "Dispatch synthetic DOM keyboard events.", "cli": ["key", "<key>"], "result": ["key"]},
@@ -56,6 +57,10 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "result": ["tabId"]},
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "result": ["tabId", "closed"]},
 ]
+
+for _tool in TOOL_CONTRACTS:
+    _tool.setdefault("contractVersion", 1)
+    _tool.setdefault("input", [])
 
 
 def _repo_root() -> Path:
@@ -211,6 +216,11 @@ def create_server() -> Any:
         return _run_cli("screenshot", "--full", "--out", path, timeout=120.0)
 
     @mcp.tool()
+    def screenshot_element(selector: str, path: str = DEFAULT_SCREENSHOT_PATH) -> dict[str, Any]:
+        """Capture a screenshot clipped to a CSS selector or snapshot ref."""
+        return _run_cli("screenshot-element", selector, "--out", path, timeout=60.0)
+
+    @mcp.tool()
     def click(selector: str, native: bool = False, fallback: bool = True) -> dict[str, Any]:
         """Click a CSS selector or snapshot ref; set native=True for native coordinate click and fallback=False to fail if native verification fails."""
         args = [selector]
@@ -311,9 +321,10 @@ def create_server() -> Any:
         return _run_cli("tabs")
 
     @mcp.tool()
-    def tab_new() -> dict[str, Any]:
-        """Create or report the current tab placeholder in the single-WebView MVP."""
-        return _run_cli("tab-new")
+    def tab_new(url: str | None = None) -> dict[str, Any]:
+        """Create a new WebKit tab and optionally navigate it to a URL."""
+        args = [url] if url else []
+        return _run_cli("tab-new", *args, timeout=60.0 if url else 30.0)
 
     @mcp.tool()
     def tab_switch(tab_id: str) -> dict[str, Any]:

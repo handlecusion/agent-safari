@@ -216,3 +216,24 @@ import Testing
     #expect(try CommandRequest.parse(["tab-switch", "tab-1"]).params == ["id": "tab-1"])
     #expect(try CommandRequest.parse(["tab-close", "tab-1"]).params == ["id": "tab-1"])
 }
+
+@Test func commandRequestParsesTabNewOptionalURL() throws {
+    let command = try CommandRequest.parse(["tab-new", "https://example.com"])
+
+    #expect(command.method == "tabNew")
+    #expect(command.params == ["url": "https://example.com"])
+}
+
+@Test func commandRequestParsesElementScreenshotCommand() throws {
+    let command = try CommandRequest.parse(["screenshot-element", "@e3", "--out", "/tmp/element.png"])
+
+    #expect(command.method == "screenshotElement")
+    #expect(command.params == ["selector": "@e3", "path": "/tmp/element.png"])
+}
+
+@Test func commandRequestParsesElementScreenshotAlias() throws {
+    let command = try CommandRequest.parse(["screenshot", "--element", "#login", "--out", "/tmp/login.png"])
+
+    #expect(command.method == "screenshotElement")
+    #expect(command.params == ["selector": "#login", "path": "/tmp/login.png"])
+}

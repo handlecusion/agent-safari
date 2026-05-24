@@ -13,7 +13,7 @@ if args.first == "--version" || args.first == "version" {
 } else if args.first == "daemon" {
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
-    let browser = BrowserController(focusWindow: options.focusWindow)
+    let browser = BrowserController(focusWindow: options.focusWindow, profileName: options.profileName, ephemeral: options.ephemeral)
     let server = UnixSocketServer(path: options.socketPath, browser: browser)
     try server.start()
     app.run()

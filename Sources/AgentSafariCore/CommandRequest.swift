@@ -31,6 +31,8 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "evaluate", params: ["script": args[1]])
         case "screenshot":
             return try parseScreenshotCommand(args)
+        case "screenshot-element":
+            return try parseScreenshotElementCommand(args)
         case "screenshot-full":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
             return CommandRequest(method: "screenshotFull", params: ["path": args[1]])
@@ -119,7 +121,9 @@ public struct CommandRequest: Equatable {
         case "tabs":
             return CommandRequest(method: "tabs", params: [:])
         case "tab-new":
-            return CommandRequest(method: "tabNew", params: [:])
+            var params: [String: String] = [:]
+            if args.count >= 2 { params["url"] = args[1] }
+            return CommandRequest(method: "tabNew", params: params)
         case "tab-switch":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("id") }
             return CommandRequest(method: "tabSwitch", params: ["id": args[1]])
@@ -137,6 +141,7 @@ public struct CommandRequest: Equatable {
 
     private static func parseScreenshotCommand(_ args: [String]) throws -> CommandRequest {
         var fullPage = false
+        var element: String?
         var path: String?
         var index = 1
         while index < args.count {
@@ -144,6 +149,10 @@ public struct CommandRequest: Equatable {
             if arg == "--full" {
                 fullPage = true
                 index += 1
+            } else if arg == "--element" || arg == "--selector" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("selector") }
+                element = args[index + 1]
+                index += 2
             } else if arg == "--out" || arg == "--path" {
                 guard index + 1 < args.count else { throw CommandRequestError.missingArgument("path") }
                 path = args[index + 1]
@@ -156,7 +165,32 @@ public struct CommandRequest: Equatable {
             }
         }
         guard let path else { throw CommandRequestError.missingArgument("path") }
+        if let element {
+            return CommandRequest(method: "screenshotElement", params: ["selector": element, "path": path])
+        }
         return CommandRequest(method: fullPage ? "screenshotFull" : "screenshot", params: ["path": path])
+    }
+
+    private static func parseScreenshotElementCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 2 else { throw CommandRequestError.missingArgument("selector") }
+        var selector = args[1]
+        var path: String?
+        var index = 2
+        while index < args.count {
+            let arg = args[index]
+            if arg == "--out" || arg == "--path" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("path") }
+                path = args[index + 1]
+                index += 2
+            } else if selector.isEmpty {
+                selector = arg
+                index += 1
+            } else {
+                throw CommandRequestError.unknownArgument(arg)
+            }
+        }
+        guard let path else { throw CommandRequestError.missingArgument("path") }
+        return CommandRequest(method: "screenshotElement", params: ["selector": selector, "path": path])
     }
 
     private static func parseNetworkCommand(_ args: [String]) throws -> CommandRequest {

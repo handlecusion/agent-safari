@@ -14,6 +14,7 @@ import Testing
         "evaluate": ["document.title"],
         "screenshot": ["/tmp/viewport.png"],
         "screenshot-full": ["/tmp/full.png"],
+        "screenshot-element": ["#hero", "--out", "/tmp/hero.png"],
         "click": ["#submit"],
         "fill": ["#name", "Genie"],
         "key": ["Enter"],

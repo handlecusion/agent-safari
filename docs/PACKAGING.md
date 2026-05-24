@@ -16,12 +16,22 @@ The npm package is a lightweight macOS-only wrapper:
 - `scripts/install.js` downloads the matching GitHub Release zip during `postinstall`.
 - `scripts/package_npm.sh` copies the npm package to `.tmp/npm-package`, rewrites the package version from `AGENT_SAFARI_VERSION`, and runs `npm pack`.
 
-Local package smoke:
+Local package smoke and clean temp-project install dry-run:
 
 ```sh
-AGENT_SAFARI_VERSION=v0.1.0 scripts/package_npm.sh
+rm -rf .tmp/dist .tmp/npm-install-dry-run
+AGENT_SAFARI_VERSION=v0.0.0-test.1 scripts/package_npm.sh
 AGENT_SAFARI_SKIP_DOWNLOAD=1 npm --prefix npm/agent-safari run smoke
+mkdir -p .tmp/npm-install-dry-run
+(
+  cd .tmp/npm-install-dry-run
+  npm init -y >/dev/null
+  AGENT_SAFARI_SKIP_DOWNLOAD=1 npm install ../dist/agent-safari-0.0.0-test.1.tgz
+  AGENT_SAFARI_BIN=/bin/echo npx agent-safari --version
+)
 ```
+
+The `AGENT_SAFARI_SKIP_DOWNLOAD=1` install dry-run intentionally avoids fetching a GitHub Release asset. `AGENT_SAFARI_BIN=/bin/echo` verifies that the npm bin shim forwards arguments to the configured native binary without needing to start WebKit.
 
 Publish automation:
 

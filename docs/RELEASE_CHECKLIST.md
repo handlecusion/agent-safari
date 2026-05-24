@@ -57,14 +57,24 @@ Strict native mode may require macOS Accessibility permission and a usable foreg
 Before publishing packages:
 
 ```sh
+rm -rf .tmp/dist .tmp/npm-install-dry-run
 AGENT_SAFARI_VERSION=v0.0.0-test.1 scripts/package_npm.sh
 AGENT_SAFARI_SKIP_DOWNLOAD=1 npm --prefix npm/agent-safari run smoke
+mkdir -p .tmp/npm-install-dry-run
+(
+  cd .tmp/npm-install-dry-run
+  npm init -y >/dev/null
+  AGENT_SAFARI_SKIP_DOWNLOAD=1 npm install ../dist/agent-safari-0.0.0-test.1.tgz
+  AGENT_SAFARI_BIN=/bin/echo npx agent-safari --version
+)
 python3 scripts/render_homebrew_formula.py \
   --version v0.0.0-test.1 \
   --sha256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef \
   --output .tmp/homebrew/agent-safari.rb
 ruby -c .tmp/homebrew/agent-safari.rb
 ```
+
+Expected result: npm creates `.tmp/dist/agent-safari-0.0.0-test.1.tgz`, the temp-project install exits 0 without publishing or downloading a release asset, and the rendered Homebrew formula reports `Syntax OK`.
 
 ## GitHub CI gate
 

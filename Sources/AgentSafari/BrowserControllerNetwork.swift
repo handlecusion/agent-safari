@@ -137,7 +137,7 @@ extension BrowserController {
           const artifact = {
             log: {
               version: '1.2',
-              creator: { name: 'agent-safari', version: '0.2.0' },
+              creator: { name: 'agent-safari', version: '\(AgentSafariMetadata.version)' },
               pages: [{ startedDateTime: new Date().toISOString(), id: 'page_1', title: document.title || '', pageTimings: {} }],
               entries
             },

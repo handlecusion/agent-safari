@@ -11,8 +11,10 @@ extension BrowserController {
         }
         try await withCheckedThrowingContinuation { continuation in
             navigationContinuation = continuation
+            updateAddressBar(urlString)
             webView.load(URLRequest(url: url))
         }
+        updateAddressBar(webView.url?.absoluteString ?? urlString)
         return ["url": webView.url?.absoluteString ?? "", "title": webView.title ?? ""]
     }
 
@@ -56,7 +58,9 @@ extension BrowserController {
 
     func viewport(width: Int, height: Int) async throws -> [String: String] {
         let size = NSSize(width: max(1, width), height: max(1, height))
-        window.setContentSize(size)
+        window.setContentSize(NSSize(width: size.width, height: size.height + BrowserController.addressBarHeight))
+        layoutBrowserChrome()
+        webContainerView.setFrameSize(size)
         webView.setFrameSize(size)
         return ["width": String(Int(size.width)), "height": String(Int(size.height))]
     }

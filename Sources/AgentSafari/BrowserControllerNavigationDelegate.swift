@@ -6,6 +6,7 @@ import WebKit
 @MainActor
 extension BrowserController {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        updateAddressBar(webView.url?.absoluteString ?? "")
         navigationContinuation?.resume()
         navigationContinuation = nil
     }

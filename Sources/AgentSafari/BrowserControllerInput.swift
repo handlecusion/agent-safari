@@ -223,6 +223,17 @@ extension BrowserController {
         return (try await webView.evaluateJavaScript(script) as? Bool) ?? false
     }
 
+    private func blurActiveElementBeforeNativeClick() async throws {
+        let script = """
+        (() => {
+          const active = document.activeElement;
+          if (active && typeof active.blur === 'function') active.blur();
+          return true;
+        })()
+        """
+        _ = try await webView.evaluateJavaScript(script)
+    }
+
     func click(selector: String, native: Bool = false, fallbackPolicy: String = "js") async throws -> [String: String] {
         if native {
             do {
@@ -230,6 +241,7 @@ extension BrowserController {
                 let token = UUID().uuidString
                 try await armNativeClickProbe(selector: selector, token: token)
                 let beforeURL = webView.url?.absoluteString ?? ""
+                try await blurActiveElementBeforeNativeClick()
                 var result = try dispatchNativeClick(at: target)
                 let observed: Bool
                 do {

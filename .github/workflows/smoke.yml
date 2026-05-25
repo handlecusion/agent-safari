@@ -38,6 +38,9 @@ jobs:
       - name: Real-world smoke helper tests
         run: python3 Tests/test_smoke_real_world.py
 
+      - name: Browser chrome contract tests
+        run: python3 Tests/test_browser_chrome_contract.py
+
       - name: Public release audit
         run: python3 scripts/public_release_audit.py
 

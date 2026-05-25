@@ -52,10 +52,10 @@ Download the latest release from:
 Current macOS ARM64 example:
 
 ```sh
-curl -L -o /tmp/agent-safari-v0.0.3-macOS-ARM64.zip \
-  https://github.com/handlecusion/agent-safari/releases/download/v0.0.3/agent-safari-v0.0.3-macOS-ARM64.zip
-unzip /tmp/agent-safari-v0.0.3-macOS-ARM64.zip -d /tmp
-/tmp/agent-safari-v0.0.3-macOS-ARM64/install.sh
+curl -L -o /tmp/agent-safari-v0.0.4-macOS-ARM64.zip \
+  https://github.com/handlecusion/agent-safari/releases/download/v0.0.4/agent-safari-v0.0.4-macOS-ARM64.zip
+unzip /tmp/agent-safari-v0.0.4-macOS-ARM64.zip -d /tmp
+/tmp/agent-safari-v0.0.4-macOS-ARM64/install.sh
 ```
 
 The installer copies the native binary to:

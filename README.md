@@ -46,10 +46,10 @@ This installs the native CLI and the MCP wrapper files from the public Homebrew 
 Download the latest macOS ARM64 release zip, unpack it, and run the included installer:
 
 ```sh
-curl -L -o /tmp/agent-safari-v0.0.3-macOS-ARM64.zip \
-  https://github.com/handlecusion/agent-safari/releases/download/v0.0.3/agent-safari-v0.0.3-macOS-ARM64.zip
-unzip /tmp/agent-safari-v0.0.3-macOS-ARM64.zip -d /tmp
-/tmp/agent-safari-v0.0.3-macOS-ARM64/install.sh
+curl -L -o /tmp/agent-safari-v0.0.4-macOS-ARM64.zip \
+  https://github.com/handlecusion/agent-safari/releases/download/v0.0.4/agent-safari-v0.0.4-macOS-ARM64.zip
+unzip /tmp/agent-safari-v0.0.4-macOS-ARM64.zip -d /tmp
+/tmp/agent-safari-v0.0.4-macOS-ARM64/install.sh
 ```
 
 The installer copies `agent-safari` into `${PREFIX:-$HOME/.local}/bin`.

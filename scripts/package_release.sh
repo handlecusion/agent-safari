@@ -28,7 +28,9 @@ for label in RUNNER_OS_NAME RUNNER_ARCH_NAME; do
     exit 1
   fi
 done
-DIST_DIR="${AGENT_SAFARI_DIST_DIR:-$ROOT_DIR/.tmp/dist}"
+DIST_DIR_RAW="${AGENT_SAFARI_DIST_DIR:-$ROOT_DIR/.tmp/dist}"
+mkdir -p "$DIST_DIR_RAW"
+DIST_DIR="$(cd "$DIST_DIR_RAW" && pwd)"
 STAGING_DIR="$DIST_DIR/agent-safari-$VERSION-$RUNNER_OS_NAME-$RUNNER_ARCH_NAME"
 ARCHIVE="$DIST_DIR/agent-safari-$VERSION-$RUNNER_OS_NAME-$RUNNER_ARCH_NAME.zip"
 CHECKSUMS="$DIST_DIR/checksums.txt"
@@ -40,10 +42,11 @@ if [[ ! -x "$BINARY" ]]; then
 fi
 
 rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR/bin" "$STAGING_DIR/mcp" "$STAGING_DIR/scripts" "$DIST_DIR"
+mkdir -p "$STAGING_DIR/bin" "$STAGING_DIR/docs" "$STAGING_DIR/mcp" "$STAGING_DIR/scripts" "$DIST_DIR"
 
 cp "$BINARY" "$STAGING_DIR/bin/agent-safari"
 cp "$ROOT_DIR/README.md" "$ROOT_DIR/LICENSE" "$STAGING_DIR/"
+cp "$ROOT_DIR/docs/INSTALL.md" "$ROOT_DIR/docs/MCP_WRAPPER.md" "$STAGING_DIR/docs/"
 cp "$ROOT_DIR/mcp/agent_safari_mcp.py" "$STAGING_DIR/mcp/"
 cp "$ROOT_DIR/scripts/install_cli.sh" "$ROOT_DIR/scripts/dev_restart.sh" "$STAGING_DIR/scripts/"
 

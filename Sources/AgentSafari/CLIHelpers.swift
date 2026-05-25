@@ -27,6 +27,7 @@ func usage() {
     print("""
     agent-safari --version
     agent-safari doctor [--socket /tmp/agent-safari.sock]
+    agent-safari-mcp-setup [--dry-run] [--yes]   # register MCP with detected agents
     agent-safari daemon [--focus-window] [--socket /tmp/agent-safari.sock]
     agent-safari navigate <url> [--socket /tmp/agent-safari.sock]
     agent-safari text|content|html|url|title [--socket /tmp/agent-safari.sock]

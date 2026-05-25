@@ -34,6 +34,17 @@ commands.
    Autostarting the daemon from the MCP wrapper is intentionally left as a future
    TODO so the wrapper does not unexpectedly launch GUI/browser state.
 
+## Consent-first host registration
+
+Homebrew and source installs include `agent-safari-mcp-setup`. Run it after install to detect local MCP-capable agents and approve each config write:
+
+```sh
+agent-safari-mcp-setup --dry-run
+agent-safari-mcp-setup
+```
+
+The helper supports Claude Desktop, Cursor, Windsurf, VS Code, and Hermes Agent. It writes standard `mcpServers` JSON for JSON-based clients and `mcp_servers` YAML for Hermes.
+
 ## Configuration
 
 The wrapper uses these defaults:

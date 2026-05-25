@@ -48,18 +48,26 @@ cp "$BINARY" "$STAGING_DIR/bin/agent-safari"
 cp "$ROOT_DIR/README.md" "$ROOT_DIR/LICENSE" "$STAGING_DIR/"
 cp "$ROOT_DIR/docs/INSTALL.md" "$ROOT_DIR/docs/MCP_WRAPPER.md" "$STAGING_DIR/docs/"
 cp "$ROOT_DIR/mcp/agent_safari_mcp.py" "$STAGING_DIR/mcp/"
-cp "$ROOT_DIR/scripts/install_cli.sh" "$ROOT_DIR/scripts/dev_restart.sh" "$STAGING_DIR/scripts/"
+cp "$ROOT_DIR/scripts/install_cli.sh" "$ROOT_DIR/scripts/dev_restart.sh" "$ROOT_DIR/scripts/agent_safari_mcp_setup.py" "$STAGING_DIR/scripts/"
 
 cat > "$STAGING_DIR/install.sh" <<'INSTALL'
 #!/usr/bin/env bash
 set -euo pipefail
 PREFIX="${PREFIX:-$HOME/.local}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$PREFIX/bin"
-cp "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/bin/agent-safari" "$PREFIX/bin/agent-safari"
+mkdir -p "$PREFIX/share/agent-safari/mcp"
+cp "$ROOT/bin/agent-safari" "$PREFIX/bin/agent-safari"
+cp "$ROOT/scripts/agent_safari_mcp_setup.py" "$PREFIX/bin/agent-safari-mcp-setup"
+cp "$ROOT/mcp/agent_safari_mcp.py" "$PREFIX/share/agent-safari/mcp/agent_safari_mcp.py"
 chmod +x "$PREFIX/bin/agent-safari"
+chmod +x "$PREFIX/bin/agent-safari-mcp-setup"
 printf 'installed %s\n' "$PREFIX/bin/agent-safari"
+printf 'installed %s\n' "$PREFIX/bin/agent-safari-mcp-setup"
+printf 'installed %s\n' "$PREFIX/share/agent-safari/mcp/agent_safari_mcp.py"
 INSTALL
 chmod +x "$STAGING_DIR/install.sh" "$STAGING_DIR/bin/agent-safari"
+chmod +x "$STAGING_DIR/scripts/agent_safari_mcp_setup.py"
 
 (
   cd "$DIST_DIR"

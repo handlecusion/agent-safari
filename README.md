@@ -41,6 +41,18 @@ This installs the native CLI and the MCP wrapper files from the public Homebrew 
 
 - https://github.com/handlecusion/homebrew-agent-safari
 
+To connect the installed MCP wrapper to local AI agents, run the consent-first setup helper:
+
+```sh
+agent-safari-mcp-setup
+```
+
+It detects Claude Desktop, Cursor, Windsurf, VS Code, and Hermes Agent config locations, shows the MCP config it will add, and asks before writing each file. For a preview only:
+
+```sh
+agent-safari-mcp-setup --dry-run
+```
+
 ### GitHub Release binary
 
 Download the latest macOS ARM64 release zip, unpack it, and run the included installer:
@@ -52,8 +64,9 @@ unzip /tmp/agent-safari-v0.0.4-macOS-ARM64.zip -d /tmp
 /tmp/agent-safari-v0.0.4-macOS-ARM64/install.sh
 ```
 
-The installer copies `agent-safari` into `${PREFIX:-$HOME/.local}/bin`.
-Make sure that directory is on your `PATH`.
+The installer copies `agent-safari` and `agent-safari-mcp-setup` into `${PREFIX:-$HOME/.local}/bin`.
+It also installs the MCP wrapper under `${PREFIX:-$HOME/.local}/share/agent-safari/mcp/`.
+Make sure the bin directory is on your `PATH`.
 
 Latest releases:
 
@@ -125,6 +138,15 @@ MCP client -> mcp/agent_safari_mcp.py -> agent-safari -> Unix socket daemon -> W
 
 The daemon must be running before MCP tools can control the browser.
 
+Homebrew and source installs also provide `agent-safari-mcp-setup`, a consent-first helper that detects local MCP-capable agents and registers this server only after approval:
+
+```sh
+agent-safari-mcp-setup --dry-run
+agent-safari-mcp-setup
+```
+
+Supported auto-config targets are Claude Desktop, Cursor, Windsurf, VS Code, and Hermes Agent. The helper writes the standard `mcpServers` JSON shape for JSON-based clients and `mcp_servers` YAML for Hermes.
+
 Typical MCP host config:
 
 ```json
@@ -163,7 +185,7 @@ After changing MCP config in an active Hermes session, reload MCP servers with `
 | Homebrew | Public | `brew tap handlecusion/agent-safari && brew install agent-safari` |
 | GitHub Release | Public | macOS ARM64 zip is available on GitHub Releases |
 | Source build | Public | `scripts/install_cli.sh` |
-| MCP wrapper | Public | Python wrapper included in `mcp/`; daemon must be running |
+| MCP wrapper | Public | Python wrapper included in `mcp/`; `agent-safari-mcp-setup` can register it with detected agents after consent |
 | npm | Prepared, unpublished | wrapper exists, registry package is not published yet |
 
 For detailed install and troubleshooting steps, see `docs/INSTALL.md`.

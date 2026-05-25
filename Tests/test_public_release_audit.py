@@ -47,6 +47,8 @@ def write_minimal_public_ready_repo(root: Path) -> None:
         "      - run: bash -n scripts/*.sh\n"
         "      - run: scripts/package_npm.sh\n"
         "      - run: scripts/render_homebrew_formula.py\n"
+        "      - run: python3 Tests/test_mcp_contract.py\n"
+        "      - run: python3 Tests/test_mcp_setup_helper.py\n"
         "      - run: python3 scripts/public_release_audit.py\n",
         encoding="utf-8",
     )
@@ -99,6 +101,7 @@ def write_minimal_public_ready_repo(root: Path) -> None:
     (root / "scripts" / "placeholder.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
     (root / "scripts" / "package_release.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
     (root / "scripts" / "package_npm.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    (root / "scripts" / "agent_safari_mcp_setup.py").write_text("print('setup')\n", encoding="utf-8")
     (root / "scripts" / "render_homebrew_formula.py").write_text("print('formula')\n", encoding="utf-8")
     (root / "npm" / "agent-safari" / "package.json").write_text("{}\n", encoding="utf-8")
     (root / "npm" / "agent-safari" / "bin" / "agent-safari.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")

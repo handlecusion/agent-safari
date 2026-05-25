@@ -100,6 +100,48 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
         raise AssertionError("native click result without explicit metadata should fail")
 
 
+def test_quality_gate_matrix_separates_ci_local_and_strict_native() -> None:
+    smoke = load_smoke_module()
+
+    matrix = smoke.quality_gate_matrix(strict_native=False)
+    names = {item["name"] for item in matrix}
+
+    assert names == {
+        "snapshot_refs_form",
+        "full_page_screenshot",
+        "fetch_xhr_resource_timing",
+        "multi_tab_session_profile",
+        "native_click_type_viewport",
+        "strict_native_click_only",
+    }
+    assert all(item["gate"] in {"ci-compatible", "local-gui", "strict-native-opt-in"} for item in matrix)
+    assert [item["gate"] for item in matrix if item["name"] == "strict_native_click_only"] == ["strict-native-opt-in"]
+    assert all(item["artifact_limit_mb"] <= 25 for item in matrix)
+
+
+def test_failure_diagnostics_payload_is_bounded_and_actionable(tmp_path: Path) -> None:
+    smoke = load_smoke_module()
+    log = tmp_path / "daemon.log"
+    log.write_text("line-1\n" + "x" * 6000 + "\nline-last\n", encoding="utf-8")
+
+    payload = smoke.failure_diagnostics_payload(
+        RuntimeError("boom"),
+        out_dir=tmp_path,
+        daemon_log=log,
+        scenarios=[{"name": "1. Snapshot refs + form action", "verdict": "PASS"}],
+        strict_native=False,
+    )
+
+    assert payload["errorType"] == "RuntimeError"
+    assert payload["error"] == "boom"
+    assert payload["artifactRoot"] == str(tmp_path)
+    assert payload["completedScenarios"] == 1
+    assert payload["strictNative"] is False
+    assert payload["qualityGates"][0]["name"] == "snapshot_refs_form"
+    assert len(payload["daemonLogTail"]) <= 4096
+    assert "line-last" in payload["daemonLogTail"]
+
+
 def main() -> int:
     import tempfile
 
@@ -110,6 +152,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as d:
         test_full_page_artifact_must_be_taller_than_viewport(Path(d) / "c")
     test_native_click_delivery_metadata_is_explicit()
+    test_quality_gate_matrix_separates_ci_local_and_strict_native()
+    with tempfile.TemporaryDirectory() as d:
+        test_failure_diagnostics_payload_is_bounded_and_actionable(Path(d))
     print("smoke_real_world helper tests passed")
     return 0
 

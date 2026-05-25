@@ -1,10 +1,10 @@
 # Packaging and distribution
 
-agent-safari can be distributed three ways:
+agent-safari is distributed through GitHub Releases and Homebrew. npm packaging is implemented but the public npm package has not been published yet.
 
 1. GitHub Release zip for direct download.
-2. npm package for `npx agent-safari ...` usage.
-3. Homebrew formula for `brew install ...` usage.
+2. Homebrew formula for `brew install ...` usage.
+3. npm package for future `npx agent-safari ...` usage once npm publishing is enabled.
 
 ## npm
 
@@ -38,6 +38,12 @@ Publish automation:
 - `.github/workflows/publish-packages.yml` runs after a GitHub Release is published.
 - If the `NPM_TOKEN` repository secret is configured, it publishes `.tmp/npm-package` to npm with `--access public`.
 - If `NPM_TOKEN` is not configured, the workflow skips npm publishing but still uploads the npm tarball as an artifact.
+
+Current npm status:
+
+- Package wrapper and publish automation exist.
+- The public npm package is not published yet.
+- Do not document `npm install -g agent-safari` as a working user install path until the package is live in the npm registry.
 
 Expected npm install experience after publishing:
 
@@ -80,14 +86,14 @@ Tap automation:
 - Configure repository secret `HOMEBREW_TAP_TOKEN` with push access to that tap repository.
 - On release publish, `.github/workflows/publish-packages.yml` renders the formula and pushes it to `Formula/agent-safari.rb` in the tap.
 
-Expected Homebrew usage after tap setup:
+Expected Homebrew usage:
 
 ```sh
 brew tap handlecusion/agent-safari
 brew install agent-safari
 ```
 
-If the tap repository is named with the conventional `homebrew-` prefix, `brew tap handlecusion/agent-safari` resolves to `github.com/handlecusion/homebrew-agent-safari`.
+The public tap is `https://github.com/handlecusion/homebrew-agent-safari`. If the tap repository is named with the conventional `homebrew-` prefix, `brew tap handlecusion/agent-safari` resolves to `github.com/handlecusion/homebrew-agent-safari`.
 
 ## Release flow
 

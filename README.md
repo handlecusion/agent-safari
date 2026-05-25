@@ -1,45 +1,108 @@
 # agent-safari
 
-`agent-safari` is a Swift command-line tool, local daemon, and MCP stdio server for driving a native Safari/WebKit browser window over a Unix domain socket.
+`agent-safari` is a local-first macOS Safari/WebKit automation CLI, native WebKit window, local daemon, and MCP stdio server for AI agents.
 
-The intended control loop is:
+It opens a real WKWebView window with a visible address bar, exposes compact snapshot refs such as `@e1`, and can be driven either from shell scripts or from MCP clients through the Python wrapper.
 
 ```text
-daemon -> navigate -> snapshot -> act on @e refs -> capture/evaluate/network inspect
+daemon -> open/navigate -> snapshot -> click/fill @e refs -> wait -> capture/evaluate/network inspect
 ```
 
-It can be used directly from shell scripts via the CLI, or from Hermes/other MCP clients via the Python MCP wrapper.
+## Highlights
+
+- Native macOS WebKit/WKWebView browser window; no Chrome, Playwright, or remote browser service required.
+- Visible browser chrome with editable address bar for human-observable automation.
+- CLI-first control surface with one JSON response line per command.
+- MCP wrapper for Hermes and other MCP-compatible clients.
+- Agent-friendly refs from `snapshot`, e.g. `@e1`, reusable by `click` and `fill`.
+- Viewport, full-page, and element screenshots.
+- JavaScript `evaluate`, text/HTML extraction, wait helpers, history, modeled tabs, profiles, and ephemeral mode.
+- Local fetch/XHR network capture instrumentation with redacted JSON export.
 
 ## Requirements
 
-- macOS with GUI access
-- Swift toolchain
-- Python 3 for the MCP wrapper
-- Optional but recommended: local MCP venv at `.venv-mcp`
+- macOS with a logged-in GUI session.
+- Swift toolchain when building from source or installing via Homebrew.
+- Python 3 when using the MCP wrapper.
+- Optional: macOS Accessibility permission for strict/native click verification.
 
-## Quick start: CLI
+Headless SSH-only sessions are not enough because the daemon owns a real WebKit window.
 
-Build the Swift binary and install a convenient `agent-safari` command into `~/.local/bin`:
+## Install
+
+### Homebrew, recommended for most macOS users
 
 ```sh
-git clone https://github.com/handlecusion/agent-safari.git agent-safari
+brew tap handlecusion/agent-safari
+brew install agent-safari
+```
+
+This installs the native CLI and the MCP wrapper files from the public Homebrew tap:
+
+- https://github.com/handlecusion/homebrew-agent-safari
+
+### GitHub Release binary
+
+Download the latest macOS ARM64 release zip, unpack it, and run the included installer:
+
+```sh
+curl -L -o /tmp/agent-safari-v0.0.3-macOS-ARM64.zip \
+  https://github.com/handlecusion/agent-safari/releases/download/v0.0.3/agent-safari-v0.0.3-macOS-ARM64.zip
+unzip /tmp/agent-safari-v0.0.3-macOS-ARM64.zip -d /tmp
+/tmp/agent-safari-v0.0.3-macOS-ARM64/install.sh
+```
+
+The installer copies `agent-safari` into `${PREFIX:-$HOME/.local}/bin`.
+Make sure that directory is on your `PATH`.
+
+Latest releases:
+
+- https://github.com/handlecusion/agent-safari/releases
+
+### Build from source, recommended for contributors
+
+```sh
+git clone https://github.com/handlecusion/agent-safari.git
 cd agent-safari
 scripts/install_cli.sh
 ```
 
-The installer builds the package and creates this symlink:
+By default this builds debug and creates:
 
 ```text
-~/.local/bin/agent-safari -> <repo>/agent-safari/.build/debug/agent-safari
+~/.local/bin/agent-safari -> <repo>/.build/debug/agent-safari
 ```
 
-If `~/.local/bin` is on your PATH, after installation you can use `agent-safari` directly instead of typing `.build/debug/agent-safari`.
+For a local release build:
 
-Start the WebKit daemon:
+```sh
+AGENT_SAFARI_BUILD_CONFIGURATION=release scripts/install_cli.sh
+```
+
+If `~/.local/bin` is not on your `PATH`, the installer prints the shell line to add.
+
+### npm status
+
+The npm package wrapper is implemented in `npm/agent-safari`, but the public npm package is not published yet. Until it is published, use Homebrew, GitHub Releases, or source build.
+
+## Quick start: CLI
+
+Start the local WebKit daemon:
 
 ```sh
 agent-safari daemon --socket /tmp/agent-safari.sock
 ```
+
+In another terminal, drive the browser:
+
+```sh
+agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
+agent-safari snapshot --socket /tmp/agent-safari.sock
+agent-safari click '@e1' --native --socket /tmp/agent-safari.sock
+agent-safari screenshot --full --out /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
+```
+
+The daemon opens a native WebKit window. CLI commands print one JSON response line. Successful responses have `"ok": true` and a `result` object.
 
 By default the window is shown without stealing keyboard focus from your current app. If you want the browser to come to the front and become focused at startup, add `--focus-window`.
 
@@ -47,27 +110,74 @@ For development, rebuild, reinstall, stop any existing daemon, and start a fresh
 
 ```sh
 scripts/dev_restart.sh
-```
-
-Optionally navigate immediately after restart:
-
-```sh
 scripts/dev_restart.sh 'https://www.google.com'
 ```
 
-By default this uses `/tmp/agent-safari.sock`, writes logs to `.tmp/agent-safari-daemon.log`, and stores the daemon PID at `.tmp/agent-safari-daemon.pid`. You can override the socket with `AGENT_SAFARI_SOCKET=/tmp/custom.sock scripts/dev_restart.sh`.
+By default this uses `/tmp/agent-safari.sock`, writes logs to `.tmp/agent-safari-daemon.log`, and stores the daemon PID at `.tmp/agent-safari-daemon.pid`. Override the socket with `AGENT_SAFARI_SOCKET=/tmp/custom.sock scripts/dev_restart.sh`.
 
-In another terminal, control it:
+## Quick start: MCP
 
-```sh
-agent-safari open 'https://example.com' --socket /tmp/agent-safari.sock
-agent-safari text --socket /tmp/agent-safari.sock
-agent-safari snapshot --socket /tmp/agent-safari.sock
-agent-safari screenshot --full --out /tmp/agent-safari-full.png --socket /tmp/agent-safari.sock
-agent-safari screenshot-element '@e1' --out /tmp/agent-safari-element.png --socket /tmp/agent-safari.sock
+The MCP server is a Python stdio wrapper around the Swift CLI:
+
+```text
+MCP client -> mcp/agent_safari_mcp.py -> agent-safari -> Unix socket daemon -> WKWebView
 ```
 
-The daemon opens a native WebKit window. CLI commands print one JSON response line. Successful responses have `"ok": true` and a `result` object.
+The daemon must be running before MCP tools can control the browser.
+
+Typical MCP host config:
+
+```json
+{
+  "mcpServers": {
+    "agent-safari": {
+      "command": "python3",
+      "args": ["/path/to/agent-safari/mcp/agent_safari_mcp.py"],
+      "env": {
+        "AGENT_SAFARI_BIN": "/path/to/agent-safari/.build/debug/agent-safari",
+        "AGENT_SAFARI_SOCKET": "/tmp/agent-safari.sock"
+      }
+    }
+  }
+}
+```
+
+Hermes registration example:
+
+```sh
+hermes mcp add agent-safari \
+  --command "$PWD/.venv-mcp/bin/python" \
+  --args "$PWD/mcp/agent_safari_mcp.py" \
+  --env AGENT_SAFARI_BIN="$PWD/.build/debug/agent-safari" \
+  --env AGENT_SAFARI_SOCKET=/tmp/agent-safari.sock
+
+hermes mcp test agent-safari
+```
+
+After changing MCP config in an active Hermes session, reload MCP servers with `/reload-mcp` or start a fresh session.
+
+## Installation status
+
+| Method | Status | Notes |
+| --- | --- | --- |
+| Homebrew | Public | `brew tap handlecusion/agent-safari && brew install agent-safari` |
+| GitHub Release | Public | macOS ARM64 zip is available on GitHub Releases |
+| Source build | Public | `scripts/install_cli.sh` |
+| MCP wrapper | Public | Python wrapper included in `mcp/`; daemon must be running |
+| npm | Prepared, unpublished | wrapper exists, registry package is not published yet |
+
+For detailed install and troubleshooting steps, see `docs/INSTALL.md`.
+
+## Documentation
+
+- Detailed installation: `docs/INSTALL.md`
+- CLI usage: `docs/CLI_USAGE.md`
+- MCP wrapper usage: `docs/MCP_WRAPPER.md`
+- Agent loop: `docs/AGENT_LOOP.md`
+- Profile persistence: `docs/PROFILE_PERSISTENCE.md`
+- CI/CD: `docs/CI_CD.md`
+- Packaging and distribution: `docs/PACKAGING.md`
+- Roadmap: `docs/ROADMAP.md`
 
 ## CLI command reference
 
@@ -181,131 +291,21 @@ Limitations:
 - Does not capture parser-driven resources such as images/CSS as a full browser network tab would.
 - Does not yet implement proxy-grade HAR export, WebSocket frame capture, or service-worker-level capture.
 
-## MCP usage
+## MCP tools
 
-See also:
+The MCP wrapper exposes browser status, observe, navigate, text, html, snapshot, evaluate, screenshot, click, fill, keyboard/text insertion, waits, network capture, history, viewport, session, and modeled tab tools. See `docs/MCP_WRAPPER.md` for the full tool contract and local checks.
 
-- `docs/AGENT_LOOP.md` for the observe -> act -> wait -> verify browser-agent loop.
-- `docs/PROFILE_PERSISTENCE.md` for profile, cookie, and session persistence behavior.
-
-The MCP server is a Python stdio wrapper around the Swift CLI:
-
-```text
-MCP client -> mcp/agent_safari_mcp.py -> agent-safari -> Unix socket daemon -> WKWebView
-```
-
-The daemon must be running before MCP tools can control the browser:
-
-```sh
-git clone https://github.com/handlecusion/agent-safari.git agent-safari
-cd agent-safari
-scripts/install_cli.sh
-agent-safari daemon --socket /tmp/agent-safari.sock
-```
-
-### MCP environment variables
-
-```sh
-export AGENT_SAFARI_BIN="$PWD/.build/debug/agent-safari"
-export AGENT_SAFARI_SOCKET=/tmp/agent-safari.sock
-```
-
-### MCP wrapper health check
-
-Using the project venv:
-
-```sh
-.venv-mcp/bin/python mcp/agent_safari_mcp.py --check
-```
-
-Expected output includes:
-
-```text
-AGENT_SAFARI_BIN=<repo>/agent-safari/.build/debug/agent-safari
-AGENT_SAFARI_SOCKET=/tmp/agent-safari.sock
-binary_exists=True
-```
-
-### Hermes MCP registration
-
-This project has been verified with Hermes using an MCP server named `agent-safari`.
-
-Add/register manually if needed:
-
-```sh
-hermes mcp add agent-safari \
-  --command "$PWD/.venv-mcp/bin/python" \
-  --args "$PWD/mcp/agent_safari_mcp.py" \
-  --env AGENT_SAFARI_BIN="$PWD/.build/debug/agent-safari" \
-  --env AGENT_SAFARI_SOCKET=/tmp/agent-safari.sock
-```
-
-Verify:
-
-```sh
-hermes mcp list
-hermes mcp test agent-safari
-```
-
-After changing MCP config in an active Hermes session, reload MCP servers with `/reload-mcp` or start a fresh session.
-
-### MCP tools currently exposed
-
-The MCP wrapper currently exposes these tools:
-
-| Tool | Purpose | CLI equivalent |
-| --- | --- | --- |
-| `status()` | Return daemon/page status for the controlled WebView. | `agent-safari status` |
-| `observe()` | Return read-only URL/title/load/network/active-element state for agent loops. | `agent-safari observe` |
-| `navigate(url)` | Navigate the controlled WebView to a URL. | `agent-safari navigate <url>` |
-| `text()` | Return visible page text. | `agent-safari text` |
-| `html()` | Return `document.documentElement.outerHTML`. | `agent-safari html` |
-| `title()` | Return the current document title. | `agent-safari title` |
-| `url()` | Return the current document URL. | `agent-safari url` |
-| `content()` | Alias for visible page text. | `agent-safari content` |
-| `snapshot()` | Return JSON string of visible/interactable elements and `@e` refs. | `agent-safari snapshot` |
-| `evaluate(script)` | Evaluate JavaScript and return its stringified value. | `agent-safari evaluate <js>` |
-| `screenshot(path)` | Capture viewport PNG. | `agent-safari screenshot <path>` |
-| `screenshot_full(path)` | Capture full-page PNG. | `agent-safari screenshot-full <path>` |
-| `click(selector, native=False)` | Click CSS selector or snapshot ref such as `@e1`; optional native coordinate click. | `agent-safari click <selector-or-ref> [--native]` |
-| `fill(selector, value)` | Fill CSS selector or snapshot ref. | `agent-safari fill <selector-or-ref> <value>` |
-| `key(key)` | Dispatch synthetic DOM keyboard events. | `agent-safari key <key>` |
-| `type_text(text)` | Insert text into the active input/textarea/contenteditable. | `agent-safari type <text>` |
-| `wait(ms)` | Wait for a number of milliseconds. | `agent-safari wait <ms>` |
-| `wait_for_selector(selector, timeout_ms=10000)` | Wait for a selector to appear. | `agent-safari wait-for-selector <selector> --timeout <ms>` |
-| `wait_for_text(text, timeout_ms=10000)` | Wait for page text to contain a string. | `agent-safari wait-for-text <text> --timeout <ms>` |
-| `wait_for_idle(timeout_ms=10000)` | Wait for page load/fetch/XHR idle. | `agent-safari wait-for-idle --timeout <ms>` |
-| `network_start()` | Start fetch/XHR network capture instrumentation. | `agent-safari network-start` |
-| `network_list()` | Return captured fetch/XHR network entries. | `agent-safari network-list` |
-| `network_stop()` | Stop fetch/XHR network capture instrumentation. | `agent-safari network-stop` |
-| `network_export(path, body_preview_bytes=None, max_entries=None)` | Export redacted fetch/XHR entries to JSON. | `agent-safari network-export <path>` |
-| `back()` | Navigate back in WebKit history if possible. | `agent-safari back` |
-| `forward()` | Navigate forward in WebKit history if possible. | `agent-safari forward` |
-| `reload()` | Reload the current page. | `agent-safari reload` |
-| `viewport(width, height)` | Resize the WebKit viewport/window. | `agent-safari viewport <width> <height>` |
-| `session()` | Return current automation session metadata. | `agent-safari session` |
-| `tabs()` | List modeled tabs for the single-WebView session. | `agent-safari tabs` |
-| `tab_new()` | Report/create the current tab placeholder. | `agent-safari tab-new` |
-| `tab_switch(tab_id)` | Switch to a modeled tab id. | `agent-safari tab-switch <id>` |
-| `tab_close(tab_id)` | Close a modeled tab id when supported. | `agent-safari tab-close <id>` |
-
-
-### Example MCP control loop
-
-From an MCP-capable agent, use the tools in this order:
+Example MCP control loop:
 
 ```text
 navigate(url="https://example.com")
 snapshot()
 click(selector="@e1", native=True)
 fill(selector="@e2", value="hello@example.com")
-type_text(text=" extra")
 wait_for_idle(timeout_ms=10000)
-screenshot_full(path="/tmp/agent-safari-full.png")  # CLI: screenshot --full --out <path>
+screenshot_full(path="/tmp/agent-safari-full.png")
 evaluate(script="document.title")
 ```
-
-For Hermes specifically, once the server is loaded, ask the agent to use the `agent-safari` MCP tools to navigate, snapshot, click/fill refs, and capture screenshots.
 
 ## Operational documentation
 

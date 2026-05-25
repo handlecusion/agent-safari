@@ -35,6 +35,9 @@ jobs:
       - name: Public release audit tests
         run: python3 Tests/test_public_release_audit.py
 
+      - name: Real-world smoke helper tests
+        run: python3 Tests/test_smoke_real_world.py
+
       - name: Public release audit
         run: python3 scripts/public_release_audit.py
 

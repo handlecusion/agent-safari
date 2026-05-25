@@ -156,6 +156,84 @@ def native_click_delivery(payload: dict, strict_native: bool) -> dict:
     }
 
 
+def quality_gate_matrix(strict_native: bool) -> list[dict]:
+    """Return the release-gate contract covered by this smoke runner.
+
+    The matrix is intentionally machine-readable so CI, release notes, and
+    failure diagnostics all describe the same bounded smoke surface. Strict
+    native delivery is modeled as opt-in even when this run enables it, because
+    local session focus/accessibility state can make native event delivery
+    environment-sensitive.
+    """
+    base_artifact_limit_mb = 25
+    return [
+        {
+            'name': 'snapshot_refs_form',
+            'gate': 'ci-compatible',
+            'fixture': 'fixtures/index.html',
+            'artifacts': ['captures/01_form_after_submit.png', 'captures/01_result_element.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+        },
+        {
+            'name': 'full_page_screenshot',
+            'gate': 'ci-compatible',
+            'fixture': 'fixtures/long.html',
+            'artifacts': ['captures/02_long_full_page.png', 'captures/02_long_viewport.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+        },
+        {
+            'name': 'fetch_xhr_resource_timing',
+            'gate': 'ci-compatible',
+            'fixture': 'fixtures/network.html',
+            'artifacts': ['data/03_network.har.json', 'captures/03_network_after_load.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+        },
+        {
+            'name': 'multi_tab_session_profile',
+            'gate': 'ci-compatible',
+            'fixture': 'fixtures/tab-a.html + fixtures/tab-b.html',
+            'artifacts': ['captures/04_tab_b_active.png', 'captures/04_tab_a_restored.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+        },
+        {
+            'name': 'native_click_type_viewport',
+            'gate': 'local-gui',
+            'fixture': 'fixtures/native.html',
+            'artifacts': ['captures/05_native_click_and_type.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+            'strict_native_enabled_for_run': strict_native,
+        },
+        {
+            'name': 'strict_native_click_only',
+            'gate': 'strict-native-opt-in',
+            'fixture': 'fixtures/native.html',
+            'artifacts': ['data/failure-diagnostics.json on failure', 'captures/05_native_click_and_type.png'],
+            'artifact_limit_mb': base_artifact_limit_mb,
+            'enabled_by': 'AGENT_SAFARI_STRICT_NATIVE=1',
+        },
+    ]
+
+
+def text_tail(path: Path, max_chars: int = 4096) -> str:
+    if not path.exists():
+        return ''
+    content = path.read_text(encoding='utf-8', errors='replace')
+    return content[-max_chars:]
+
+
+def failure_diagnostics_payload(exc: BaseException, out_dir: Path, daemon_log: Path, scenarios: list[dict], strict_native: bool) -> dict:
+    return {
+        'errorType': type(exc).__name__,
+        'error': str(exc),
+        'artifactRoot': str(out_dir),
+        'completedScenarios': len(scenarios),
+        'completedScenarioNames': [str(s.get('name')) for s in scenarios],
+        'strictNative': strict_native,
+        'qualityGates': quality_gate_matrix(strict_native),
+        'daemonLogTail': text_tail(daemon_log),
+    }
+
+
 def snapshot_elements(record) -> list[dict]:
     payload = result_payload(record)
     raw = payload.get('snapshot')
@@ -429,6 +507,13 @@ def main():
         failures = [s for s in SCENARIOS if s['verdict'] != 'PASS']
         if failures:
             raise RuntimeError('smoke scenarios did not all pass: ' + ', '.join(s['name'] for s in failures))
+    except Exception as exc:
+        json_dump(DATA / 'failure-diagnostics.json', failure_diagnostics_payload(exc, OUT, LOG, SCENARIOS, STRICT_NATIVE))
+        try:
+            make_report()
+        except Exception:
+            pass
+        raise
     finally:
         server.shutdown()
         if daemon.poll() is None:
@@ -466,6 +551,18 @@ def make_report():
         lines.append('')
     for s in SCENARIOS:
         lines.append(f"- {s['verdict']}: {s['name']} — {s['purpose']}")
+    lines.append('')
+    lines.append('## Quality gate matrix')
+    lines.append('')
+    lines.append('| gate | fixture | bounded artifacts |')
+    lines.append('| --- | --- | --- |')
+    for gate in quality_gate_matrix(STRICT_NATIVE):
+        artifacts = ', '.join(gate['artifacts'])
+        lines.append(f"| `{gate['gate']}` / `{gate['name']}` | `{gate['fixture']}` | <= {gate['artifact_limit_mb']} MB: `{artifacts}` |")
+    diagnostics = DATA / 'failure-diagnostics.json'
+    if diagnostics.exists():
+        lines.append('')
+        lines.append(f"- failure diagnostics: `{diagnostics}`")
     lines.append('')
     lines.append('## Scenario details')
     for i, s in enumerate(SCENARIOS, 1):

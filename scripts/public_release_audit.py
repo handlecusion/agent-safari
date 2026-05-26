@@ -24,6 +24,7 @@ REQUIRED_FILES = [
     ".github/workflows/publish-packages.yml",
     "scripts/package_release.sh",
     "scripts/package_npm.sh",
+    "scripts/agent_safari_mcp_setup.py",
     "scripts/render_homebrew_formula.py",
     "npm/agent-safari/package.json",
     "npm/agent-safari/bin/agent-safari.js",
@@ -40,6 +41,7 @@ REQUIRED_CI_SNIPPETS = [
     "scripts/package_npm.sh",
     "scripts/render_homebrew_formula.py",
     "python3 scripts/public_release_audit.py",
+    "Tests/test_mcp_setup_helper.py",
 ]
 REQUIRED_RELEASE_SNIPPETS = [
     "tags:",
@@ -90,7 +92,7 @@ TEXT_SUFFIXES = {
     ".toml",
     ".gitignore",
 }
-SKIP_DIRS = {".git", ".build", ".swiftpm", ".venv", ".venv-mcp", "venv", "__pycache__", ".tmp"}
+SKIP_DIRS = {".git", ".build", ".swiftpm", ".venv", ".venv-mcp", "venv", "__pycache__", ".tmp", ".hermes"}
 SECRET_PATTERNS = [
     re.compile(part, re.IGNORECASE)
     for part in [

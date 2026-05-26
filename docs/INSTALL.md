@@ -30,6 +30,15 @@ Verify the CLI is available:
 agent-safari --help
 ```
 
+Optionally register the MCP wrapper with detected AI agents:
+
+```sh
+agent-safari-mcp-setup --dry-run
+agent-safari-mcp-setup
+```
+
+The setup helper detects Claude Desktop, Cursor, Windsurf, VS Code, and Hermes Agent config locations. It prints the MCP server config and asks for approval before writing each config file.
+
 Start the daemon:
 
 ```sh
@@ -58,11 +67,14 @@ unzip /tmp/agent-safari-v0.0.4-macOS-ARM64.zip -d /tmp
 /tmp/agent-safari-v0.0.4-macOS-ARM64/install.sh
 ```
 
-The installer copies the native binary to:
+The installer copies the native binary and setup helper to:
 
 ```text
 ${PREFIX:-$HOME/.local}/bin/agent-safari
+${PREFIX:-$HOME/.local}/bin/agent-safari-mcp-setup
 ```
+
+It also installs the MCP wrapper under `${PREFIX:-$HOME/.local}/share/agent-safari/mcp/`.
 
 If `agent-safari` is not found after install, add the install directory to your shell profile:
 
@@ -131,6 +143,41 @@ All client commands accept `--socket <path>`. The default socket is `/tmp/agent-
 ## MCP setup
 
 The MCP server is a Python stdio wrapper around the Swift CLI. The daemon must be running before MCP tools can control the browser.
+
+### Consent-first agent setup helper
+
+Homebrew and source installs include:
+
+```sh
+agent-safari-mcp-setup
+```
+
+The helper follows the same user-consent pattern used by browser MCP installers: it detects known local agent config locations, shows the MCP server entry, then asks before writing each config file. Supported targets:
+
+- Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Cursor: `~/.cursor/mcp.json`
+- Windsurf: `~/.codeium/windsurf/mcp_config.json`
+- VS Code: `~/Library/Application Support/Code/User/mcp.json`
+- Hermes Agent: `~/.hermes/config.yaml`
+
+Preview without writing:
+
+```sh
+agent-safari-mcp-setup --dry-run
+```
+
+Apply to every detected target without prompts, useful in scripts after you have inspected the dry run:
+
+```sh
+agent-safari-mcp-setup --yes
+```
+
+Limit setup to one target:
+
+```sh
+agent-safari-mcp-setup --agent claude-desktop
+agent-safari-mcp-setup --agent hermes
+```
 
 ### Source checkout MCP setup
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_NAME="agent-safari"
+MCP_SETUP_NAME="agent-safari-mcp-setup"
 CONFIGURATION="${AGENT_SAFARI_BUILD_CONFIGURATION:-debug}"
 INSTALL_DIR="${AGENT_SAFARI_INSTALL_DIR:-$HOME/.local/bin}"
 
@@ -43,7 +44,17 @@ fi
 ln -sfn "$BUILT_BIN" "$TARGET"
 chmod +x "$BUILT_BIN"
 
+MCP_SETUP_TARGET="$INSTALL_DIR/$MCP_SETUP_NAME"
+if [[ -e "$MCP_SETUP_TARGET" && ! -L "$MCP_SETUP_TARGET" ]]; then
+  echo "Refusing to overwrite non-symlink: $MCP_SETUP_TARGET" >&2
+  echo "Set AGENT_SAFARI_INSTALL_DIR to another directory or move the existing file." >&2
+  exit 1
+fi
+ln -sfn "$ROOT/scripts/agent_safari_mcp_setup.py" "$MCP_SETUP_TARGET"
+chmod +x "$ROOT/scripts/agent_safari_mcp_setup.py"
+
 echo "[install_cli] installed: $TARGET -> $BUILT_BIN"
+echo "[install_cli] installed: $MCP_SETUP_TARGET -> $ROOT/scripts/agent_safari_mcp_setup.py"
 if command -v "$BIN_NAME" >/dev/null 2>&1; then
   RESOLVED="$(command -v "$BIN_NAME")"
   echo "[install_cli] command resolves to: $RESOLVED"

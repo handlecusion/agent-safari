@@ -12,7 +12,20 @@ class AgentSafari < Formula
   def install
     system "swift", "build", "-c", "release", "--disable-sandbox"
     bin.install ".build/release/agent-safari"
+    bin.install "scripts/agent_safari_mcp_setup.py" => "agent-safari-mcp-setup"
     prefix.install "mcp"
+  end
+
+  def caveats
+    <<~EOS
+      To connect agent-safari to detected MCP clients, run:
+        agent-safari-mcp-setup
+
+      The setup helper detects Claude Desktop, Cursor, Windsurf, VS Code, and
+      Hermes Agent config locations, then asks before writing each config file.
+      For non-interactive installs, inspect first:
+        agent-safari-mcp-setup --dry-run
+    EOS
   end
 
   test do

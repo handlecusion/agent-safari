@@ -28,7 +28,7 @@ BIN = ROOT / '.build' / 'debug' / 'agent-safari'
 RUN_ID = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Run five real WebKit smoke scenarios and generate a screenshot report.'
     )
@@ -48,10 +48,10 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='Skip swift build/test preflight when the binary and tests were already verified.',
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-ARGS = parse_args()
+ARGS = parse_args(None if __name__ == '__main__' else [])
 OUT = Path(ARGS.out_dir).expanduser().resolve() if ARGS.out_dir else ROOT / '.tmp' / f'agent-safari-5-scenarios-{RUN_ID}'
 FIX = OUT / 'fixtures'
 CAP = OUT / 'captures'

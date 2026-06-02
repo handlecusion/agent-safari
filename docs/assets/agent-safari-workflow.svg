@@ -1,0 +1,64 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Safari workflow preview</title>
+  <desc id="desc">An AI agent controls a local Safari WebKit window through the Agent Safari MCP server using observe, act, and verify steps.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08111f"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" rx="34" fill="url(#bg)"/>
+  <circle cx="1010" cy="95" r="130" fill="#38bdf8" opacity="0.12"/>
+  <circle cx="130" cy="560" r="190" fill="#818cf8" opacity="0.13"/>
+
+  <text x="72" y="88" fill="#f8fafc" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="48" font-weight="800">Agent Safari</text>
+  <text x="72" y="128" fill="#cbd5e1" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="24">Control and observe a real Safari/WebKit browser from AI agents via MCP</text>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="180" width="330" height="310" rx="24" fill="url(#card)" stroke="#334155"/>
+    <rect x="96" y="210" width="282" height="44" rx="12" fill="#020617" stroke="#1e293b"/>
+    <circle cx="119" cy="232" r="6" fill="#ef4444"/>
+    <circle cx="140" cy="232" r="6" fill="#f59e0b"/>
+    <circle cx="161" cy="232" r="6" fill="#22c55e"/>
+    <text x="96" y="290" fill="#f8fafc" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="20" font-weight="700">AI agent</text>
+    <text x="96" y="326" fill="#93c5fd" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="17">observe()</text>
+    <text x="96" y="358" fill="#93c5fd" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="17">click("@e1")</text>
+    <text x="96" y="390" fill="#93c5fd" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="17">screenshot_full()</text>
+    <text x="96" y="432" fill="#cbd5e1" font-family="Inter, ui-sans-serif, system-ui" font-size="17">Reason → act → verify</text>
+  </g>
+
+  <g>
+    <path d="M430 335 H515" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M500 316 L526 335 L500 354" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="540" y="178" width="620" height="340" rx="24" fill="#f8fafc"/>
+    <rect x="540" y="178" width="620" height="54" rx="24" fill="#e2e8f0"/>
+    <rect x="566" y="196" width="520" height="20" rx="10" fill="#fff" stroke="#cbd5e1"/>
+    <text x="590" y="211" fill="#475569" font-family="Inter, ui-sans-serif, system-ui" font-size="13">https://example.com</text>
+    <circle cx="1108" cy="206" r="7" fill="#ef4444"/>
+    <circle cx="1130" cy="206" r="7" fill="#f59e0b"/>
+    <rect x="582" y="270" width="196" height="32" rx="10" fill="#dbeafe"/>
+    <text x="606" y="292" fill="#1d4ed8" font-family="Inter, ui-sans-serif, system-ui" font-size="16" font-weight="700">@e1 Primary button</text>
+    <rect x="582" y="326" width="416" height="46" rx="12" fill="#fff" stroke="#cbd5e1"/>
+    <text x="608" y="356" fill="#334155" font-family="Inter, ui-sans-serif, system-ui" font-size="17">Snapshot refs, CSS selectors, text, HTML</text>
+    <rect x="582" y="396" width="270" height="42" rx="12" fill="#0f172a"/>
+    <text x="610" y="423" fill="#e0f2fe" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="16">network: fetch / XHR</text>
+    <rect x="874" y="396" width="132" height="42" rx="12" fill="#0f766e"/>
+    <text x="902" y="423" fill="#ccfbf1" font-family="Inter, ui-sans-serif, system-ui" font-size="16" font-weight="700">verify</text>
+    <text x="582" y="482" fill="#475569" font-family="Inter, ui-sans-serif, system-ui" font-size="18">Local macOS GUI session • WebKit/WKWebView • MCP stdio wrapper</text>
+  </g>
+
+  <g>
+    <rect x="72" y="540" width="1058" height="42" rx="21" fill="#020617" opacity="0.82"/>
+    <text x="104" y="568" fill="#e2e8f0" font-family="Menlo, SFMono-Regular, Consolas, monospace" font-size="18">brew tap handlecusion/agent-safari &amp;&amp; brew install agent-safari &amp;&amp; agent-safari-mcp-setup</text>
+  </g>
+</svg>

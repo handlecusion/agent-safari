@@ -1,23 +1,53 @@
 # agent-safari
 
-`agent-safari` is a local-first macOS Safari/WebKit automation CLI, native WebKit window, local daemon, and MCP stdio server for AI agents.
+Control and observe a real Safari/WebKit browser from AI agents via MCP.
 
-It opens a real WKWebView window with a visible address bar, exposes compact snapshot refs such as `@e1`, and can be driven either from shell scripts or from MCP clients through the Python wrapper.
+`agent-safari` is a local-first macOS browser automation CLI, native WebKit window, local daemon, and MCP stdio server. It gives Claude, Hermes, Codex-style agents, and other MCP clients the browser tools they need for an observe → act → verify loop: compact snapshot refs, clicks/fills, screenshots, JavaScript evaluation, tabs, waits, and fetch/XHR network capture.
+
+![Agent Safari workflow preview](docs/assets/agent-safari-workflow.svg)
 
 ```text
-daemon -> open/navigate -> snapshot -> click/fill @e refs -> wait -> capture/evaluate/network inspect
+AI agent -> MCP wrapper -> agent-safari CLI -> local daemon -> real WKWebView window
+          observe/status -> snapshot @e refs -> click/fill -> wait -> screenshot/evaluate/network inspect
 ```
+
+If this is useful for your agentic browser workflows, a GitHub star helps the project reach more builders.
+
+## Why Agent Safari?
+
+Most browser automation tools are built for deterministic test scripts. Agent Safari is built for AI agents that need to inspect a rendered page, choose an action, act through a simple tool interface, then verify the result.
+
+Use it when you want to:
+
+- Drive a local Safari/WebKit session from an MCP-capable agent.
+- Test how a web app behaves in WebKit, not just Chromium.
+- Give an agent clickable snapshot refs such as `@e1` instead of forcing it to invent selectors.
+- Capture screenshots and fetch/XHR activity as verification evidence.
+- Keep the browser local and human-observable instead of using a hosted browser service.
 
 ## Highlights
 
 - Native macOS WebKit/WKWebView browser window; no Chrome, Playwright, or remote browser service required.
 - Visible browser chrome with editable address bar for human-observable automation.
 - CLI-first control surface with one JSON response line per command.
-- MCP wrapper for Hermes and other MCP-compatible clients.
+- MCP wrapper for Hermes, Claude Desktop, Cursor, Windsurf, VS Code, and other MCP-compatible clients.
 - Agent-friendly refs from `snapshot`, e.g. `@e1`, reusable by `click` and `fill`.
 - Viewport, full-page, and element screenshots.
 - JavaScript `evaluate`, text/HTML extraction, wait helpers, history, modeled tabs, profiles, and ephemeral mode.
 - Local fetch/XHR network capture instrumentation with redacted JSON export.
+
+## How it compares
+
+| Capability | Agent Safari | Playwright | Generic browser MCP servers |
+| --- | --- | --- | --- |
+| Primary design target | AI-agent observe/act/verify loops | Test automation | Varies |
+| Native Safari/WebKit GUI | Yes, WKWebView on macOS | WebKit automation, test-first | Rare/mixed |
+| MCP-native control surface | Yes | No | Yes |
+| Snapshot refs for agent actions | Yes, `@e1` style refs | No | Mixed |
+| CLI JSON responses | Yes | No | Mixed |
+| Screenshots | Viewport, full page, element | Yes | Mixed |
+| Network capture | fetch/XHR instrumentation | Browser automation APIs | Mixed |
+| Local human-observable window | Yes | Usually test runner oriented | Mixed |
 
 ## Requirements
 
@@ -199,7 +229,14 @@ For detailed install and troubleshooting steps, see `docs/INSTALL.md`.
 - Profile persistence: `docs/PROFILE_PERSISTENCE.md`
 - CI/CD: `docs/CI_CD.md`
 - Packaging and distribution: `docs/PACKAGING.md`
-- Roadmap: `docs/ROADMAP.md`
+- Roadmap: `ROADMAP.md` and `docs/ROADMAP.md`
+- Contributing: `CONTRIBUTING.md`
+
+## Examples
+
+- Claude Desktop MCP setup: `examples/claude-desktop.md`
+- Hermes Agent MCP setup: `examples/hermes.md`
+- Agentic browser QA loop: `examples/browser-qa.md`
 
 ## CLI command reference
 
@@ -335,7 +372,9 @@ evaluate(script="document.title")
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
 - CI/CD: `docs/CI_CD.md`
 - Packaging and distribution: `docs/PACKAGING.md`
-- Roadmap: `docs/ROADMAP.md`
+- Roadmap: `ROADMAP.md` and `docs/ROADMAP.md`
+- Contributing: `CONTRIBUTING.md`
+- Examples: `examples/`
 
 ## CI/CD
 

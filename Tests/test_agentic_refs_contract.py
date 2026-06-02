@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "Sources" / "AgentSafari" / "BrowserControllerSnapshot.swift"
 INPUT = ROOT / "Sources" / "AgentSafari" / "BrowserControllerInput.swift"
+SUPPORT = ROOT / "Sources" / "AgentSafari" / "BrowserSupport.swift"
 
 
 def read(path: Path) -> str:
@@ -38,10 +39,28 @@ def test_fill_uses_same_actionability_contract_as_click() -> None:
     assert source.count("validateActionableElement") >= 2
 
 
+def test_native_click_reports_scroll_coordinates_and_occlusion_diagnostics() -> None:
+    source = read(INPUT) + read(SUPPORT)
+
+    assert "scrollXBefore" in source
+    assert "scrollYBefore" in source
+    assert "scrollXAfter" in source
+    assert "scrollYAfter" in source
+    assert "scrolledIntoView" in source
+    assert "Element center is occluded:" in source
+    assert "document.elementFromPoint" in source
+    assert "viewportWidth" in source
+    assert "viewportHeight" in source
+    assert "boundsX" in source
+    assert "boundsY" in source
+    assert "coordinateStrategy" in source
+
+
 def main() -> int:
     test_snapshot_refs_emit_schema_version_and_dom_index()
     test_action_targets_reject_stale_disabled_hidden_and_offscreen_refs()
     test_fill_uses_same_actionability_contract_as_click()
+    test_native_click_reports_scroll_coordinates_and_occlusion_diagnostics()
     print("agentic refs contract tests passed")
     return 0
 

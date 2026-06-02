@@ -86,11 +86,25 @@ def test_full_page_artifact_must_be_taller_than_viewport(tmp_path: Path) -> None
 def test_native_click_delivery_metadata_is_explicit() -> None:
     smoke = load_smoke_module()
 
-    native = smoke.native_click_delivery({"method": "native", "nativeVerified": "true", "fallbackUsed": "false", "strategy": "native-quartz-session"}, strict_native=True)
-    fallback = smoke.native_click_delivery({"method": "dom-fallback", "nativeVerified": "false", "fallbackUsed": "true", "strategy": "native-unobserved-js-click"}, strict_native=False)
+    required = {
+        "method": "native",
+        "nativeVerified": "true",
+        "fallbackUsed": "false",
+        "strategy": "native-quartz-session",
+        "coordinateStrategy": "webkit-viewport-to-window-to-quartz",
+        "viewportX": "100.0",
+        "viewportY": "200.0",
+        "boundsX": "80.0",
+        "boundsY": "180.0",
+        "scrollDeltaY": "420.0",
+        "scrolledIntoView": "true",
+    }
+    fallback_required = dict(required, method="dom-fallback", nativeVerified="false", fallbackUsed="true", strategy="native-unobserved-js-click")
+    native = smoke.native_click_delivery(required, strict_native=True)
+    fallback = smoke.native_click_delivery(fallback_required, strict_native=False)
 
-    assert native == {"method": "native", "nativeVerified": True, "fallbackUsed": False, "acceptable": True}
-    assert fallback == {"method": "dom-fallback", "nativeVerified": False, "fallbackUsed": True, "acceptable": True}
+    assert native == {"method": "native", "nativeVerified": True, "fallbackUsed": False, "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
+    assert fallback == {"method": "dom-fallback", "nativeVerified": False, "fallbackUsed": True, "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
 
     try:
         smoke.native_click_delivery({"strategy": "native-unobserved-js-click"}, strict_native=False)
@@ -98,6 +112,13 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
         assert "missing native click metadata" in str(exc)
     else:
         raise AssertionError("native click result without explicit metadata should fail")
+
+    try:
+        smoke.native_click_delivery({"method": "native", "nativeVerified": "true", "fallbackUsed": "false"}, strict_native=True)
+    except AssertionError as exc:
+        assert "missing native click metadata" in str(exc)
+    else:
+        raise AssertionError("native click result without coordinate/scroll metadata should fail")
 
 
 def test_quality_gate_matrix_separates_ci_local_and_strict_native() -> None:

@@ -5,7 +5,30 @@ import Foundation
 struct ElementHitTarget {
     let viewportCenter: CGPoint
     let viewportBounds: CGRect
+    let viewportSize: CGSize
+    let scrollBefore: CGPoint
+    let scrollAfter: CGPoint
     let description: String
+
+    var resultFields: [String: String] {
+        [
+            "viewportX": String(format: "%.1f", viewportCenter.x),
+            "viewportY": String(format: "%.1f", viewportCenter.y),
+            "boundsX": String(format: "%.1f", viewportBounds.origin.x),
+            "boundsY": String(format: "%.1f", viewportBounds.origin.y),
+            "boundsWidth": String(format: "%.1f", viewportBounds.width),
+            "boundsHeight": String(format: "%.1f", viewportBounds.height),
+            "viewportWidth": String(format: "%.1f", viewportSize.width),
+            "viewportHeight": String(format: "%.1f", viewportSize.height),
+            "scrollXBefore": String(format: "%.1f", scrollBefore.x),
+            "scrollYBefore": String(format: "%.1f", scrollBefore.y),
+            "scrollXAfter": String(format: "%.1f", scrollAfter.x),
+            "scrollYAfter": String(format: "%.1f", scrollAfter.y),
+            "scrollDeltaX": String(format: "%.1f", scrollAfter.x - scrollBefore.x),
+            "scrollDeltaY": String(format: "%.1f", scrollAfter.y - scrollBefore.y),
+            "scrolledIntoView": (scrollBefore == scrollAfter ? "false" : "true")
+        ]
+    }
 }
 
 func stringifyJavaScriptValue(_ value: Any) -> String {

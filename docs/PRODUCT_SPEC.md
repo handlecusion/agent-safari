@@ -131,6 +131,8 @@ The input surface must support:
 
 Native click and native typing may remain environment-sensitive, but default behavior must say when fallback was used. Strict native-only gates should be opt-in and documented.
 
+Native click target preparation must also report whether the target was scrolled into view, which viewport center/bounds were used, and whether center-hit testing found an occluder before posting native events.
+
 ## 8. Evidence Contract
 
 Agent Safari should make actions auditable.

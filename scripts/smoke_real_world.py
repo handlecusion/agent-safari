@@ -139,12 +139,26 @@ def _bool_metadata(value) -> bool:
 
 
 def native_click_delivery(payload: dict, strict_native: bool) -> dict:
-    missing = [key for key in ('method', 'nativeVerified', 'fallbackUsed') if key not in payload]
+    required_keys = (
+        'method',
+        'nativeVerified',
+        'fallbackUsed',
+        'strategy',
+        'coordinateStrategy',
+        'viewportX',
+        'viewportY',
+        'boundsX',
+        'boundsY',
+        'scrollDeltaY',
+        'scrolledIntoView',
+    )
+    missing = [key for key in required_keys if key not in payload]
     if missing:
         raise AssertionError(f'missing native click metadata: {missing}; payload={payload}')
     method = str(payload['method'])
     native_verified = _bool_metadata(payload['nativeVerified'])
     fallback_used = _bool_metadata(payload['fallbackUsed'])
+    scrolled_into_view = _bool_metadata(payload['scrolledIntoView'])
     acceptable = method == 'native' and native_verified and not fallback_used
     if not strict_native:
         acceptable = acceptable or (method == 'dom-fallback' and not native_verified and fallback_used)
@@ -152,6 +166,8 @@ def native_click_delivery(payload: dict, strict_native: bool) -> dict:
         'method': method,
         'nativeVerified': native_verified,
         'fallbackUsed': fallback_used,
+        'scrolledIntoView': scrolled_into_view,
+        'coordinateStrategy': str(payload['coordinateStrategy']),
         'acceptable': acceptable,
     }
 
@@ -402,12 +418,18 @@ def make_fixtures(base_url: str):
 
     write(FIX / 'native.html', '''
     <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Native Input Scenario</title>
-    <style>body{font:17px -apple-system;margin:32px;background:#fbfbff}.wrap{max-width:760px;background:white;padding:24px;border-radius:18px;box-shadow:0 12px 30px #0001}button{padding:12px 18px;border:0;border-radius:12px;background:#16a34a;color:white;font-weight:800}input,textarea{display:block;margin:10px 0 16px;padding:12px;border:1px solid #ccd4e0;border-radius:10px;width:420px}.editor{min-height:52px;border:1px solid #ccd4e0;border-radius:10px;padding:12px;width:420px;background:#fff}</style></head>
-    <body><div class="wrap"><h1>Scenario 5: Native click + type/key/viewport</h1><p>Native Quartz click with JS fallback verification plus input, textarea, contenteditable, and key-path editing.</p><input id="typed" placeholder="type here"><textarea id="notes" placeholder="textarea notes"></textarea><div id="editor" class="editor" contenteditable="true" role="textbox" aria-label="Rich editor"></div><button id="nativeBtn">Native target</button><div id="state">initial</div></div>
+    <style>body{font:17px -apple-system;margin:32px;background:#fbfbff}.wrap{max-width:760px;background:white;padding:24px;border-radius:18px;box-shadow:0 12px 30px #0001}.spacer{height:820px;border-radius:14px;background:linear-gradient(#eef2ff,#f8fafc);display:flex;align-items:center;justify-content:center;color:#64748b;margin:18px 0}button{padding:12px 18px;border:0;border-radius:12px;background:#16a34a;color:white;font-weight:800}input,textarea{display:block;margin:10px 0 16px;padding:12px;border:1px solid #ccd4e0;border-radius:10px;width:420px}.editor{min-height:52px;border:1px solid #ccd4e0;border-radius:10px;padding:12px;width:420px;background:#fff}</style></head>
+    <body><div class="wrap"><h1>Scenario 5: Native click + type/key/viewport</h1><p>Native Quartz click with JS fallback verification plus input, textarea, contenteditable, and key-path editing.</p><button id="nativeTarget">Native target</button><div id="state">initial</div><div class="spacer">Scroll/focus transitions move between the native button and editable fields</div><input id="typed" placeholder="type here"><textarea id="notes" placeholder="textarea notes"></textarea><div id="editor" class="editor" contenteditable="true" role="textbox" aria-label="Rich editor"></div></div>
     <script>
-      document.getElementById('nativeBtn').addEventListener('click', () => { document.getElementById('state').textContent = 'native click observed'; });
+      document.getElementById('nativeTarget').addEventListener('click', () => { document.getElementById('state').textContent = 'native click observed'; });
     </script></body></html>
     ''' )
+
+    write(FIX / 'occluded.html', '''
+    <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Occlusion Scenario</title>
+    <style>body{font:17px -apple-system;margin:40px;background:#fff7ed}.stage{position:relative;width:360px;height:180px;background:white;border-radius:16px;box-shadow:0 12px 30px #0001;padding:32px}.cover{position:absolute;left:28px;top:28px;width:190px;height:72px;background:rgba(220,38,38,.86);color:white;border-radius:12px;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:auto}button{position:absolute;left:48px;top:48px;padding:14px 20px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:800;z-index:1}</style></head>
+    <body><h1>Occluded click target</h1><div class="stage"><button id="nativeBtn">Covered target</button><div class="cover">occluder</div></div></body></html>
+    ''')
 
 
 def main():
@@ -485,12 +507,22 @@ def main():
         scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch), 'screenshots': [cap4b_artifact, cap4a_artifact]}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
 
         # Scenario 5: native click, type, viewport, observe.
-        steps = [run_cli('viewport', '900', '640'), run_cli('open', file_url(FIX / 'native.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
-        before = run_cli('observe')
-        native_args = ('click', '#nativeBtn', '--native', '--no-fallback') if STRICT_NATIVE else ('click', '#nativeBtn', '--native')
+        occlusion_steps = [run_cli('open', file_url(FIX / 'occluded.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
+        occluded_click = run_cli('click', '#nativeBtn', '--native', check=False)
+        occlusion_steps.append(occluded_click)
+        occlusion_stdout = occluded_click.get('stdout', '')
+        occlusion_error = occluded_click.get('stderr', '') + occlusion_stdout
+        occlusion_payload = occluded_click.get('json') or {}
+        occlusion_ok = bool(occlusion_payload.get('ok'))
+        if occlusion_ok or 'Element center is occluded:' not in occlusion_error:
+            raise AssertionError(f'occlusion diagnostic did not fire: {occluded_click}')
+
+        steps = occlusion_steps + [run_cli('viewport', '900', '640'), run_cli('open', file_url(FIX / 'native.html')), run_cli('wait-for-selector', '#nativeTarget', '--timeout', '5000')]
+        native_args = ('click', '#nativeTarget', '--native', '--no-fallback') if STRICT_NATIVE else ('click', '#nativeTarget', '--native')
         native_click = run_cli(*native_args)
         steps.append(native_click)
         steps.append(run_cli('wait-for-text', 'native click observed', '--timeout', '5000'))
+        before = run_cli('observe')
         steps.append(run_cli('click', '#typed'))
         steps.append(run_cli('type', 'typed by agent-safari'))
         steps.append(run_cli('key', 'Meta+A'))
@@ -510,7 +542,7 @@ def main():
         native_payload = result_payload(native_click)
         native_delivery = native_click_delivery(native_payload, strict_native=STRICT_NATIVE)
         page_state = str(result_payload(eval5).get('value'))
-        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one\\ntextarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
+        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 target preparation scroll/coordinate metadata, occlusion diagnostics, input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'occlusionDiagnostic': result_payload(occluded_click), 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one' in page_state and 'textarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
 
         json_dump(DATA / 'scenario-results.json', SCENARIOS)
         make_contact_sheet()

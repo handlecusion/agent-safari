@@ -78,7 +78,7 @@ Acceptance criteria:
 
 ## Phase 2 — Native Input And Agentic Refs Trust
 
-Status: Active. First checkpoints completed in `v0.0.6`; remaining work should focus on strict native click/actionability.
+Status: Active. Current checkpoint is fallback-documented native click/actionability: result metadata is stronger, but strict native delivery and runtime occlusion evidence still need hardening before Phase 2 can close.
 
 Goal: Make element selection and browser actions reliable enough that agents can trust snapshot refs and understand failures.
 
@@ -91,13 +91,35 @@ Completed checkpoints:
 - `Enter`, `Backspace`, and select-all shortcut coverage;
 - real-world smoke scenario 5.
 
-Remaining work:
+Current checkpoint work:
 
-1. Harden `click --native` focus transitions.
-2. Improve coordinate conversion and viewport scrolling before click.
-3. Add stricter occlusion diagnostics.
-4. Refine stale/hidden/disabled/out-of-bounds/hittable errors.
-5. Keep MCP parity for any new input/actionability result fields.
+1. Hardened `click --native` focus/fallback reporting.
+2. Improved coordinate conversion and viewport scroll metadata before click.
+3. Added center-hit occlusion diagnostics in the click target preparation path.
+4. Refined hittable errors with explicit occlusion and actionability messages.
+5. Kept CLI/MCP-compatible structured result fields for new input/actionability metadata.
+
+Remaining work before Phase 2 closes:
+
+1. Strict native local run with `AGENT_SAFARI_STRICT_NATIVE=1` currently fails in this environment with `Native Quartz click posted but no DOM click event was observed`; strict native remains explicitly environment-gated.
+2. Runtime smoke coverage now triggers center-hit occlusion diagnostics.
+3. Improve scroll metadata evidence so a deliberately offscreen target records a non-zero scroll delta in smoke output, despite WebKit scroll restoration behavior.
+4. Re-run the product-vision reviewer after the scroll evidence gap is closed.
+
+Current strict-native-click slice acceptance:
+
+- `elementHitTarget` records scroll position before/after `scrollIntoView` so agents can tell whether a target required scrolling.
+- The hit target is validated with `document.elementFromPoint` after scrolling; truly occluded centers fail with an explicit `Element center is occluded` error before native or DOM fallback actions.
+- Native click results include viewport bounds/center, scroll delta, coordinate strategy, native verification, fallback use, and native error where applicable.
+- Contract tests lock the above strings/fields so future refactors do not silently drop diagnostics.
+
+Verification on 2026-06-02 for the fallback-documented checkpoint:
+
+- `python3 Tests/test_agentic_refs_contract.py`
+- `python3 Tests/test_smoke_real_world.py`
+- `swift test`
+- `python3 scripts/smoke_real_world.py --skip-build` → report at `.tmp/agent-safari-5-scenarios-20260602-202144/REPORT.md`; native click used DOM fallback in this local session and remains environment-sensitive; occlusion diagnostic smoke path fired before fallback scenario.
+- `AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py --skip-build` failed at strict native click with `Native Quartz click posted but no DOM click event was observed`, confirming strict native is environment-gated here rather than complete.
 
 Acceptance criteria:
 

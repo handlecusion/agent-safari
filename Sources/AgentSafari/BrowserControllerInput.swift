@@ -56,16 +56,34 @@ extension BrowserController {
           };
 
           const element = resolveElement(target);
+          const scrollXBefore = window.scrollX;
+          const scrollYBefore = window.scrollY;
           element.scrollIntoView({ block: 'center', inline: 'center' });
           validateActionableElement(element, target);
           const rect = element.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const centerHit = document.elementFromPoint(
+            Math.min(Math.max(centerX, 0), window.innerWidth - 1),
+            Math.min(Math.max(centerY, 0), window.innerHeight - 1)
+          );
+          if (centerHit && centerHit !== element && !element.contains(centerHit)) {
+            const hitName = `${centerHit.tagName || ''}${centerHit.id ? '#' + centerHit.id : ''}`;
+            throw new Error(`Element center is occluded: ${target}; hit ${hitName}`);
+          }
           return {
             x: rect.left,
             y: rect.top,
             width: rect.width,
             height: rect.height,
-            centerX: rect.left + rect.width / 2,
-            centerY: rect.top + rect.height / 2,
+            centerX,
+            centerY,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            scrollXBefore,
+            scrollYBefore,
+            scrollXAfter: window.scrollX,
+            scrollYAfter: window.scrollY,
             description: `clicked ${element.tagName || ''}${element.id ? '#' + element.id : ''}`
           };
         })()
@@ -79,10 +97,19 @@ extension BrowserController {
         let height = CGFloat((result["height"] as? NSNumber)?.doubleValue ?? 0)
         let centerX = CGFloat((result["centerX"] as? NSNumber)?.doubleValue ?? 0)
         let centerY = CGFloat((result["centerY"] as? NSNumber)?.doubleValue ?? 0)
+        let viewportWidth = CGFloat((result["viewportWidth"] as? NSNumber)?.doubleValue ?? 0)
+        let viewportHeight = CGFloat((result["viewportHeight"] as? NSNumber)?.doubleValue ?? 0)
+        let scrollXBefore = CGFloat((result["scrollXBefore"] as? NSNumber)?.doubleValue ?? 0)
+        let scrollYBefore = CGFloat((result["scrollYBefore"] as? NSNumber)?.doubleValue ?? 0)
+        let scrollXAfter = CGFloat((result["scrollXAfter"] as? NSNumber)?.doubleValue ?? 0)
+        let scrollYAfter = CGFloat((result["scrollYAfter"] as? NSNumber)?.doubleValue ?? 0)
         guard width > 0, height > 0 else { throw AgentSafariError.elementResolutionFailed(selector) }
         return ElementHitTarget(
             viewportCenter: CGPoint(x: centerX, y: centerY),
             viewportBounds: CGRect(x: x, y: y, width: width, height: height),
+            viewportSize: CGSize(width: viewportWidth, height: viewportHeight),
+            scrollBefore: CGPoint(x: scrollXBefore, y: scrollYBefore),
+            scrollAfter: CGPoint(x: scrollXAfter, y: scrollYAfter),
             description: stringifyJavaScriptValue(result["description"] as Any)
         )
     }
@@ -110,15 +137,16 @@ extension BrowserController {
             cgMouseDown.post(tap: .cgSessionEventTap)
             usleep(50_000)
             cgMouseUp.post(tap: .cgSessionEventTap)
-            return [
+            var result = target.resultFields
+            result.merge([
                 "strategy": "native-quartz-session",
-                "viewportX": String(format: "%.1f", target.viewportCenter.x),
-                "viewportY": String(format: "%.1f", target.viewportCenter.y),
+                "coordinateStrategy": "webkit-viewport-to-window-to-quartz",
                 "windowX": String(format: "%.1f", windowPoint.x),
                 "windowY": String(format: "%.1f", windowPoint.y),
                 "screenX": String(format: "%.1f", screenPoint.x),
                 "screenY": String(format: "%.1f", screenPoint.y)
-            ]
+            ]) { _, new in new }
+            return result
         }
 
         let timestamp = ProcessInfo.processInfo.systemUptime
@@ -145,15 +173,16 @@ extension BrowserController {
         ) {
             window.sendEvent(mouseDown)
             window.sendEvent(mouseUp)
-            return [
+            var result = target.resultFields
+            result.merge([
                 "strategy": "native-nsevent",
-                "viewportX": String(format: "%.1f", target.viewportCenter.x),
-                "viewportY": String(format: "%.1f", target.viewportCenter.y),
+                "coordinateStrategy": "webkit-viewport-to-window-nsevent",
                 "windowX": String(format: "%.1f", windowPoint.x),
                 "windowY": String(format: "%.1f", windowPoint.y),
                 "screenX": String(format: "%.1f", screenPoint.x),
                 "screenY": String(format: "%.1f", screenPoint.y)
-            ]
+            ]) { _, new in new }
+            return result
         }
 
         throw AgentSafariError.nativeInputFailed("Failed to create native mouse events")
@@ -189,13 +218,16 @@ extension BrowserController {
         })()
         """
         _ = try await webView.evaluateJavaScript(script)
-        return [
+        var result = target.resultFields
+        result.merge([
             "strategy": "js-click",
+            "coordinateStrategy": "dom-scroll-then-click",
             "result": target.description,
             "method": "dom",
             "nativeVerified": "false",
             "fallbackUsed": "false"
-        ]
+        ]) { _, new in new }
+        return result
     }
 
     private func armNativeClickProbe(selector: String, token: String) async throws {
@@ -307,6 +339,7 @@ extension BrowserController {
                 fallback["nativeVerified"] = "false"
                 fallback["fallbackUsed"] = "true"
                 fallback["nativeError"] = "Native Quartz click posted but no DOM click event was observed"
+                fallback.merge(target.resultFields) { current, _ in current }
                 return fallback
             } catch {
                 if fallbackPolicy == "none" {

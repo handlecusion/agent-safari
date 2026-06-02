@@ -38,12 +38,27 @@ extension BrowserController {
             return element;
           };
 
+          const validateActionableElement = (element, target) => {
+            if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
+              throw new Error(`Element is disabled: ${target}`);
+            }
+            const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            if (!rect || rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0) {
+              throw new Error(`Element is hidden: ${target}`);
+            }
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            if (centerX < 0 || centerY < 0 || centerX > window.innerWidth || centerY > window.innerHeight) {
+              throw new Error(`Element center is outside viewport: ${target}`);
+            }
+            return rect;
+          };
+
           const element = resolveElement(target);
           element.scrollIntoView({ block: 'center', inline: 'center' });
+          validateActionableElement(element, target);
           const rect = element.getBoundingClientRect();
-          if (!rect || rect.width <= 0 || rect.height <= 0) {
-            throw new Error(`Element has no clickable bounds: ${target}`);
-          }
           return {
             x: rect.left,
             y: rect.top,
@@ -347,8 +362,25 @@ extension BrowserController {
             return element;
           };
 
+          const validateActionableElement = (element, target) => {
+            if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
+              throw new Error(`Element is disabled: ${target}`);
+            }
+            const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            if (!rect || rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0) {
+              throw new Error(`Element is hidden: ${target}`);
+            }
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            if (centerX < 0 || centerY < 0 || centerX > window.innerWidth || centerY > window.innerHeight) {
+              throw new Error(`Element center is outside viewport: ${target}`);
+            }
+          };
+
           const element = resolveElement(target);
           element.scrollIntoView({ block: 'center', inline: 'center' });
+          validateActionableElement(element, target);
           if (typeof element.focus === 'function') element.focus({ preventScroll: true });
           element.value = value;
           element.dispatchEvent(new Event('input', { bubbles: true }));

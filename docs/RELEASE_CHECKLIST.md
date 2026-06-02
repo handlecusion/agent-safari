@@ -9,10 +9,13 @@ Run from the repository root:
 ```sh
 swift test
 swift build -c release
-python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/smoke_real_world.py
+python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/smoke_real_world.py Tests/test_agentic_refs_contract.py Tests/test_browser_chrome_contract.py Tests/test_smoke_real_world.py
 bash -n scripts/*.sh
 python3 Tests/test_public_release_audit.py
 python3 Tests/test_mcp_contract.py
+python3 Tests/test_smoke_real_world.py
+python3 Tests/test_browser_chrome_contract.py
+python3 Tests/test_agentic_refs_contract.py
 bash scripts/smoke_cli.sh
 ```
 
@@ -51,6 +54,18 @@ AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
 ```
 
 Strict native mode may require macOS Accessibility permission and a usable foreground GUI session. Default smoke allows a documented JavaScript fallback after a native miss and records the selected strategy plus explicit click metadata: `method`, `nativeVerified`, `fallbackUsed`, and `nativeError` when fallback is used.
+
+## Next release criteria after v0.0.5
+
+Use the next release as a v0.0.6-quality checkpoint for the P2 native input / agentic refs track. Do not tag the release until all of the following are true:
+
+- The non-GUI gates above exit 0 on the release commit, including the agentic refs contract tests.
+- The GUI smoke gate reports `5/5 PASS` from `python3 scripts/smoke_real_world.py` and records the artifact path in the release notes.
+- Snapshot output keeps schema v2 metadata for agent refs, including stable DOM ordering and actionability fields.
+- Click/fill paths reject stale snapshot refs, disabled targets, hidden targets, and off-viewport centers with explicit errors before native or DOM fallback input is attempted.
+- Native click remains consent-first and evidence-rich: default smoke may allow documented DOM fallback, while strict native-only remains opt-in through `AGENT_SAFARI_STRICT_NATIVE=1`.
+- The public-release audit passes and no tracked docs leak local absolute paths, secret-ish strings, or passkey/WebAuthn feature code.
+- The local LLM Wiki graph/source/task evidence is refreshed after the release commit if code-affecting files changed.
 
 ## Packaging dry-runs
 

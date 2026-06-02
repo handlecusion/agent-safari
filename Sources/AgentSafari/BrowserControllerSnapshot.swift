@@ -98,7 +98,7 @@ extension BrowserController {
 
           const elements = Array.from(document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'));
           const snapshot = [];
-          for (const element of elements) {
+          for (const [domIndex, element] of elements.entries()) {
             if (!isCandidate(element)) continue;
             const rect = element.getBoundingClientRect();
             if (!isVisible(element, rect)) continue;
@@ -110,8 +110,10 @@ extension BrowserController {
             const accessibleName = nameFor(element);
             const inferredRole = roleFor(element);
             snapshot.push({
+              snapshotSchemaVersion: 2,
               ref: refFor(element),
               refSource: 'weakmap',
+              domIndex,
               tag: (element.tagName || '').toLowerCase(),
               text: textFor(element).slice(0, 200),
               selector: selectorFor(element),
@@ -144,7 +146,7 @@ extension BrowserController {
               }
             });
           }
-          return JSON.stringify(snapshot);
+          return JSON.stringify(snapshot.sort((left, right) => left.domIndex - right.domIndex));
         })()
         """
         let value = try await webView.evaluateJavaScript(script)

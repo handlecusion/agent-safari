@@ -1,6 +1,6 @@
 # Agent Safari Product Vision
 
-> Canonical source: `/Users/ys/Code/wiki/wiki/projects/agent-safari-product-vision.md`.
+> Canonical source: LLM Wiki page `wiki/projects/agent-safari-product-vision.md`.
 > This repository copy exists so Claude Code, reviewers, and contributors can use the product vision while working inside the codebase.
 
 ## Concise Definition

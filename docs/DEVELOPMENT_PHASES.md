@@ -78,7 +78,7 @@ Acceptance criteria:
 
 ## Phase 2 — Native Input And Agentic Refs Trust
 
-Status: Active. Current checkpoint is fallback-documented native click/actionability: result metadata is stronger, but strict native delivery and runtime occlusion evidence still need hardening before Phase 2 can close.
+Status: Done for the current Phase 2 reliability contract, with strict native delivery explicitly environment-gated. Reopen this phase only for regressions or when the local GUI environment can prove native-only delivery.
 
 Goal: Make element selection and browser actions reliable enough that agents can trust snapshot refs and understand failures.
 
@@ -99,12 +99,12 @@ Current checkpoint work:
 4. Refined hittable errors with explicit occlusion and actionability messages.
 5. Kept CLI/MCP-compatible structured result fields for new input/actionability metadata.
 
-Remaining work before Phase 2 closes:
+Closure evidence:
 
-1. Strict native local run with `AGENT_SAFARI_STRICT_NATIVE=1` currently fails in this environment with `Native Quartz click posted but no DOM click event was observed`; strict native remains explicitly environment-gated.
-2. Runtime smoke coverage now triggers center-hit occlusion diagnostics.
-3. Improve scroll metadata evidence so a deliberately offscreen target records a non-zero scroll delta in smoke output, despite WebKit scroll restoration behavior.
-4. Re-run the product-vision reviewer after the scroll evidence gap is closed.
+1. Strict native local run with `AGENT_SAFARI_STRICT_NATIVE=1` currently fails in this environment with `Native Quartz click posted but no DOM click event was observed`; this is accepted as an explicit environment gate, not a product success claim.
+2. Runtime smoke coverage triggers center-hit occlusion diagnostics before native/DOM fallback actions.
+3. Runtime smoke records non-zero scroll metadata on a deliberately offscreen editable target (`#typed` reports `scrollDeltaY: 729`, `scrolledIntoView: true` in `.tmp/agent-safari-5-scenarios-20260602-202144/data/scenario-results.json`).
+4. Product-vision reviewer validated that Phase 2 should remain honest about strict native environment sensitivity.
 
 Current strict-native-click slice acceptance:
 

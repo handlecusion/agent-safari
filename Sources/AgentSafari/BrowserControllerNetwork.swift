@@ -38,6 +38,7 @@ extension BrowserController {
         let script = """
         (() => {
           const redactNames = new Set(['authorization','cookie','set-cookie','x-api-' + 'key','x-auth-' + 'token','proxy-authorization']);
+          const sensitiveBodyPattern = /(password|passwd|secret|token|api[_-]?key|api_key|authorization|cookie)/i;
           const maxEntries = \(maxEntriesLiteral);
           const bodyPreviewBytes = \(bodyPreviewLiteral);
           const redactHeaders = (headers) => {
@@ -48,12 +49,13 @@ extension BrowserController {
             return out;
           };
           const trimBody = (value) => typeof value === 'string' && bodyPreviewBytes !== null ? value.slice(0, Math.max(0, bodyPreviewBytes)) : value;
+          const redactBodyPreview = (value) => typeof value === 'string' && sensitiveBodyPattern.test(value) ? '[REDACTED]' : value;
           let events = (window.__agentSafariNetworkEvents || []).slice();
           if (maxEntries !== null) events = events.slice(-Math.max(0, maxEntries));
           events = events.map((event) => Object.assign({}, event, {
             requestHeaders: redactHeaders(event.requestHeaders),
             responseHeaders: redactHeaders(event.responseHeaders),
-            requestBodyPreview: trimBody(event.requestBodyPreview)
+            requestBodyPreview: redactBodyPreview(trimBody(event.requestBodyPreview))
           }));
           var resourceTimings = [];
           try {
@@ -144,10 +146,13 @@ extension BrowserController {
             agentSafari: {
               schemaVersion: 1,
               captureType: 'fetch-xhr-js-instrumentation',
-              limitations: ['fetch/xhr has request/response metadata', 'parser-driven resources are included from PerformanceResourceTiming only', 'no request/response headers for parser-driven resources', 'no websocket frames', 'no service-worker internals'],
+              limitations: ['fetch/xhr has request/response metadata', 'parser-driven resources are included from PerformanceResourceTiming only', 'no request/response headers for parser-driven resources', 'no websocket frames', 'no service-worker internals', 'no downloads', 'not full HAR completeness', 'no default proxy capture'],
               redacted: true,
+              bodyPreviewBytes,
+              maxEntries,
               eventCount: events.length,
-              resourceTimingCount: resourceTimings.length
+              resourceTimingCount: resourceTimings.length,
+              redactionPolicy: 'sensitive headers and sensitive body previews redacted; body previews are bounded by bodyPreviewBytes when provided'
             }
           };
           return JSON.stringify(artifact, null, 2);
@@ -160,16 +165,51 @@ extension BrowserController {
         try json.write(to: url, atomically: true, encoding: .utf8)
         let countValue = JSONValue.parseJSONText(json)
         let count: Int
+        let eventCount: Int
+        let resourceTimingCount: Int
         if case .object(let object) = countValue,
            case .object(let log)? = object["log"],
            case .array(let entries)? = log["entries"] {
             count = entries.count
+            if case .object(let agentSafari)? = object["agentSafari"] {
+                if case .number(let events)? = agentSafari["eventCount"] {
+                    eventCount = Int(events)
+                } else {
+                    eventCount = 0
+                }
+                if case .number(let resources)? = agentSafari["resourceTimingCount"] {
+                    resourceTimingCount = Int(resources)
+                } else {
+                    resourceTimingCount = 0
+                }
+            } else {
+                eventCount = 0
+                resourceTimingCount = 0
+            }
         } else if case .array(let events) = countValue {
             count = events.count
+            eventCount = events.count
+            resourceTimingCount = 0
         } else {
             count = 0
+            eventCount = 0
+            resourceTimingCount = 0
         }
-        return ["path": url.path, "count": String(count), "redacted": "true", "schema": "har-like", "schemaVersion": "1"]
+        return [
+            "path": url.path,
+            "count": String(count),
+            "redacted": "true",
+            "schema": "har-like",
+            "schemaVersion": "1",
+            "captureType": "fetch-xhr-js-instrumentation",
+            "limitations": "fetch/xhr has request/response metadata; parser-driven resources are included from PerformanceResourceTiming only; no request/response headers for parser-driven resources; no websocket frames; no service-worker internals; no downloads; not full HAR completeness; no default proxy capture",
+            "bodyPreviewBytes": bodyPreviewBytes.map(String.init) ?? "null",
+            "maxEntries": maxEntries.map(String.init) ?? "null",
+            "entryCount": String(count),
+            "eventCount": String(eventCount),
+            "resourceTimingCount": String(resourceTimingCount),
+            "redactionPolicy": "sensitive headers and sensitive body previews redacted; body previews are bounded by bodyPreviewBytes when provided"
+        ]
     }
 
     private func networkCapturingString() async throws -> String {

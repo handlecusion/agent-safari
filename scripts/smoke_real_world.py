@@ -476,9 +476,10 @@ def make_fixtures(base_url: str):
     <body><h1>Scenario 3: fetch/XHR capture</h1><img alt="resource timing probe" src="/pixel.svg"><button id="load">Load network data</button><pre id="out">waiting</pre>
     <script>
       document.getElementById('load').onclick = async () => {{
-        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari'}}}}).then(r => r.json());
-        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world'}})); }});
-        document.getElementById('out').textContent = JSON.stringify({{fetch:f, xhr:x}}, null, 2);
+        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari', 'Authorization': 'Bearer should-redact'}}}}).then(r => r.json());
+        const p = await fetch('/post.json', {{method: 'POST', headers: {{'Content-Type':'text/plain'}}, body: 'n'.repeat(200)}}).then(r => r.json());
+        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.setRequestHeader('X-Auth-Token','should-redact-token'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world', password:'should-redact-password'}})); }});
+        document.getElementById('out').textContent = JSON.stringify({{fetch:f, post:p, xhr:x}}, null, 2);
       }};
     </script></body></html>
     ''')
@@ -574,7 +575,21 @@ def main():
         net_export_path = DATA / '03_network.har.json'
         net_export = run_cli('network', 'export', str(net_export_path), '--body-preview-bytes', '80', '--max-entries', '20')
         har = json.loads(net_export_path.read_text(encoding='utf-8'))
-        resource_timing_count = har.get('agentSafari', {}).get('resourceTimingCount', 0)
+        har_text = net_export_path.read_text(encoding='utf-8')
+        agent_network = har.get('agentSafari', {})
+        resource_timing_count = agent_network.get('resourceTimingCount', 0)
+        if 'should-redact' in har_text:
+            raise AssertionError('network export leaked sensitive fixture value')
+        required_limitations = {'no websocket frames', 'no service-worker internals', 'no downloads', 'not full HAR completeness', 'no default proxy capture'}
+        if not required_limitations.issubset(set(agent_network.get('limitations', []))):
+            raise AssertionError(f'network export missing limitations: {agent_network}')
+        agent_entries = [entry.get('_agentSafari', {}) for entry in har.get('log', {}).get('entries', [])]
+        long_preview = next((entry.get('requestBodyPreview') for entry in agent_entries if entry.get('url', '').endswith('/post.json')), None)
+        if long_preview != 'n' * 80:
+            raise AssertionError(f'body preview limit did not trim non-sensitive POST body: {long_preview!r}')
+        export_payload = result_payload(net_export)
+        if export_payload.get('captureType') != 'fetch-xhr-js-instrumentation' or str(export_payload.get('bodyPreviewBytes')) != '80':
+            raise AssertionError(f'network export metadata missing Phase 4 fields: {export_payload}')
         cap3, cap3_rec = screenshot('03_network_after_load')
         cap3_artifact = screenshot_artifact(cap3, min_width=100, min_height=100)
         cap3_metadata = screenshot_command_metadata(result_payload(cap3_rec))

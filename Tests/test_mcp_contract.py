@@ -105,7 +105,7 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "wait_for_title": {"cli": ["wait-for-title", "<title-substring>", "--timeout", "<ms>"], "input": ["title", "timeout_ms"], "result": ["title", "matched", "currentTitle", "timeoutMs"]},
         "wait_for_visible": {"cli": ["wait-for-visible", "<selector-or-ref>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "visible", "timeoutMs"]},
         "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"], "result": ["idle", "timeoutMs", "quietWindowMs"]},
-        "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"]},
+        "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy"]},
         "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"]},
     }
     for name, contract in expected.items():

@@ -90,7 +90,9 @@ The current product contract after `v0.0.6` includes:
 - snapshot refs with schema/actionability metadata;
 - click, fill, type, key;
 - waits for URL, title, visible selector, idle, selector, text, and loaded state, with bounded structured timeout failures;
-- fetch/XHR network metadata capture, list, stop, and redacted export;
+- JavaScript fetch/XHR instrumentation for network metadata capture, list, stop, and redacted export;
+- network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no downloads, and no default proxy capture;
+- network export must keep body preview limits explicit and redaction conservative for sensitive headers and body previews;
 - first modeled tab/session/profile command surfaces around a single-WebView model;
 - public release gates and smoke artifacts.
 
@@ -148,7 +150,7 @@ Evidence surfaces include:
 - screenshot metadata in smoke evidence, including viewport/page dimensions, scale, tile count/preflight scroll count, strategy, and warnings;
 - observe metadata in smoke evidence, including load state, pending network count, selected text, viewport/page dimensions, and active element selector;
 - bounded wait-predicate success/failure evidence for URL/title/visible waits;
-- network export JSON;
+- network export JSON with JavaScript fetch/XHR instrumentation metadata, PerformanceResourceTiming limitations, body preview bounds, and redaction policy;
 - daemon logs;
 - CI/release workflow output;
 - artifact checksum verification.

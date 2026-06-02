@@ -169,22 +169,24 @@ Acceptance criteria:
 
 ## Phase 4 — Network Capture Hardening
 
-Status: Planned / partly implemented for fetch/XHR instrumentation.
+Status: Product-vision reviewed and Done for the current network capture hardening contract.
 
 Goal: Improve network evidence while keeping scope honest.
 
-Work items:
+Completed:
 
-1. Refine fetch/XHR metadata and body-preview controls.
-2. Document unsupported capture classes: parser resources, WebSockets, service workers, downloads, and full HAR completeness.
-3. Keep redaction defaults conservative.
-4. Treat proxy/HAR capture as a separate opt-in research spike.
+1. JavaScript fetch/XHR instrumentation export now reports capture type, limitation list, body preview bound, max-entry bound, entry count, fetch/XHR event count, PerformanceResourceTiming count, and redaction policy.
+2. Network export documents unsupported capture classes: parser resources via PerformanceResourceTiming only, no request/response headers for parser-driven resources, no WebSocket frames, no service worker internals, no downloads, not full HAR completeness, and no default proxy capture.
+3. Redaction remains conservative for sensitive headers and body previews.
+4. Real-world smoke verifies sensitive fixture values do not leak and a 200-byte non-sensitive POST body is trimmed to the requested 80-byte preview.
+5. Claude Code product-vision reviewer R3 passed the slice and confirmed Phase 4 may close.
 
 Acceptance criteria:
 
-- Export schema is documented.
-- Body preview limits are tested.
-- Docs clearly say this is JavaScript fetch/XHR instrumentation, not full browser capture.
+- Export schema is documented and contract-tested. Done.
+- Body preview limits are tested. Done in `.tmp/agent-safari-5-scenarios-20260602-230730/REPORT.md`.
+- Docs clearly say this is JavaScript fetch/XHR instrumentation plus limited PerformanceResourceTiming, not full browser capture. Done.
+- MCP/CLI result metadata exposes capture type, limitations, body preview bounds, and redaction policy. Done.
 
 ## Phase 5 — Session, Tab, And Profile Model
 

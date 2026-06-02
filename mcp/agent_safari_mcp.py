@@ -49,7 +49,7 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "network_start", "description": "Start JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "start"], "result": ["capturing", "count", "events"]},
     {"name": "network_list", "description": "Return captured fetch/XHR network entries.", "cli": ["network", "list"], "result": ["capturing", "count", "events"]},
     {"name": "network_stop", "description": "Stop JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "stop"], "result": ["capturing", "count", "events"]},
-    {"name": "network_export", "description": "Export captured fetch/XHR entries to a redacted JSON file.", "cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"], "result": ["path", "count"]},
+    {"name": "network_export", "description": "Export captured fetch/XHR entries to a redacted JSON file.", "cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy"]},
     {"name": "back", "description": "Navigate back in WebKit history if possible.", "cli": ["back"], "result": ["url"]},
     {"name": "forward", "description": "Navigate forward in WebKit history if possible.", "cli": ["forward"], "result": ["url"]},
     {"name": "reload", "description": "Reload the current page.", "cli": ["reload"], "result": ["url"]},

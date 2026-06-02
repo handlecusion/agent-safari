@@ -396,15 +396,147 @@ extension BrowserController {
         let keyLiteral = try javaScriptStringLiteral(key)
         let script = """
         (() => {
-          const key = \(keyLiteral);
+          const keySpec = \(keyLiteral);
           const target = document.activeElement || document.body;
+          if (!target) throw new Error('No active element for key dispatch');
+
+          const parseKeySpec = (spec) => {
+            const parts = String(spec).split('+').map(part => part.trim()).filter(Boolean);
+            const key = parts.pop() || spec;
+            const modifiers = new Set(parts.map(part => part.toLowerCase()));
+            return {
+              key,
+              altKey: modifiers.has('alt') || modifiers.has('option'),
+              ctrlKey: modifiers.has('ctrl') || modifiers.has('control'),
+              metaKey: modifiers.has('cmd') || modifiers.has('command') || modifiers.has('meta'),
+              shiftKey: modifiers.has('shift')
+            };
+          };
+
+          const editableState = (element) => {
+            if (!element) return null;
+            if (element.isContentEditable) {
+              const selection = window.getSelection();
+              return { kind: 'contenteditable', element, selection };
+            }
+            const tag = (element.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea') {
+              return {
+                kind: tag,
+                element,
+                value: String(element.value || ''),
+                start: Number.isFinite(element.selectionStart) ? element.selectionStart : String(element.value || '').length,
+                end: Number.isFinite(element.selectionEnd) ? element.selectionEnd : String(element.value || '').length
+              };
+            }
+            return null;
+          };
+
+          const dispatchInput = (element, inputType, data = null) => {
+            element.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data, inputType }));
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+
+          function selectAllEditableText(state) {
+            if (!state) return false;
+            if (state.kind === 'input' || state.kind === 'textarea') {
+              state.element.setSelectionRange(0, String(state.element.value || '').length);
+              return true;
+            }
+            if (state.kind === 'contenteditable') {
+              const range = document.createRange();
+              range.selectNodeContents(state.element);
+              const selection = window.getSelection();
+              selection.removeAllRanges();
+              selection.addRange(range);
+              return true;
+            }
+            return false;
+          }
+
+          function editTextTarget(state, normalizedKey) {
+            if (!state) return { edited: false, mode: 'none' };
+            if (state.kind === 'contenteditable') {
+              switch (normalizedKey) {
+                case 'Backspace':
+                  document.execCommand('delete', false, null);
+                  dispatchInput(state.element, 'deleteContentBackward');
+                  return { edited: true, mode: 'contenteditable-deleteBackward', value: state.element.textContent || '' };
+                case 'Delete':
+                  document.execCommand('forwardDelete', false, null);
+                  dispatchInput(state.element, 'deleteContentForward');
+                  return { edited: true, mode: 'contenteditable-deleteForward', value: state.element.textContent || '' };
+                case 'Enter':
+                  document.execCommand('insertLineBreak', false, null);
+                  dispatchInput(state.element, 'insertLineBreak', '\\n');
+                  return { edited: true, mode: 'contenteditable-insertLineBreak', value: state.element.textContent || '' };
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                case 'ArrowUp':
+                case 'ArrowDown':
+                  return { edited: false, mode: 'contenteditable-navigation', value: state.element.textContent || '' };
+                default:
+                  return { edited: false, mode: 'contenteditable-unhandled', value: state.element.textContent || '' };
+              }
+            }
+
+            const element = state.element;
+            const value = String(element.value || '');
+            let start = state.start;
+            let end = state.end;
+            const replaceRange = (nextValue, cursor, inputType, data = null) => {
+              element.value = nextValue;
+              if (typeof element.setSelectionRange === 'function') element.setSelectionRange(cursor, cursor);
+              dispatchInput(element, inputType, data);
+              return { edited: true, mode: inputType, value: element.value || '' };
+            };
+
+            switch (normalizedKey) {
+              case 'Backspace': {
+                if (start === end && start > 0) start -= 1;
+                return replaceRange(value.slice(0, start) + value.slice(end), start, 'deleteContentBackward');
+              }
+              case 'Delete': {
+                if (start === end && end < value.length) end += 1;
+                return replaceRange(value.slice(0, start) + value.slice(end), start, 'deleteContentForward');
+              }
+              case 'Enter': {
+                if (state.kind !== 'textarea') return { edited: false, mode: 'enter-non-textarea', value: element.value || '' };
+                return replaceRange(value.slice(0, start) + '\\n' + value.slice(end), start + 1, 'insertLineBreak', '\\n');
+              }
+              case 'ArrowLeft': {
+                const cursor = Math.max(0, start - 1);
+                if (typeof element.setSelectionRange === 'function') element.setSelectionRange(cursor, cursor);
+                return { edited: false, mode: 'move-left', value: element.value || '' };
+              }
+              case 'ArrowRight': {
+                const cursor = Math.min(value.length, end + 1);
+                if (typeof element.setSelectionRange === 'function') element.setSelectionRange(cursor, cursor);
+                return { edited: false, mode: 'move-right', value: element.value || '' };
+              }
+              default:
+                return { edited: false, mode: 'unhandled', value: element.value || '' };
+            }
+          }
+
+          const parsed = parseKeySpec(keySpec);
+          const normalizedKey = parsed.key;
           let defaultPrevented = false;
           for (const type of ['keydown', 'keypress', 'keyup']) {
-            const event = new KeyboardEvent(type, { key, bubbles: true, cancelable: true });
+            const event = new KeyboardEvent(type, { key: normalizedKey, bubbles: true, cancelable: true, altKey: parsed.altKey, ctrlKey: parsed.ctrlKey, metaKey: parsed.metaKey, shiftKey: parsed.shiftKey });
             target.dispatchEvent(event);
             defaultPrevented = defaultPrevented || event.defaultPrevented;
           }
-          return { key, target: (target && target.tagName) || '', defaultPrevented };
+
+          const state = editableState(target);
+          let edit = { edited: false, mode: 'event-only' };
+          if ((parsed.metaKey || parsed.ctrlKey) && normalizedKey.toLowerCase() === 'a') {
+            edit = { edited: selectAllEditableText(state), mode: 'select-all', value: state?.element?.value || state?.element?.textContent || '' };
+          } else {
+            edit = editTextTarget(state, normalizedKey);
+          }
+
+          return { key: normalizedKey, keySpec, target: (target && target.tagName) || '', defaultPrevented, mode: edit.mode || '', edited: !!edit.edited, value: edit.value || '', metaKey: parsed.metaKey, ctrlKey: parsed.ctrlKey, altKey: parsed.altKey, shiftKey: parsed.shiftKey };
         })()
         """
         guard let result = try await webView.evaluateJavaScript(script) as? [String: Any] else {
@@ -412,8 +544,16 @@ extension BrowserController {
         }
         return [
             "key": stringifyJavaScriptValue(result["key"] as Any),
+            "keySpec": stringifyJavaScriptValue(result["keySpec"] as Any),
             "target": stringifyJavaScriptValue(result["target"] as Any),
             "defaultPrevented": stringifyJavaScriptValue(result["defaultPrevented"] as Any),
+            "mode": stringifyJavaScriptValue(result["mode"] as Any),
+            "edited": stringifyJavaScriptValue(result["edited"] as Any),
+            "value": stringifyJavaScriptValue(result["value"] as Any),
+            "metaKey": stringifyJavaScriptValue(result["metaKey"] as Any),
+            "ctrlKey": stringifyJavaScriptValue(result["ctrlKey"] as Any),
+            "altKey": stringifyJavaScriptValue(result["altKey"] as Any),
+            "shiftKey": stringifyJavaScriptValue(result["shiftKey"] as Any),
             "strategy": "synthetic-key"
         ]
     }

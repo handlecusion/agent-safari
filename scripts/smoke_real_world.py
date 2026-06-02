@@ -402,12 +402,12 @@ def make_fixtures(base_url: str):
 
     write(FIX / 'native.html', '''
     <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Native Input Scenario</title>
-    <style>body{font:17px -apple-system;margin:32px;background:#fbfbff}.wrap{max-width:760px;background:white;padding:24px;border-radius:18px;box-shadow:0 12px 30px #0001}button{padding:12px 18px;border:0;border-radius:12px;background:#16a34a;color:white;font-weight:800}input{padding:12px;border:1px solid #ccd4e0;border-radius:10px;width:280px}</style></head>
-    <body><div class="wrap"><h1>Scenario 5: Native click + type/viewport</h1><p>Native Quartz click with JS fallback verification and synthetic typing.</p><input id="typed" placeholder="type here"><button id="nativeBtn">Native target</button><div id="state">initial</div></div>
+    <style>body{font:17px -apple-system;margin:32px;background:#fbfbff}.wrap{max-width:760px;background:white;padding:24px;border-radius:18px;box-shadow:0 12px 30px #0001}button{padding:12px 18px;border:0;border-radius:12px;background:#16a34a;color:white;font-weight:800}input,textarea{display:block;margin:10px 0 16px;padding:12px;border:1px solid #ccd4e0;border-radius:10px;width:420px}.editor{min-height:52px;border:1px solid #ccd4e0;border-radius:10px;padding:12px;width:420px;background:#fff}</style></head>
+    <body><div class="wrap"><h1>Scenario 5: Native click + type/key/viewport</h1><p>Native Quartz click with JS fallback verification plus input, textarea, contenteditable, and key-path editing.</p><input id="typed" placeholder="type here"><textarea id="notes" placeholder="textarea notes"></textarea><div id="editor" class="editor" contenteditable="true" role="textbox" aria-label="Rich editor"></div><button id="nativeBtn">Native target</button><div id="state">initial</div></div>
     <script>
       document.getElementById('nativeBtn').addEventListener('click', () => { document.getElementById('state').textContent = 'native click observed'; });
     </script></body></html>
-    ''')
+    ''' )
 
 
 def main():
@@ -493,13 +493,24 @@ def main():
         steps.append(run_cli('wait-for-text', 'native click observed', '--timeout', '5000'))
         steps.append(run_cli('click', '#typed'))
         steps.append(run_cli('type', 'typed by agent-safari'))
+        steps.append(run_cli('key', 'Meta+A'))
+        steps.append(run_cli('type', 'typed by agent-safari'))
+        steps.append(run_cli('click', '#notes'))
+        steps.append(run_cli('type', 'textarea line one'))
+        steps.append(run_cli('key', 'Enter'))
+        steps.append(run_cli('type', 'textarea line two'))
+        steps.append(run_cli('click', '#editor'))
+        steps.append(run_cli('type', 'rich text'))
+        steps.append(run_cli('key', 'Backspace'))
+        steps.append(run_cli('type', '!'))
         after = run_cli('observe')
         cap5, _ = screenshot('05_native_click_and_type')
         cap5_artifact = screenshot_artifact(cap5, min_width=100, min_height=100)
-        eval5 = run_cli('evaluate', "JSON.stringify({state:document.getElementById('state').textContent, typed:document.getElementById('typed').value, w:innerWidth, h:innerHeight})")
+        eval5 = run_cli('evaluate', "JSON.stringify({state:document.getElementById('state').textContent, typed:document.getElementById('typed').value, notes:document.getElementById('notes').value, editor:document.getElementById('editor').textContent, w:innerWidth, h:innerHeight})")
         native_payload = result_payload(native_click)
         native_delivery = native_click_delivery(native_payload, strict_native=STRICT_NATIVE)
-        scenario('5. Native click + synthetic type + viewport', 'native click을 우선 시도하고 기본 smoke에서는 JS fallback까지, AGENT_SAFARI_STRICT_NATIVE=1에서는 no-fallback native-only를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in str(result_payload(eval5)) and 'typed by agent-safari' in str(result_payload(eval5)) else 'CHECK')
+        page_state = str(result_payload(eval5).get('value'))
+        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one\\ntextarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
 
         json_dump(DATA / 'scenario-results.json', SCENARIOS)
         make_contact_sheet()

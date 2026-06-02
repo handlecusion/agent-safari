@@ -24,7 +24,7 @@ jobs:
       - name: Release build smoke
         run: swift build -c release
       - name: Python wrapper and packaging syntax
-        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/agent_safari_mcp_setup.py
+        run: python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/agent_safari_mcp_setup.py scripts/smoke_real_world.py Tests/test_agentic_refs_contract.py Tests/test_input_keypath_contract.py Tests/test_browser_chrome_contract.py Tests/test_smoke_real_world.py
       - name: Shell syntax
         run: bash -n scripts/*.sh
       - name: npm package smoke
@@ -42,6 +42,9 @@ jobs:
           python3 Tests/test_public_release_audit.py
           python3 Tests/test_mcp_contract.py
           python3 Tests/test_mcp_setup_helper.py
+          python3 Tests/test_smoke_real_world.py
+          python3 Tests/test_agentic_refs_contract.py
+          python3 Tests/test_input_keypath_contract.py
           python3 Tests/test_browser_chrome_contract.py
       - name: Public release audit
         run: python3 scripts/public_release_audit.py

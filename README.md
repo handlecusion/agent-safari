@@ -222,6 +222,9 @@ For detailed install and troubleshooting steps, see `docs/INSTALL.md`.
 
 ## Documentation
 
+- Product vision: `docs/PRODUCT_VISION.md`
+- Product spec: `docs/PRODUCT_SPEC.md`
+- Phased development plan: `docs/DEVELOPMENT_PHASES.md`
 - Detailed installation: `docs/INSTALL.md`
 - CLI usage: `docs/CLI_USAGE.md`
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
@@ -230,7 +233,7 @@ For detailed install and troubleshooting steps, see `docs/INSTALL.md`.
 - Profile persistence: `docs/PROFILE_PERSISTENCE.md`
 - CI/CD: `docs/CI_CD.md`
 - Packaging and distribution: `docs/PACKAGING.md`
-- Roadmap: `ROADMAP.md` and `docs/ROADMAP.md`
+- Roadmap and phases: `docs/DEVELOPMENT_PHASES.md`
 - Contributing: `CONTRIBUTING.md`
 
 ## Examples
@@ -373,7 +376,7 @@ evaluate(script="document.title")
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
 - CI/CD: `docs/CI_CD.md`
 - Packaging and distribution: `docs/PACKAGING.md`
-- Roadmap: `ROADMAP.md` and `docs/ROADMAP.md`
+- Roadmap and phases: `docs/DEVELOPMENT_PHASES.md`
 - Contributing: `CONTRIBUTING.md`
 - Examples: `examples/`
 

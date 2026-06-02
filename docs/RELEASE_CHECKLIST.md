@@ -58,7 +58,7 @@ Strict native mode may require macOS Accessibility permission and a usable foreg
 
 ## v0.0.6 release criteria
 
-Use v0.0.6 as the P2 native input / agentic refs quality checkpoint. Do not tag the release until all of the following are true:
+Use v0.0.6 as the Phase 2 native input / agentic refs quality checkpoint. Do not tag the release until all of the following are true:
 
 - The non-GUI gates above exit 0 on the release commit, including the agentic refs contract tests.
 - The GUI smoke gate reports `5/5 PASS` from `python3 scripts/smoke_real_world.py` and records the artifact path in the release notes.

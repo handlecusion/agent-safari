@@ -4,7 +4,7 @@ Control and observe a real Safari/WebKit browser from AI agents via MCP.
 
 `agent-safari` is a local-first macOS browser automation CLI, native WebKit window, local daemon, and MCP stdio server. It gives Claude, Hermes, Codex-style agents, and other MCP clients the browser tools they need for an observe → act → verify loop: compact snapshot refs, clicks/fills, screenshots, JavaScript evaluation, tabs, waits, and fetch/XHR network capture.
 
-![Agent Safari workflow demo](docs/assets/agent-safari-workflow.gif)
+![Agent Safari real WebKit QA demo](docs/assets/agent-safari-real-demo.gif)
 
 ```text
 AI agent -> MCP wrapper -> agent-safari CLI -> local daemon -> real WKWebView window
@@ -226,6 +226,7 @@ For detailed install and troubleshooting steps, see `docs/INSTALL.md`.
 - CLI usage: `docs/CLI_USAGE.md`
 - MCP wrapper usage: `docs/MCP_WRAPPER.md`
 - Agent loop: `docs/AGENT_LOOP.md`
+- Real demo scenario: `docs/DEMO_SCENARIO.md`
 - Profile persistence: `docs/PROFILE_PERSISTENCE.md`
 - CI/CD: `docs/CI_CD.md`
 - Packaging and distribution: `docs/PACKAGING.md`

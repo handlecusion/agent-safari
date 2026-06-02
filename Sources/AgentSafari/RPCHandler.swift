@@ -75,6 +75,18 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
             guard let text = params["text"] else { throw AgentSafariError.missingParam("text") }
             let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
             result = JSONValue.fromStringMap(try await browser.waitForText(text, timeoutMs: timeoutMs))
+        case "waitForURL":
+            guard let url = params["url"] else { throw AgentSafariError.missingParam("url") }
+            let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
+            result = JSONValue.fromStringMap(try await browser.waitForURL(url, timeoutMs: timeoutMs))
+        case "waitForTitle":
+            guard let title = params["title"] else { throw AgentSafariError.missingParam("title") }
+            let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
+            result = JSONValue.fromStringMap(try await browser.waitForTitle(title, timeoutMs: timeoutMs))
+        case "waitForVisible":
+            guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
+            let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
+            result = JSONValue.fromStringMap(try await browser.waitForVisible(selector, timeoutMs: timeoutMs))
         case "waitForIdle":
             let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
             result = JSONValue.fromStringMap(try await browser.waitForIdle(timeoutMs: timeoutMs))

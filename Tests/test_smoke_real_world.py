@@ -83,6 +83,58 @@ def test_full_page_artifact_must_be_taller_than_viewport(tmp_path: Path) -> None
     assert comparison["viewport"]["height"] == 640
 
 
+def test_screenshot_command_metadata_requires_phase3_fields() -> None:
+    smoke = load_smoke_module()
+    result = {
+        "path": "/tmp/capture.png",
+        "outputPath": "/tmp/capture.png",
+        "width": "900",
+        "height": "640",
+        "fullPage": "false",
+        "viewportWidth": "900",
+        "viewportHeight": "640",
+        "pageWidth": "900",
+        "pageHeight": "2400",
+        "scale": "2.000",
+        "tileCount": "1",
+        "warnings": "[]",
+        "strategy": "viewport",
+    }
+
+    metadata = smoke.screenshot_command_metadata(result)
+
+    assert metadata == {
+        "outputPath": "/tmp/capture.png",
+        "width": 900,
+        "height": 640,
+        "viewport": {"width": 900, "height": 640},
+        "page": {"width": 900, "height": 2400},
+        "scale": 2.0,
+        "tileCount": 1,
+        "warnings": [],
+        "strategy": "viewport",
+        "fullPage": False,
+    }
+
+    full_page = dict(result, fullPage="true", strategy="single-rect", preflightScrollCount="13")
+    full_metadata = smoke.screenshot_command_metadata(full_page)
+    assert full_metadata["preflightScrollCount"] == 13
+
+    try:
+        smoke.screenshot_command_metadata(dict(result, fullPage="true"))
+    except AssertionError as exc:
+        assert "missing full-page preflight metadata" in str(exc)
+    else:
+        raise AssertionError("full-page screenshot metadata without preflight count should fail")
+
+    try:
+        smoke.screenshot_command_metadata({"path": "/tmp/capture.png"})
+    except AssertionError as exc:
+        assert "missing screenshot metadata" in str(exc)
+    else:
+        raise AssertionError("screenshot result without Phase 3 metadata should fail")
+
+
 def test_native_click_delivery_metadata_is_explicit() -> None:
     smoke = load_smoke_module()
 
@@ -119,6 +171,19 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
         assert "missing native click metadata" in str(exc)
     else:
         raise AssertionError("native click result without coordinate/scroll metadata should fail")
+
+
+def test_bounded_timeout_failure_helper_requires_structured_error() -> None:
+    smoke = load_smoke_module()
+    record = {"json": {"ok": False, "error": {"code": "error", "message": "Timed out after 250 ms"}}}
+    assert smoke.assert_bounded_timeout_failure(record, 250) == "Timed out after 250 ms"
+
+    try:
+        smoke.assert_bounded_timeout_failure({"json": {"ok": True}}, 250)
+    except AssertionError as exc:
+        assert "bounded structured timeout failure" in str(exc)
+    else:
+        raise AssertionError("helper accepted a successful response as a timeout failure")
 
 
 def test_quality_gate_matrix_separates_ci_local_and_strict_native() -> None:
@@ -172,7 +237,9 @@ def main() -> int:
         test_screenshot_artifact_rejects_empty_or_implausible_png(Path(d) / "b")
     with tempfile.TemporaryDirectory() as d:
         test_full_page_artifact_must_be_taller_than_viewport(Path(d) / "c")
+    test_screenshot_command_metadata_requires_phase3_fields()
     test_native_click_delivery_metadata_is_explicit()
+    test_bounded_timeout_failure_helper_requires_structured_error()
     test_quality_gate_matrix_separates_ci_local_and_strict_native()
     with tempfile.TemporaryDirectory() as d:
         test_failure_diagnostics_payload_is_bounded_and_actionable(Path(d))

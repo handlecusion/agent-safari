@@ -84,9 +84,12 @@ The current product contract after `v0.0.6` includes:
 - thin Python MCP wrapper delegating to the CLI;
 - navigation, status, observe, text, content/HTML, URL/title, evaluate;
 - viewport, screenshot, full-page screenshot, screenshot-element;
+- screenshot result metadata for output path, viewport/page size, scale, tile count/preflight scroll count, strategy, and warnings;
+- full-page screenshot preflight scrolling for tall pages so lazy/intersection-observed content has a chance to render before capture while original scroll is restored;
+- observe metadata for load state, pending network count, selected text, viewport/page size, and active element selector;
 - snapshot refs with schema/actionability metadata;
 - click, fill, type, key;
-- waits for idle, selector, text, and loaded state;
+- waits for URL, title, visible selector, idle, selector, text, and loaded state, with bounded structured timeout failures;
 - fetch/XHR network metadata capture, list, stop, and redacted export;
 - first modeled tab/session/profile command surfaces around a single-WebView model;
 - public release gates and smoke artifacts.
@@ -142,6 +145,9 @@ Evidence surfaces include:
 - JSON CLI/MCP responses;
 - smoke `REPORT.md` files;
 - screenshots and element screenshots;
+- screenshot metadata in smoke evidence, including viewport/page dimensions, scale, tile count/preflight scroll count, strategy, and warnings;
+- observe metadata in smoke evidence, including load state, pending network count, selected text, viewport/page dimensions, and active element selector;
+- bounded wait-predicate success/failure evidence for URL/title/visible waits;
 - network export JSON;
 - daemon logs;
 - CI/release workflow output;
@@ -164,6 +170,5 @@ Do not add these without a separate decision note and phase update:
 
 - What exact native-click error taxonomy should be exposed to agents?
 - Which occlusion checks are stable enough across macOS/WebKit environments?
-- What screenshot metadata is required for agent decisions versus debugging only?
 - What is the smallest real multi-tab/profile model that does not overcomplicate the CLI/MCP contract?
 - Which GUI checks can run reliably in GitHub Actions, if any?

@@ -19,12 +19,53 @@ extension BrowserController {
         let script = """
         (() => {
           const active = document.activeElement;
+          const selectorFor = (element) => {
+            if (!element || element === document.body || element === document.documentElement) return '';
+            if (element.id) return '#' + CSS.escape(element.id);
+            const tag = (element.tagName || '').toLowerCase();
+            if (!tag) return '';
+            const name = element.getAttribute && element.getAttribute('name');
+            if (name) return `${tag}[name="${CSS.escape(name)}"]`;
+            return tag;
+          };
+          const de = document.documentElement;
+          const b = document.body;
+          const viewportWidth = window.innerWidth || (de ? de.clientWidth : 0) || 0;
+          const viewportHeight = window.innerHeight || (de ? de.clientHeight : 0) || 0;
+          const pageWidth = Math.max(
+            de ? de.scrollWidth : 0,
+            de ? de.offsetWidth : 0,
+            de ? de.clientWidth : 0,
+            b ? b.scrollWidth : 0,
+            b ? b.offsetWidth : 0,
+            b ? b.clientWidth : 0,
+            viewportWidth
+          );
+          const pageHeight = Math.max(
+            de ? de.scrollHeight : 0,
+            de ? de.offsetHeight : 0,
+            de ? de.clientHeight : 0,
+            b ? b.scrollHeight : 0,
+            b ? b.offsetHeight : 0,
+            b ? b.clientHeight : 0,
+            viewportHeight
+          );
+          let selectedText = '';
+          try { selectedText = String(window.getSelection ? window.getSelection() : ''); } catch (_) {}
           return {
             readyState: document.readyState || '',
+            loadState: document.readyState || '',
+            pendingNetworkCount: window.__agentSafariNetworkPending || 0,
+            selectedText,
+            viewportWidth,
+            viewportHeight,
+            pageWidth,
+            pageHeight,
             activeElementTag: active && active.tagName ? active.tagName.toLowerCase() : '',
             activeElementType: active && active.getAttribute ? (active.getAttribute('type') || '') : '',
             activeElementName: active && active.getAttribute ? (active.getAttribute('name') || '') : '',
-            activeElementId: active && active.id ? active.id : ''
+            activeElementId: active && active.id ? active.id : '',
+            activeElementSelector: selectorFor(active)
           };
         })()
         """
@@ -33,12 +74,20 @@ extension BrowserController {
             "url": webView.url?.absoluteString ?? "",
             "title": webView.title ?? "",
             "readyState": stringifyJavaScriptValue((pageState?["readyState"] ?? "") as Any),
+            "loadState": stringifyJavaScriptValue((pageState?["loadState"] ?? "") as Any),
             "isLoading": webView.isLoading ? "true" : "false",
             "networkCapturing": networkCaptureActive ? "true" : "false",
+            "pendingNetworkCount": stringifyJavaScriptValue((pageState?["pendingNetworkCount"] ?? 0) as Any),
+            "selectedText": stringifyJavaScriptValue((pageState?["selectedText"] ?? "") as Any),
+            "viewportWidth": stringifyJavaScriptValue((pageState?["viewportWidth"] ?? 0) as Any),
+            "viewportHeight": stringifyJavaScriptValue((pageState?["viewportHeight"] ?? 0) as Any),
+            "pageWidth": stringifyJavaScriptValue((pageState?["pageWidth"] ?? 0) as Any),
+            "pageHeight": stringifyJavaScriptValue((pageState?["pageHeight"] ?? 0) as Any),
             "activeElementTag": stringifyJavaScriptValue((pageState?["activeElementTag"] ?? "") as Any),
             "activeElementType": stringifyJavaScriptValue((pageState?["activeElementType"] ?? "") as Any),
             "activeElementName": stringifyJavaScriptValue((pageState?["activeElementName"] ?? "") as Any),
             "activeElementId": stringifyJavaScriptValue((pageState?["activeElementId"] ?? "") as Any),
+            "activeElementSelector": stringifyJavaScriptValue((pageState?["activeElementSelector"] ?? "") as Any),
             "sessionId": sessionID,
             "tabId": activeTabID
         ]

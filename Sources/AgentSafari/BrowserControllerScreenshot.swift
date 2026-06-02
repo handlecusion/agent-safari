@@ -6,21 +6,31 @@ import WebKit
 @MainActor
 extension BrowserController {
     func screenshot(path: String) async throws -> [String: String] {
+        let pageSize = try await measurePageSize()
         let configuration = WKSnapshotConfiguration()
         configuration.rect = webView.bounds
         let image = try await webView.takeSnapshot(configuration: configuration)
         let url = try writePNG(image, path: path)
-        return [
+        return screenshotMetadata(
+            url: url,
+            fullPage: false,
+            captureSize: webView.bounds.size,
+            pageSize: pageSize,
+            strategy: "viewport",
+            tileCount: 1,
+            warnings: []
+        ).merging([
             "path": url.path,
             "fullPage": "false",
             "width": String(Int(webView.bounds.width.rounded())),
             "height": String(Int(webView.bounds.height.rounded())),
             "strategy": "viewport"
-        ]
+        ]) { _, new in new }
     }
 
     func screenshotFull(path: String) async throws -> [String: String] {
         let pageSize = try await measurePageSize()
+        let preflightScrollCount = try await preflightFullPageCapture(pageSize: pageSize)
         let maxSingleSnapshotPixels: CGFloat = 16_000_000
         let pixelArea = pageSize.width * pageSize.height
 
@@ -29,26 +39,46 @@ extension BrowserController {
             configuration.rect = NSRect(x: 0, y: 0, width: pageSize.width, height: pageSize.height)
             let image = try await webView.takeSnapshot(configuration: configuration)
             let url = try writePNG(image, path: path)
-            return [
+            return screenshotMetadata(
+                url: url,
+                fullPage: true,
+                captureSize: pageSize,
+                pageSize: pageSize,
+                strategy: "single-rect",
+                tileCount: 1,
+                warnings: []
+            ).merging([
                 "path": url.path,
                 "fullPage": "true",
                 "width": String(Int(pageSize.width.rounded())),
                 "height": String(Int(pageSize.height.rounded())),
                 "strategy": "single-rect",
-                "tiles": "1"
-            ]
+                "tiles": "1",
+                "tileCount": "1",
+                "preflightScrollCount": String(preflightScrollCount)
+            ]) { _, new in new }
         }
 
         let url = try await writeTiledFullPageScreenshot(pageSize: pageSize, path: path)
         let tileCount = max(1, Int(ceil(pageSize.height / max(1, webView.bounds.height))))
-        return [
+        return screenshotMetadata(
+            url: url,
+            fullPage: true,
+            captureSize: pageSize,
+            pageSize: pageSize,
+            strategy: "tiled-scroll",
+            tileCount: tileCount,
+            warnings: pageSize.width > webView.bounds.width ? ["page width exceeds viewport; tiled capture clamps to viewport width"] : []
+        ).merging([
             "path": url.path,
             "fullPage": "true",
             "width": String(Int(pageSize.width.rounded())),
             "height": String(Int(pageSize.height.rounded())),
             "strategy": "tiled-scroll",
-            "tiles": String(tileCount)
-        ]
+            "tiles": String(tileCount),
+            "tileCount": String(tileCount),
+            "preflightScrollCount": String(preflightScrollCount)
+        ]) { _, new in new }
     }
 
     func screenshotElement(selector: String, path: String) async throws -> [String: String] {
@@ -90,11 +120,20 @@ extension BrowserController {
             height: CGFloat((result["height"] as? NSNumber)?.doubleValue ?? 0)
         ).intersection(webView.bounds)
         guard rect.width > 0, rect.height > 0 else { throw AgentSafariError.elementResolutionFailed(selector) }
+        let pageSize = try await measurePageSize()
         let configuration = WKSnapshotConfiguration()
         configuration.rect = rect
         let image = try await webView.takeSnapshot(configuration: configuration)
         let url = try writePNG(image, path: path)
-        return [
+        return screenshotMetadata(
+            url: url,
+            fullPage: false,
+            captureSize: rect.size,
+            pageSize: pageSize,
+            strategy: "element-rect",
+            tileCount: 1,
+            warnings: []
+        ).merging([
             "path": url.path,
             "fullPage": "false",
             "element": selector,
@@ -103,7 +142,58 @@ extension BrowserController {
             "x": String(Int(rect.origin.x.rounded())),
             "y": String(Int(rect.origin.y.rounded())),
             "strategy": "element-rect"
+        ]) { _, new in new }
+    }
+
+    private func screenshotMetadata(url: URL, fullPage: Bool, captureSize: CGSize, pageSize: CGSize, strategy: String, tileCount: Int, warnings: [String]) -> [String: String] {
+        let viewport = webView.bounds.size
+        let warningsValue: String
+        if let data = try? JSONSerialization.data(withJSONObject: warnings),
+           let encoded = String(data: data, encoding: .utf8) {
+            warningsValue = encoded
+        } else {
+            warningsValue = "[]"
+        }
+        return [
+            "path": url.path,
+            "outputPath": url.path,
+            "fullPage": fullPage ? "true" : "false",
+            "width": String(Int(captureSize.width.rounded())),
+            "height": String(Int(captureSize.height.rounded())),
+            "viewportWidth": String(Int(viewport.width.rounded())),
+            "viewportHeight": String(Int(viewport.height.rounded())),
+            "pageWidth": String(Int(pageSize.width.rounded())),
+            "pageHeight": String(Int(pageSize.height.rounded())),
+            "scale": String(format: "%.3f", window.backingScaleFactor),
+            "tileCount": String(tileCount),
+            "warnings": warningsValue,
+            "strategy": strategy
         ]
+    }
+
+    private func preflightFullPageCapture(pageSize: CGSize) async throws -> Int {
+        let viewportHeight = max(1, webView.bounds.height)
+        guard pageSize.height > viewportHeight else { return 0 }
+        let originalScrollValue = try await webView.evaluateJavaScript("({ x: window.scrollX || 0, y: window.scrollY || 0 })")
+        let originalScroll = originalScrollValue as? [String: Any]
+        let originalX = Int(CGFloat((originalScroll?["x"] as? NSNumber)?.doubleValue ?? 0).rounded())
+        let originalY = Int(CGFloat((originalScroll?["y"] as? NSNumber)?.doubleValue ?? 0).rounded())
+        let maxScrollY = max(0, pageSize.height - viewportHeight)
+        let step = max(1, viewportHeight * 0.8)
+        var positions: [Int] = []
+        var y: CGFloat = 0
+        while y < maxScrollY {
+            positions.append(Int(y.rounded()))
+            y += step
+        }
+        positions.append(Int(maxScrollY.rounded()))
+        for position in positions {
+            _ = try await webView.evaluateJavaScript("window.scrollTo(\(originalX), \(position)); true")
+            try await Task.sleep(nanoseconds: 60_000_000)
+        }
+        _ = try await webView.evaluateJavaScript("window.scrollTo(\(originalX), \(originalY)); true")
+        try await Task.sleep(nanoseconds: 60_000_000)
+        return positions.count
     }
 
     private func writeTiledFullPageScreenshot(pageSize: CGSize, path: String) async throws -> URL {

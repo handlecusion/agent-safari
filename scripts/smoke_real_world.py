@@ -126,6 +126,65 @@ def assert_full_page_taller_than_viewport(full_path: Path | str, viewport_path: 
     return {'full': full, 'viewport': viewport}
 
 
+def _int_metadata(payload: dict, key: str) -> int:
+    try:
+        return int(float(str(payload[key])))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AssertionError(f'invalid integer screenshot metadata {key!r}: payload={payload}') from exc
+
+
+def _float_metadata(payload: dict, key: str) -> float:
+    try:
+        return float(str(payload[key]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AssertionError(f'invalid numeric screenshot metadata {key!r}: payload={payload}') from exc
+
+
+def screenshot_command_metadata(payload: dict) -> dict:
+    required_keys = (
+        'outputPath',
+        'width',
+        'height',
+        'fullPage',
+        'viewportWidth',
+        'viewportHeight',
+        'pageWidth',
+        'pageHeight',
+        'scale',
+        'tileCount',
+        'warnings',
+        'strategy',
+    )
+    missing = [key for key in required_keys if key not in payload]
+    if missing:
+        raise AssertionError(f'missing screenshot metadata: {missing}; payload={payload}')
+    warnings = payload['warnings']
+    if isinstance(warnings, str):
+        try:
+            warnings = json.loads(warnings)
+        except json.JSONDecodeError as exc:
+            raise AssertionError(f'invalid screenshot warnings JSON: {warnings!r}') from exc
+    if not isinstance(warnings, list):
+        raise AssertionError(f'screenshot warnings must be a list: {warnings!r}')
+    metadata = {
+        'outputPath': str(payload['outputPath']),
+        'width': _int_metadata(payload, 'width'),
+        'height': _int_metadata(payload, 'height'),
+        'viewport': {'width': _int_metadata(payload, 'viewportWidth'), 'height': _int_metadata(payload, 'viewportHeight')},
+        'page': {'width': _int_metadata(payload, 'pageWidth'), 'height': _int_metadata(payload, 'pageHeight')},
+        'scale': _float_metadata(payload, 'scale'),
+        'tileCount': _int_metadata(payload, 'tileCount'),
+        'warnings': warnings,
+        'strategy': str(payload['strategy']),
+        'fullPage': _bool_metadata(payload['fullPage']),
+    }
+    if metadata['fullPage']:
+        if 'preflightScrollCount' not in payload:
+            raise AssertionError(f'missing full-page preflight metadata: payload={payload}')
+        metadata['preflightScrollCount'] = _int_metadata(payload, 'preflightScrollCount')
+    return metadata
+
+
 def _bool_metadata(value) -> bool:
     if isinstance(value, bool):
         return value
@@ -311,6 +370,16 @@ def wait_for_daemon(deadline_sec: int = 15) -> None:
     raise RuntimeError(f'daemon not ready; last={last}; log={LOG.read_text(errors="ignore") if LOG.exists() else ""}')
 
 
+def assert_bounded_timeout_failure(record: dict, expected_ms: int) -> str:
+    payload = record.get('json') or {}
+    error = payload.get('error') or {}
+    message = error.get('message') if isinstance(error, dict) else str(error)
+    expected = f'Timed out after {expected_ms} ms'
+    if payload.get('ok') is not False or expected not in str(message):
+        raise AssertionError(f'bounded structured timeout failure missing {expected}: {record}')
+    return str(message)
+
+
 def screenshot(name: str, full: bool = False, selector: str | None = None):
     path = CAP / f'{name}.png'
     if selector:
@@ -384,11 +453,16 @@ def make_fixtures(base_url: str):
     </body></html>
     ''')
 
-    rows = '\n'.join(f'<section><h2>Long section {i}</h2><p>Full-page screenshot tile row {i}. agent-safari should preserve the tall page content and restore scrolling.</p></section>' for i in range(1, 31))
+    rows = '\n'.join(f'<section><h2>Long section {i}</h2><p>Full-page screenshot tile row {i}. agent-safari should preserve the tall page content and restore scrolling.</p><p class="lazy" data-lazy="LAZY-SECTION-{i}">waiting for preflight scroll</p></section>' for i in range(1, 31))
     write(FIX / 'long.html', f'''
     <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Full Page Scenario</title>
-    <style>body{{font:17px -apple-system;margin:0;background:linear-gradient(#eef4ff,#fff7ec)}} header{{position:sticky;top:0;background:#172033;color:white;padding:20px 32px;z-index:2}} section{{margin:28px auto;padding:28px;max-width:850px;background:white;border-radius:18px;box-shadow:0 8px 24px #0001}} h2{{color:#0b5fff}}</style></head>
-    <body><header><h1>Scenario 2: Tall full-page screenshot</h1></header>{rows}<footer style="padding:40px;text-align:center">END-OF-LONG-PAGE</footer></body></html>
+    <style>body{{font:17px -apple-system;margin:0;background:linear-gradient(#eef4ff,#fff7ec)}} header{{position:sticky;top:0;background:#172033;color:white;padding:20px 32px;z-index:2}} section{{margin:28px auto;padding:28px;max-width:850px;background:white;border-radius:18px;box-shadow:0 8px 24px #0001}} h2{{color:#0b5fff}} .lazy.loaded{{font-weight:800;color:#16a34a}}</style></head>
+    <body><header><h1>Scenario 2: Tall full-page screenshot</h1></header>{rows}<footer style="padding:40px;text-align:center">END-OF-LONG-PAGE</footer><script>
+      const seen = new Set();
+      const mark = (el) => {{ el.textContent = el.dataset.lazy; el.classList.add('loaded'); seen.add(el.dataset.lazy); window.__agentSafariLazySeen = [...seen]; }};
+      const observer = new IntersectionObserver((entries) => entries.forEach(entry => {{ if (entry.isIntersecting) mark(entry.target); }}), {{rootMargin: '80px'}});
+      document.querySelectorAll('.lazy').forEach(el => observer.observe(el));
+    </script></body></html>
     ''')
 
     write(FIX / 'network.json', '{"ok":true,"source":"fetch","message":"hello from fixture"}')
@@ -451,6 +525,8 @@ def main():
         # Scenario 1: snapshot refs + form fill/click + element screenshot.
         steps = []
         steps.append(run_cli('open', file_url(FIX / 'index.html')))
+        steps.append(run_cli('wait-for-url', 'index.html', '--timeout', '5000'))
+        steps.append(run_cli('wait-for-title', 'Agent Safari Form Scenario', '--timeout', '5000'))
         steps.append(run_cli('wait-for-text', '대기 중', '--timeout', '5000'))
         snap = run_cli('snapshot')
         elements = snapshot_elements(snap)
@@ -464,20 +540,33 @@ def main():
         steps.append(run_cli('fill', str(memo_ref), 'agent-safari 5 scenario smoke'))
         steps.append(run_cli('click', str(submit_ref)))
         steps.append(run_cli('wait-for-text', '제출 완료', '--timeout', '5000'))
-        cap1, _ = screenshot('01_form_after_submit')
-        cap1e, _ = screenshot('01_result_element', selector='#result')
+        steps.append(run_cli('wait-for-visible', '#result', '--timeout', '5000'))
+        missing_visible = run_cli('wait-for-visible', '#does-not-exist', '--timeout', '250', check=False)
+        missing_visible_message = assert_bounded_timeout_failure(missing_visible, 250)
+        cap1, cap1_rec = screenshot('01_form_after_submit')
+        cap1e, cap1e_rec = screenshot('01_result_element', selector='#result')
         cap1_artifact = screenshot_artifact(cap1, min_width=100, min_height=100)
         cap1e_artifact = screenshot_artifact(cap1e, min_width=20, min_height=20)
+        cap1_metadata = screenshot_command_metadata(result_payload(cap1_rec))
+        cap1e_metadata = screenshot_command_metadata(result_payload(cap1e_rec))
         eval1 = run_cli('evaluate', "document.getElementById('result').textContent")
-        scenario('1. Snapshot refs + form action', 'snapshot @e refs로 input/textarea/button을 찾아 fill/click 후 상태 영역을 element screenshot으로 검증', steps, [cap1, cap1e], {'refs': {'name': name_ref, 'memo': memo_ref, 'submit': submit_ref}, 'resultText': result_payload(eval1).get('value'), 'screenshots': [cap1_artifact, cap1e_artifact]}, 'PASS' if '제출 완료: 현윤성 / agent-safari 5 scenario smoke' in str(result_payload(eval1)) else 'CHECK')
+        scenario('1. Snapshot refs + form action', 'snapshot @e refs로 input/textarea/button을 찾아 fill/click 후 상태 영역을 element screenshot으로 검증하고 URL/title/visible waits plus bounded wait failure를 확인', steps + [missing_visible, cap1_rec, cap1e_rec], [cap1, cap1e], {'refs': {'name': name_ref, 'memo': memo_ref, 'submit': submit_ref}, 'resultText': result_payload(eval1).get('value'), 'waitFailure': missing_visible_message, 'screenshots': [cap1_artifact, cap1e_artifact], 'screenshotMetadata': [cap1_metadata, cap1e_metadata]}, 'PASS' if '제출 완료: 현윤성 / agent-safari 5 scenario smoke' in str(result_payload(eval1)) else 'CHECK')
 
         # Scenario 2: full page screenshot.
         steps = [run_cli('open', file_url(FIX / 'long.html')), run_cli('wait-for-text', 'END-OF-LONG-PAGE', '--timeout', '5000')]
-        cap2, _ = screenshot('02_long_full_page', full=True)
-        cap2v, _ = screenshot('02_long_viewport')
+        cap2, cap2_rec = screenshot('02_long_full_page', full=True)
+        cap2v, cap2v_rec = screenshot('02_long_viewport')
         screenshot_comparison = assert_full_page_taller_than_viewport(cap2, cap2v)
+        cap2_metadata = screenshot_command_metadata(result_payload(cap2_rec))
+        cap2v_metadata = screenshot_command_metadata(result_payload(cap2v_rec))
+        if cap2_metadata['page']['height'] <= cap2_metadata['viewport']['height']:
+            raise AssertionError(f'full-page metadata did not report page taller than viewport: {cap2_metadata}')
+        lazy2 = run_cli('evaluate', 'JSON.stringify({loaded:(window.__agentSafariLazySeen||[]).length, last:(window.__agentSafariLazySeen||[]).slice(-1)[0]||null, scrollY: window.scrollY})')
+        lazy2_payload = json.loads(str(result_payload(lazy2).get('value') or '{}'))
+        if int(lazy2_payload.get('loaded') or 0) < 20 or lazy2_payload.get('scrollY') != 0:
+            raise AssertionError(f'full-page preflight did not trigger lazy content and restore scroll: {lazy2_payload}')
         info2 = run_cli('evaluate', 'JSON.stringify({height: document.documentElement.scrollHeight, viewport: innerHeight, title: document.title})')
-        scenario('2. Tall page full screenshot', '긴 페이지에서 full-page capture와 viewport capture를 비교해 tiled screenshot 경로를 검증', steps, [cap2, cap2v], {'pageInfo': result_payload(info2).get('value'), 'screenshots': screenshot_comparison}, 'PASS' if screenshot_comparison['full']['height'] > screenshot_comparison['viewport']['height'] else 'CHECK')
+        scenario('2. Tall page full screenshot', '긴 페이지에서 full-page capture와 viewport capture를 비교해 full-page strategy metadata, lazy-load preflight scroll, Phase 3 capture metadata를 검증', steps + [cap2_rec, cap2v_rec, lazy2], [cap2, cap2v], {'pageInfo': result_payload(info2).get('value'), 'lazyPreflight': lazy2_payload, 'screenshots': screenshot_comparison, 'screenshotMetadata': {'full': cap2_metadata, 'viewport': cap2v_metadata}}, 'PASS' if screenshot_comparison['full']['height'] > screenshot_comparison['viewport']['height'] and cap2_metadata['page']['height'] > cap2_metadata['viewport']['height'] and int(lazy2_payload.get('loaded') or 0) >= 20 else 'CHECK')
 
         # Scenario 3: fetch/XHR network export.
         steps = [run_cli('open', base + '/network.html'), run_cli('network', 'start'), run_cli('click', '#load'), run_cli('wait-for-text', 'hello from xhr', '--timeout', '5000')]
@@ -486,10 +575,11 @@ def main():
         net_export = run_cli('network', 'export', str(net_export_path), '--body-preview-bytes', '80', '--max-entries', '20')
         har = json.loads(net_export_path.read_text(encoding='utf-8'))
         resource_timing_count = har.get('agentSafari', {}).get('resourceTimingCount', 0)
-        cap3, _ = screenshot('03_network_after_load')
+        cap3, cap3_rec = screenshot('03_network_after_load')
         cap3_artifact = screenshot_artifact(cap3, min_width=100, min_height=100)
+        cap3_metadata = screenshot_command_metadata(result_payload(cap3_rec))
         events = result_payload(net_list).get('events', [])
-        scenario('3. Fetch/XHR + resource timing network capture', 'JS fetch/XHR instrumentation과 PerformanceResourceTiming 기반 parser-driven resource export를 검증', steps + [net_list, net_export], [cap3], {'eventCount': len(events), 'types': [e.get('type') for e in events], 'resourceTimingCount': resource_timing_count, 'export': str(net_export_path), 'screenshot': cap3_artifact}, 'PASS' if len(events) >= 2 and resource_timing_count >= 1 else 'CHECK')
+        scenario('3. Fetch/XHR + resource timing network capture', 'JS fetch/XHR instrumentation과 PerformanceResourceTiming 기반 parser-driven resource export를 검증', steps + [net_list, net_export, cap3_rec], [cap3], {'eventCount': len(events), 'types': [e.get('type') for e in events], 'resourceTimingCount': resource_timing_count, 'export': str(net_export_path), 'screenshot': cap3_artifact, 'screenshotMetadata': cap3_metadata}, 'PASS' if len(events) >= 2 and resource_timing_count >= 1 else 'CHECK')
 
         # Scenario 4: true tab/session/profile behavior.
         steps = [run_cli('open', file_url(FIX / 'tab-a.html'))]
@@ -498,13 +588,15 @@ def main():
         tabs_after_new = run_cli('tabs')
         session_after_new = run_cli('session')
         steps.extend([tab_new, tabs_after_new, session_after_new])
-        cap4b, _ = screenshot('04_tab_b_active')
+        cap4b, cap4b_rec = screenshot('04_tab_b_active')
         cap4b_artifact = screenshot_artifact(cap4b, min_width=100, min_height=100)
         steps.append(run_cli('tab-switch', 'tab-1'))
-        cap4a, _ = screenshot('04_tab_a_restored')
+        cap4a, cap4a_rec = screenshot('04_tab_a_restored')
         cap4a_artifact = screenshot_artifact(cap4a, min_width=100, min_height=100)
+        cap4b_metadata = screenshot_command_metadata(result_payload(cap4b_rec))
+        cap4a_metadata = screenshot_command_metadata(result_payload(cap4a_rec))
         tabs_after_switch = run_cli('tabs')
-        scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch), 'screenshots': [cap4b_artifact, cap4a_artifact]}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
+        scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [cap4b_rec, cap4a_rec, tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch), 'screenshots': [cap4b_artifact, cap4a_artifact], 'screenshotMetadata': [cap4b_metadata, cap4a_metadata]}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
 
         # Scenario 5: native click, type, viewport, observe.
         occlusion_steps = [run_cli('open', file_url(FIX / 'occluded.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
@@ -536,13 +628,14 @@ def main():
         steps.append(run_cli('key', 'Backspace'))
         steps.append(run_cli('type', '!'))
         after = run_cli('observe')
-        cap5, _ = screenshot('05_native_click_and_type')
+        cap5, cap5_rec = screenshot('05_native_click_and_type')
         cap5_artifact = screenshot_artifact(cap5, min_width=100, min_height=100)
+        cap5_metadata = screenshot_command_metadata(result_payload(cap5_rec))
         eval5 = run_cli('evaluate', "JSON.stringify({state:document.getElementById('state').textContent, typed:document.getElementById('typed').value, notes:document.getElementById('notes').value, editor:document.getElementById('editor').textContent, w:innerWidth, h:innerHeight})")
         native_payload = result_payload(native_click)
         native_delivery = native_click_delivery(native_payload, strict_native=STRICT_NATIVE)
         page_state = str(result_payload(eval5).get('value'))
-        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 target preparation scroll/coordinate metadata, occlusion diagnostics, input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths를 검증', steps + [before, after, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'occlusionDiagnostic': result_payload(occluded_click), 'pageState': result_payload(eval5).get('value'), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one' in page_state and 'textarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
+        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 target preparation scroll/coordinate metadata, occlusion diagnostics, input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths, observe metadata를 검증', steps + [before, after, cap5_rec, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'occlusionDiagnostic': result_payload(occluded_click), 'pageState': result_payload(eval5).get('value'), 'observeBefore': result_payload(before), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact, 'screenshotMetadata': cap5_metadata}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one' in page_state and 'textarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
 
         json_dump(DATA / 'scenario-results.json', SCENARIOS)
         make_contact_sheet()

@@ -135,30 +135,37 @@ swift test
 python3 Tests/test_agentic_refs_contract.py
 python3 Tests/test_input_keypath_contract.py
 python3 Tests/test_browser_chrome_contract.py
+python3 Tests/test_capture_inspection_contract.py
 bash scripts/smoke_cli.sh
 python3 scripts/smoke_real_world.py
 ```
 
 ## Phase 3 — Capture And Inspection Metadata
 
-Status: Planned.
+Status: Product-vision reviewed and Done for the current capture/inspection reliability contract. Further full-page rendering fidelity remains an enhancement, not a blocker for Phase 3 closure.
 
 Goal: Give agents richer page state and screenshot context without overclaiming browser-level control.
 
-Work items:
+Completed in current checkpoint:
 
-1. Add screenshot metadata: viewport size, page size, scale, tile count, output path, and warnings.
-2. Improve full-page stitching for tall pages, fixed headers, lazy-loaded content, and high-DPI scaling.
-3. Extend wait predicates for URL, title, and visibility.
-4. Improve `observe` with page load state, URL/title, active element, pending network count, and selected text if useful.
-5. Add docs and smoke coverage for metadata fields.
+1. Screenshot commands now report output path, viewport size, page size, scale, tile count, preflight scroll count for full-page capture, strategy, and warnings in CLI/MCP result metadata.
+2. Full-page screenshot now preflight-scrolls tall pages to trigger lazy/intersection-observed content and restores the original scroll position before returning evidence.
+3. `observe` now reports load state, pending network count, selected text, viewport/page size, and active element selector alongside URL/title and existing active element fields.
+4. Wait predicates now include URL substring, title substring, and visible-selector waits in addition to selector/text/idle waits, with bounded structured timeout failures.
+5. Contract coverage added in `Tests/test_capture_inspection_contract.py`, Swift command metadata tests, and MCP contract tests for screenshot/observe/wait result fields.
+6. Real-world smoke now validates screenshot command metadata, lazy-load preflight scroll evidence, observe metadata, URL/title/visible waits, and bounded visible-wait failure evidence in scenario artifacts.
+
+Remaining Phase 3 work:
+
+1. Optional future enhancement: refine full-page stitching around fixed headers and unusual high-DPI edge cases if smoke or users show evidence gaps.
+2. Keep new wait predicates narrow and documented; do not expand into unsupported browser automation claims without a decision note.
 
 Acceptance criteria:
 
-- Screenshot commands return structured metadata in CLI and MCP responses.
-- Metadata fields are contract-tested.
-- Full-page smoke still proves the captured image is taller than the viewport image.
-- Waits remain timeout-bounded and return structured errors.
+- Screenshot commands return structured metadata in CLI and MCP responses. Done for the current metadata fields, including full-page `preflightScrollCount`.
+- Metadata fields are contract-tested. Done for screenshot/observe/wait/MCP fields.
+- Full-page smoke proves the captured image is taller than the viewport image and that preflight scroll triggers lazy content while restoring scroll. Done in `.tmp/agent-safari-5-scenarios-20260602-224013/REPORT.md`.
+- Waits remain timeout-bounded and return structured errors. Done for URL/title/visible plus existing selector/text/idle waits.
 
 ## Phase 4 — Network Capture Hardening
 

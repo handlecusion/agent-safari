@@ -23,7 +23,7 @@ DEFAULT_SCREENSHOT_PATH = str(Path.home() / ".agent-safari" / "artifacts" / "scr
 
 TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "status", "description": "Return daemon/page status for the controlled WebView.", "cli": ["status"], "result": ["url", "title", "isLoading"]},
-    {"name": "observe", "description": "Return read-only page state for agent loops.", "cli": ["observe"], "result": ["url", "title", "readyState", "isLoading", "networkCapturing", "activeElementTag"]},
+    {"name": "observe", "description": "Return read-only page state for agent loops.", "cli": ["observe"], "result": ["url", "title", "readyState", "loadState", "isLoading", "networkCapturing", "pendingNetworkCount", "selectedText", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "activeElementTag", "activeElementType", "activeElementName", "activeElementId", "activeElementSelector"]},
     {"name": "navigate", "description": "Navigate the controlled WebView to a URL.", "cli": ["open", "<url>"], "result": ["url"]},
     {"name": "text", "description": "Return visible page text.", "cli": ["text"], "result": ["text"]},
     {"name": "html", "description": "Return document.documentElement.outerHTML.", "cli": ["html"], "result": ["html"]},
@@ -32,17 +32,20 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "content", "description": "Alias for visible page text.", "cli": ["content"], "result": ["text"]},
     {"name": "snapshot", "description": "Return visible/interactable elements with stable @e refs.", "cli": ["snapshot"], "result": ["schemaVersion", "elements"]},
     {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>"], "result": ["value"]},
-    {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>"], "input": ["path"], "result": ["path", "width", "height", "fullPage"]},
-    {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"], "result": ["path", "width", "height", "fullPage", "strategy"]},
-    {"name": "screenshot_element", "description": "Capture a screenshot clipped to a CSS selector or snapshot ref.", "cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"], "result": ["path", "width", "height", "element", "strategy"]},
+    {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>"], "input": ["path"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "strategy"]},
+    {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "preflightScrollCount", "warnings", "strategy"]},
+    {"name": "screenshot_element", "description": "Capture a screenshot clipped to a CSS selector or snapshot ref.", "cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "element", "strategy"]},
     {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"], "input": ["selector", "native", "fallback"], "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError"]},
     {"name": "fill", "description": "Fill an input-like element matching a CSS selector or snapshot ref.", "cli": ["fill", "<selector-or-ref>", "<value>"], "result": ["selector", "filled"]},
     {"name": "key", "description": "Dispatch synthetic DOM keyboard events.", "cli": ["key", "<key>"], "result": ["key"]},
     {"name": "type_text", "description": "Insert text into the active input, textarea, or contenteditable element.", "cli": ["type", "<text>"], "result": ["text"]},
-    {"name": "wait", "description": "Sleep for the requested number of milliseconds in the daemon queue.", "cli": ["wait", "<ms>"], "result": ["waitedMs"]},
-    {"name": "wait_for_selector", "description": "Wait until a CSS selector exists in the current document.", "cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["found", "selector"]},
-    {"name": "wait_for_text", "description": "Wait until document.body text contains supplied text.", "cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "input": ["text", "timeout_ms"], "result": ["found", "text"]},
-    {"name": "wait_for_idle", "description": "Wait until page load/fetch/XHR activity is idle.", "cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"], "result": ["idle", "readyState"]},
+    {"name": "wait", "description": "Sleep for the requested number of milliseconds in the daemon command queue.", "cli": ["wait", "<ms>"], "input": ["ms"], "result": ["waitedMs"]},
+    {"name": "wait_for_selector", "description": "Wait until a CSS selector exists in the current document.", "cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "found", "timeoutMs"]},
+    {"name": "wait_for_text", "description": "Wait until document.body text contains the supplied text.", "cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "input": ["text", "timeout_ms"], "result": ["text", "found", "timeoutMs"]},
+    {"name": "wait_for_url", "description": "Wait until the current page URL contains the supplied substring.", "cli": ["wait-for-url", "<url-substring>", "--timeout", "<ms>"], "input": ["url", "timeout_ms"], "result": ["url", "matched", "currentURL", "timeoutMs"]},
+    {"name": "wait_for_title", "description": "Wait until the current document title contains the supplied substring.", "cli": ["wait-for-title", "<title-substring>", "--timeout", "<ms>"], "input": ["title", "timeout_ms"], "result": ["title", "matched", "currentTitle", "timeoutMs"]},
+    {"name": "wait_for_visible", "description": "Wait until a CSS selector exists and has a visible viewport-intersecting box.", "cli": ["wait-for-visible", "<selector-or-ref>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "visible", "timeoutMs"]},
+    {"name": "wait_for_idle", "description": "Wait until the page is loaded and observed fetch/XHR activity is idle.", "cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"], "result": ["idle", "timeoutMs", "quietWindowMs"]},
     {"name": "network_start", "description": "Start JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "start"], "result": ["capturing", "count", "events"]},
     {"name": "network_list", "description": "Return captured fetch/XHR network entries.", "cli": ["network", "list"], "result": ["capturing", "count", "events"]},
     {"name": "network_stop", "description": "Stop JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "stop"], "result": ["capturing", "count", "events"]},
@@ -259,6 +262,21 @@ def create_server() -> Any:
     def wait_for_text(text: str, timeout_ms: int = 10000) -> dict[str, Any]:
         """Wait until document.body text contains the supplied text."""
         return _run_cli("wait-for-text", text, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
+
+    @mcp.tool()
+    def wait_for_url(url: str, timeout_ms: int = 10000) -> dict[str, Any]:
+        """Wait until the current page URL contains the supplied substring."""
+        return _run_cli("wait-for-url", url, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
+
+    @mcp.tool()
+    def wait_for_title(title: str, timeout_ms: int = 10000) -> dict[str, Any]:
+        """Wait until the current document title contains the supplied substring."""
+        return _run_cli("wait-for-title", title, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
+
+    @mcp.tool()
+    def wait_for_visible(selector: str, timeout_ms: int = 10000) -> dict[str, Any]:
+        """Wait until a CSS selector exists and has a visible viewport-intersecting box."""
+        return _run_cli("wait-for-visible", selector, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
 
     @mcp.tool()
     def wait_for_idle(timeout_ms: int = 10000) -> dict[str, Any]:

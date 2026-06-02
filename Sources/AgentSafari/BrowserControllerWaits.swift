@@ -31,6 +31,49 @@ extension BrowserController {
         return ["text": text, "found": "true", "timeoutMs": String(max(0, timeoutMs))]
     }
 
+    func waitForURL(_ url: String, timeoutMs: Int) async throws -> [String: String] {
+        try await waitUntil(timeoutMs: timeoutMs) {
+            (self.webView.url?.absoluteString ?? "").contains(url)
+        }
+        return [
+            "url": url,
+            "matched": "true",
+            "currentURL": webView.url?.absoluteString ?? "",
+            "timeoutMs": String(max(0, timeoutMs))
+        ]
+    }
+
+    func waitForTitle(_ title: String, timeoutMs: Int) async throws -> [String: String] {
+        try await waitUntil(timeoutMs: timeoutMs) {
+            (self.webView.title ?? "").contains(title)
+        }
+        return [
+            "title": title,
+            "matched": "true",
+            "currentTitle": webView.title ?? "",
+            "timeoutMs": String(max(0, timeoutMs))
+        ]
+    }
+
+    func waitForVisible(_ selector: String, timeoutMs: Int) async throws -> [String: String] {
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const element = document.querySelector(\(selectorLiteral));
+          if (!element) return false;
+          const style = window.getComputedStyle(element);
+          if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity || 1) === 0) return false;
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0 && rect.bottom >= 0 && rect.right >= 0 && rect.top <= innerHeight && rect.left <= innerWidth;
+        })()
+        """
+        try await waitUntil(timeoutMs: timeoutMs) {
+            let value = try await self.webView.evaluateJavaScript(script)
+            return (value as? Bool) == true
+        }
+        return ["selector": selector, "visible": "true", "timeoutMs": String(max(0, timeoutMs))]
+    }
+
     func waitForIdle(timeoutMs: Int) async throws -> [String: String] {
         let quietWindowMs = 500
         var idleSince: Date?

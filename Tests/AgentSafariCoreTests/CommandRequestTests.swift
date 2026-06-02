@@ -99,6 +99,20 @@ import Testing
     #expect(command.params == ["timeoutMs": "3000"])
 }
 
+@Test func commandRequestParsesWaitForUrlTitleAndVisible() throws {
+    let url = try CommandRequest.parse(["wait-for-url", "/dashboard", "--timeout", "1500"])
+    #expect(url.method == "waitForURL")
+    #expect(url.params == ["url": "/dashboard", "timeoutMs": "1500"])
+
+    let title = try CommandRequest.parse(["wait-for-title", "Ready", "--timeout-ms", "2000"])
+    #expect(title.method == "waitForTitle")
+    #expect(title.params == ["title": "Ready", "timeoutMs": "2000"])
+
+    let visible = try CommandRequest.parse(["wait-for-visible", "#modal"])
+    #expect(visible.method == "waitForVisible")
+    #expect(visible.params == ["selector": "#modal", "timeoutMs": "10000"])
+}
+
 @Test func commandRequestParsesOpenAliasAsNavigate() throws {
     let command = try CommandRequest.parse(["open", "https://example.com"])
 

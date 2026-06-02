@@ -85,6 +85,27 @@ public struct CommandRequest: Equatable {
                 params["timeoutMs"] = timeoutMs
             }
             return CommandRequest(method: "waitForText", params: params)
+        case "wait-for-url":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("url") }
+            var params = ["url": args[1], "timeoutMs": Self.defaultTimeoutMs]
+            if let timeoutMs = try parseTimeoutMs(args, startingAt: 2) {
+                params["timeoutMs"] = timeoutMs
+            }
+            return CommandRequest(method: "waitForURL", params: params)
+        case "wait-for-title":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("title") }
+            var params = ["title": args[1], "timeoutMs": Self.defaultTimeoutMs]
+            if let timeoutMs = try parseTimeoutMs(args, startingAt: 2) {
+                params["timeoutMs"] = timeoutMs
+            }
+            return CommandRequest(method: "waitForTitle", params: params)
+        case "wait-for-visible":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("selector") }
+            var params = ["selector": args[1], "timeoutMs": Self.defaultTimeoutMs]
+            if let timeoutMs = try parseTimeoutMs(args, startingAt: 2) {
+                params["timeoutMs"] = timeoutMs
+            }
+            return CommandRequest(method: "waitForVisible", params: params)
         case "wait-for-idle":
             var params = ["timeoutMs": Self.defaultTimeoutMs]
             if let timeoutMs = try parseTimeoutMs(args, startingAt: 1) {

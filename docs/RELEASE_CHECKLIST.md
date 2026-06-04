@@ -54,7 +54,7 @@ For stricter native-click verification:
 AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
 ```
 
-Strict native mode may require macOS Accessibility permission and a usable foreground GUI session. Default smoke allows a documented JavaScript fallback after a native miss and records the selected strategy plus explicit click metadata: `method`, `nativeVerified`, `fallbackUsed`, and `nativeError` when fallback is used.
+Strict native mode may require macOS Accessibility permission and a usable foreground GUI session. Default smoke allows a documented JavaScript fallback after a native miss and records the selected strategy plus explicit click metadata: `method`, `nativeVerified`, `fallbackUsed`, `nativeError`, and `nativeErrorCode` when fallback is used.
 
 ## v0.0.6 release criteria
 

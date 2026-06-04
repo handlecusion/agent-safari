@@ -148,15 +148,20 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
         "viewportY": "200.0",
         "boundsX": "80.0",
         "boundsY": "180.0",
+        "boundsWidth": "40.0",
+        "boundsHeight": "20.0",
+        "viewportWidth": "900.0",
+        "viewportHeight": "640.0",
+        "scrollDeltaX": "0.0",
         "scrollDeltaY": "420.0",
         "scrolledIntoView": "true",
     }
-    fallback_required = dict(required, method="dom-fallback", nativeVerified="false", fallbackUsed="true", strategy="native-unobserved-js-click")
+    fallback_required = dict(required, method="dom-fallback", nativeVerified="false", fallbackUsed="true", nativeError="Native Quartz click posted but no DOM click event was observed", nativeErrorCode="native_click_unverified", strategy="native-unobserved-js-click")
     native = smoke.native_click_delivery(required, strict_native=True)
     fallback = smoke.native_click_delivery(fallback_required, strict_native=False)
 
-    assert native == {"method": "native", "nativeVerified": True, "fallbackUsed": False, "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
-    assert fallback == {"method": "dom-fallback", "nativeVerified": False, "fallbackUsed": True, "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
+    assert native == {"method": "native", "nativeVerified": True, "fallbackUsed": False, "nativeErrorCode": "", "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
+    assert fallback == {"method": "dom-fallback", "nativeVerified": False, "fallbackUsed": True, "nativeErrorCode": "native_click_unverified", "scrolledIntoView": True, "coordinateStrategy": "webkit-viewport-to-window-to-quartz", "acceptable": True}
 
     try:
         smoke.native_click_delivery({"strategy": "native-unobserved-js-click"}, strict_native=False)
@@ -171,6 +176,20 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
         assert "missing native click metadata" in str(exc)
     else:
         raise AssertionError("native click result without coordinate/scroll metadata should fail")
+
+    try:
+        smoke.native_click_delivery(dict(required, method="dom-fallback", nativeVerified="false", fallbackUsed="true"), strict_native=False)
+    except AssertionError as exc:
+        assert "missing nativeErrorCode" in str(exc)
+    else:
+        raise AssertionError("fallback click result without nativeErrorCode should fail")
+
+    try:
+        smoke.native_click_delivery(dict(required, method="dom-fallback", nativeVerified="false", fallbackUsed="true", nativeErrorCode="native_click_unverified"), strict_native=False)
+    except AssertionError as exc:
+        assert "missing nativeError" in str(exc)
+    else:
+        raise AssertionError("fallback click result without nativeError should fail")
 
 
 def test_bounded_timeout_failure_helper_requires_structured_error() -> None:

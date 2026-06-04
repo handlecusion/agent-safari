@@ -98,6 +98,20 @@ def result_payload(record):
     return parsed.get('result') or {}
 
 
+def error_payload(record):
+    parsed = record.get('json') or {}
+    return parsed.get('error') or {}
+
+
+def assert_error_code(record, expected: str, contains: str | None = None) -> dict:
+    payload = error_payload(record)
+    if payload.get('code') != expected:
+        raise AssertionError(f'expected error code {expected!r}, got {payload!r}; record={record}')
+    if contains and contains not in str(payload.get('message') or ''):
+        raise AssertionError(f'expected error message to include {contains!r}, got {payload!r}')
+    return payload
+
+
 def png_dimensions(path: Path) -> tuple[int, int]:
     header = path.read_bytes()[:24]
     if len(header) < 24 or header[:8] != b'\x89PNG\r\n\x1a\n' or header[12:16] != b'IHDR':
@@ -208,6 +222,11 @@ def native_click_delivery(payload: dict, strict_native: bool) -> dict:
         'viewportY',
         'boundsX',
         'boundsY',
+        'boundsWidth',
+        'boundsHeight',
+        'viewportWidth',
+        'viewportHeight',
+        'scrollDeltaX',
         'scrollDeltaY',
         'scrolledIntoView',
     )
@@ -217,6 +236,11 @@ def native_click_delivery(payload: dict, strict_native: bool) -> dict:
     method = str(payload['method'])
     native_verified = _bool_metadata(payload['nativeVerified'])
     fallback_used = _bool_metadata(payload['fallbackUsed'])
+    native_error_code = str(payload.get('nativeErrorCode') or '')
+    if fallback_used and not native_error_code:
+        raise AssertionError(f'missing nativeErrorCode for fallback click: payload={payload}')
+    if fallback_used and not payload.get('nativeError'):
+        raise AssertionError(f'missing nativeError for fallback click: payload={payload}')
     scrolled_into_view = _bool_metadata(payload['scrolledIntoView'])
     acceptable = method == 'native' and native_verified and not fallback_used
     if not strict_native:
@@ -225,6 +249,7 @@ def native_click_delivery(payload: dict, strict_native: bool) -> dict:
         'method': method,
         'nativeVerified': native_verified,
         'fallbackUsed': fallback_used,
+        'nativeErrorCode': native_error_code,
         'scrolledIntoView': scrolled_into_view,
         'coordinateStrategy': str(payload['coordinateStrategy']),
         'acceptable': acceptable,
@@ -500,6 +525,12 @@ def make_fixtures(base_url: str):
     </script></body></html>
     ''' )
 
+    write(FIX / 'actionability.html', '''
+    <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Actionability Scenario</title>
+    <style>body{font:17px -apple-system;margin:40px;background:#f8fafc}button{display:block;margin:12px 0;padding:12px 18px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:800}#hidden{display:none}#offscreen{position:fixed;left:-260px;top:40px}</style></head>
+    <body><h1>Actionability codes</h1><button id="stale">Stale target</button><button id="disabled" disabled>Disabled target</button><button id="hidden">Hidden target</button><button id="offscreen">Off viewport target</button></body></html>
+    ''')
+
     write(FIX / 'occluded.html', '''
     <!doctype html><html><head><meta charset="utf-8"><title>Agent Safari Occlusion Scenario</title>
     <style>body{font:17px -apple-system;margin:40px;background:#fff7ed}.stage{position:relative;width:360px;height:180px;background:white;border-radius:16px;box-shadow:0 12px 30px #0001;padding:32px}.cover{position:absolute;left:28px;top:28px;width:190px;height:72px;background:rgba(220,38,38,.86);color:white;border-radius:12px;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:auto}button{position:absolute;left:48px;top:48px;padding:14px 20px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:800;z-index:1}</style></head>
@@ -649,7 +680,29 @@ def main():
             raise AssertionError(f'session metadata mismatch after tab-close: {session_close_payload}')
         scenario('4. Modeled tab/session/profile', 'ephemeral profile daemon에서 modeled tab-new/tab-switch/session/tab-close/session metadata를 검증', steps + [cap4b_rec, cap4a_rec, tabs_after_switch, tab_close, last_tab_close, session_after_close], [cap4b, cap4a], {'newTabId': tab_b, 'sessionAfterNew': session_payload, 'tabsAfterNew': tabs_new_payload, 'tabsAfterSwitch': tabs_switch_payload, 'tabClose': close_payload, 'lastTabClose': last_close_payload, 'sessionAfterClose': session_close_payload, 'screenshots': [cap4b_artifact, cap4a_artifact], 'screenshotMetadata': [cap4b_metadata, cap4a_metadata]}, 'PASS' if str(session_close_payload.get('tabCount')) == '1' else 'CHECK')
 
-        # Scenario 5: native click, type, viewport, observe.
+        # Scenario 5: native click, actionability codes, type, viewport, observe.
+        actionability_steps = [run_cli('open', file_url(FIX / 'actionability.html'))]
+        refs_unavailable = run_cli('click', '@e1', check=False)
+        missing_selector = run_cli('click', '#missing', check=False)
+        disabled_target = run_cli('click', '#disabled', check=False)
+        hidden_target = run_cli('click', '#hidden', check=False)
+        offscreen_target = run_cli('click', '#offscreen', check=False)
+        snapshot_for_stale = run_cli('snapshot')
+        stale_ref = next((element.get('ref') for element in result_payload(snapshot_for_stale).get('elements', []) if str(element.get('selector') or '').endswith('#stale')), None)
+        if not stale_ref:
+            raise AssertionError(f'could not find stale target ref: {snapshot_for_stale}')
+        remove_stale = run_cli('evaluate', "document.getElementById('stale').remove(); 'removed'")
+        stale_target = run_cli('click', str(stale_ref), check=False)
+        actionability_steps.extend([refs_unavailable, missing_selector, disabled_target, hidden_target, offscreen_target, snapshot_for_stale, remove_stale, stale_target])
+        actionability_diagnostics = {
+            'refsUnavailable': assert_error_code(refs_unavailable, 'actionability_refs_unavailable', 'Snapshot refs are not available'),
+            'missingSelector': assert_error_code(missing_selector, 'actionability_missing_selector', 'No element found for selector'),
+            'disabled': assert_error_code(disabled_target, 'actionability_disabled', 'Element is disabled'),
+            'hidden': assert_error_code(hidden_target, 'actionability_hidden', 'Element is hidden'),
+            'offViewport': assert_error_code(offscreen_target, 'actionability_off_viewport', 'Element center is outside viewport'),
+            'staleRef': assert_error_code(stale_target, 'actionability_stale_ref', 'No element found for snapshot ref'),
+        }
+
         occlusion_steps = [run_cli('open', file_url(FIX / 'occluded.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
         occluded_click = run_cli('click', '#nativeBtn', '--native', check=False)
         occlusion_steps.append(occluded_click)
@@ -657,10 +710,11 @@ def main():
         occlusion_error = occluded_click.get('stderr', '') + occlusion_stdout
         occlusion_payload = occluded_click.get('json') or {}
         occlusion_ok = bool(occlusion_payload.get('ok'))
+        occlusion_error_payload = assert_error_code(occluded_click, 'actionability_occluded', 'Element center is occluded')
         if occlusion_ok or 'Element center is occluded:' not in occlusion_error:
             raise AssertionError(f'occlusion diagnostic did not fire: {occluded_click}')
 
-        steps = occlusion_steps + [run_cli('viewport', '900', '640'), run_cli('open', file_url(FIX / 'native.html')), run_cli('wait-for-selector', '#nativeTarget', '--timeout', '5000')]
+        steps = actionability_steps + occlusion_steps + [run_cli('viewport', '900', '640'), run_cli('open', file_url(FIX / 'native.html')), run_cli('wait-for-selector', '#nativeTarget', '--timeout', '5000')]
         native_args = ('click', '#nativeTarget', '--native', '--no-fallback') if STRICT_NATIVE else ('click', '#nativeTarget', '--native')
         native_click = run_cli(*native_args)
         steps.append(native_click)
@@ -686,7 +740,7 @@ def main():
         native_payload = result_payload(native_click)
         native_delivery = native_click_delivery(native_payload, strict_native=STRICT_NATIVE)
         page_state = str(result_payload(eval5).get('value'))
-        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 target preparation scroll/coordinate metadata, occlusion diagnostics, input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths, observe metadata를 검증', steps + [before, after, cap5_rec, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'occlusionDiagnostic': result_payload(occluded_click), 'pageState': result_payload(eval5).get('value'), 'observeBefore': result_payload(before), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact, 'screenshotMetadata': cap5_metadata}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one' in page_state and 'textarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
+        scenario('5. Native click + synthetic type/key + viewport', 'native click을 우선 시도하고 actionability error.code taxonomy, target preparation scroll/coordinate metadata, occlusion diagnostics, input/textarea/contenteditable type, Enter/Backspace, Meta+A key paths, observe metadata를 검증', steps + [before, after, cap5_rec, eval5], [cap5], {'strictNative': STRICT_NATIVE, 'nativeClick': native_payload, 'nativeDelivery': native_delivery, 'actionabilityDiagnostics': actionability_diagnostics, 'occlusionDiagnostic': occlusion_error_payload, 'pageState': result_payload(eval5).get('value'), 'observeBefore': result_payload(before), 'observeAfter': result_payload(after), 'screenshot': cap5_artifact, 'screenshotMetadata': cap5_metadata}, 'PASS' if native_delivery['acceptable'] and 'native click observed' in page_state and 'typed by agent-safari' in page_state and 'textarea line one' in page_state and 'textarea line two' in page_state and 'rich tex!' in page_state else 'CHECK')
 
         json_dump(DATA / 'scenario-results.json', SCENARIOS)
         make_contact_sheet()
@@ -772,7 +826,8 @@ def make_report():
     lines.append('')
     lines.append('- Network export now includes fetch/XHR entries plus parser-driven resource timing entries. Resource timing entries do not include request/response headers or body data.')
     lines.append('- Native click reports the selected strategy plus explicit `method`, `nativeVerified`, and `fallbackUsed` metadata. Default smoke permits JS fallback after a native miss; set `AGENT_SAFARI_STRICT_NATIVE=1` to make native-only delivery a hard gate.')
-    lines.append('- In the current local session strict native delivery is still environment-sensitive; fallback evidence is explicit in `nativeClick.method`, `nativeClick.fallbackUsed`, and `nativeClick.nativeError`.')
+    lines.append('- In the current local session strict native delivery is still environment-sensitive; fallback evidence is explicit in `nativeClick.method`, `nativeClick.fallbackUsed`, `nativeClick.nativeError`, and `nativeClick.nativeErrorCode`.')
+    lines.append('- Actionability failures expose typed JSON-RPC `error.code` values; the occluded-target fixture requires `actionability_occluded` plus the human message.')
     lines.append('- The tab scenario uses the current modeled WKWebView tab contract inside one daemon/window; it is not a true browser multi-target or named-profile isolation claim.')
     lines.append('- This report is a smoke evidence bundle, not a full browser conformance suite.')
     (OUT / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')

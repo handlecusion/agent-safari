@@ -57,6 +57,17 @@ Client commands print one JSON line. Success looks like:
 ```
 
 Failures return `"ok": false` with an `error` object, or the CLI exits non-zero if it cannot connect to the daemon.
+Actionability/native-input failures use stable `error.code` values where possible:
+
+- `actionability_stale_ref`
+- `actionability_refs_unavailable`
+- `actionability_missing_selector`
+- `actionability_disabled`
+- `actionability_hidden`
+- `actionability_off_viewport`
+- `actionability_occluded`
+- `native_click_unverified`
+- `native_input_failed`
 
 ## Commands
 
@@ -128,6 +139,8 @@ Keyboard events are dispatched to the active element. `type` inserts text into t
 .build/debug/agent-safari key Enter --socket /tmp/agent-safari.sock
 .build/debug/agent-safari type 'hello' --socket /tmp/agent-safari.sock
 ```
+
+Native click fallback is explicit in the JSON result. Verified native clicks report `method: "native"`, `nativeVerified: true`, and `fallbackUsed: false`. If default native click cannot be verified and DOM fallback succeeds, the result reports `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters.
 
 ### Wait and observe page state
 

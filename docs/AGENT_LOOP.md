@@ -96,5 +96,6 @@ See `docs/RELEASE_CHECKLIST.md` for the full non-GUI and GUI release gate.
 ## Failure policy
 
 - If a ref action fails, run `snapshot` again before retrying.
-- If native click is not observed, the default fallback uses JavaScript click and the click result records `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, and `nativeError`. Use `--no-fallback` when native-only verification matters.
+- If native click is not observed, the default fallback uses JavaScript click and the click result records `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters.
+- If click/fill fails on actionability, branch on JSON-RPC `error.code` before retrying. Stable codes include `actionability_stale_ref`, `actionability_refs_unavailable`, `actionability_missing_selector`, `actionability_disabled`, `actionability_hidden`, `actionability_off_viewport`, and `actionability_occluded`.
 - If waiting times out, capture `observe`, `snapshot`, `text`, and a screenshot before deciding the next action.

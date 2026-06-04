@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / "Sources" / "AgentSafari" / "BrowserControllerSnapshot.swift"
 INPUT = ROOT / "Sources" / "AgentSafari" / "BrowserControllerInput.swift"
 SUPPORT = ROOT / "Sources" / "AgentSafari" / "BrowserSupport.swift"
+ERRORS = ROOT / "Sources" / "AgentSafari" / "AgentSafariError.swift"
+RPC = ROOT / "Sources" / "AgentSafari" / "RPCHandler.swift"
 
 
 def read(path: Path) -> str:
@@ -56,11 +58,31 @@ def test_native_click_reports_scroll_coordinates_and_occlusion_diagnostics() -> 
     assert "coordinateStrategy" in source
 
 
+def test_actionability_errors_have_stable_rpc_codes() -> None:
+    source = read(ERRORS) + read(RPC) + read(INPUT)
+
+    for code in (
+        "actionability_stale_ref",
+        "actionability_refs_unavailable",
+        "actionability_missing_selector",
+        "actionability_disabled",
+        "actionability_hidden",
+        "actionability_off_viewport",
+        "actionability_occluded",
+        "native_click_unverified",
+        "native_input_failed",
+    ):
+        assert code in source
+    assert "error: RPCErrorPayload(code: agentSafariErrorCode(error)" in source
+    assert '"nativeErrorCode"' in source
+
+
 def main() -> int:
     test_snapshot_refs_emit_schema_version_and_dom_index()
     test_action_targets_reject_stale_disabled_hidden_and_offscreen_refs()
     test_fill_uses_same_actionability_contract_as_click()
     test_native_click_reports_scroll_coordinates_and_occlusion_diagnostics()
+    test_actionability_errors_have_stable_rpc_codes()
     print("agentic refs contract tests passed")
     return 0
 

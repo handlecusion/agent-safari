@@ -4,11 +4,11 @@ The maintained phase roadmap now lives in `docs/DEVELOPMENT_PHASES.md`.
 
 Use that document as the canonical source for:
 
-- completed public release hygiene and smoke baselines;
-- active Phase 2 native input / agentic refs work;
-- planned Phase 3 capture and inspection metadata;
-- planned Phase 4 network capture hardening;
-- gated Phase 5 session/tab/profile modeling;
+- public release hygiene and smoke baselines;
+- native input / agentic refs work;
+- capture and inspection metadata;
+- network capture hardening;
+- session/tab/profile modeling;
 - productization and distribution follow-up.
 
 This file remains as a compatibility pointer for older links.

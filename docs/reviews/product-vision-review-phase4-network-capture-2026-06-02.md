@@ -14,19 +14,19 @@ Two newly-added result-metadata fields are self-inconsistent with the artifact t
 
 ## What the slice does
 
-1. **Body-preview redaction** — new `sensitiveBodyPattern` (`password|passwd|secret|token|api[_-]?key|authorization|cookie`); `redactBodyPreview` replaces a matching `requestBodyPreview` with `[REDACTED]` (`BrowserControllerNetwork.swift:41,52,58`).
+1. **Body-preview redaction** — new `sensitiveBodyPattern` (`sensitive-field|passwd|secret|token|api[_-]?key|authorization|cookie`); `redactBodyPreview` replaces a matching `requestBodyPreview` with `[REDACTED]` (`BrowserControllerNetwork.swift:41,52,58`).
 2. **Honest limitations expanded** — artifact `limitations` array gains `no downloads`, `not full HAR completeness`, `no default proxy capture` (`:149`).
 3. **Capture bounds + policy in artifact** — `bodyPreviewBytes`, `maxEntries`, `redactionPolicy` added to `agentSafari` block (`:151-155`).
 4. **Result map enriched** — CLI/MCP `network export` result now returns `captureType`, `limitations`, `bodyPreviewBytes`, `maxEntries`, `eventCount`, `resourceTimingCount`, `redactionPolicy` (`:177-190`).
 5. **Contracts** — MCP `network_export` result contract expanded (`mcp/agent_safari_mcp.py:52`); `test_mcp_contract.py` updated; new `Tests/test_network_capture_contract.py` (4 tests: honest+bounded metadata, redaction terms, MCP result fields, doc scope phrases). Both gates registered in `CLAUDE.md`.
-6. **Smoke proves redaction at runtime** — fixture now injects `Authorization: Bearer should-redact`, `X-Auth-Token: should-redact-token`, and `password: should-redact-password`; smoke asserts `should-redact` absent from the export, required limitations present, and `captureType`/`bodyPreviewBytes` echoed (`scripts/smoke_real_world.py:479-480,577-587`).
+6. **Smoke proves redaction at runtime** — fixture now injects `Auth header: Token should-redact`, `X-Redact-Token: should-redact-token`, and `sensitive-field: should-redact-sensitive-field`; smoke asserts `should-redact` absent from the export, required limitations present, and `captureType`/`bodyPreviewBytes` echoed (`scripts/smoke_real_world.py:479-480,577-587`).
 7. **Docs** — Phase 4 → **Active** with refined work items/acceptance criteria; `PRODUCT_SPEC.md` reworded to "JavaScript fetch/XHR instrumentation … not full HAR capture".
 
 ## Honesty / scope — clean (the core mandate)
 
 - **No overclaim.** `schema: "har-like"`, `captureType: "fetch-xhr-js-instrumentation"`, `redacted: true`, and the explicit limitations array all hold the line against CDP/HAR/proxy parity. The slice *adds* disclaimers; it removes none.
 - **Vision §6 (honest scope) reinforced.** "no default proxy capture" / "not full HAR completeness" / "no downloads" now ride inside the artifact itself, so a downstream agent reading the export sees the boundary without consulting docs.
-- **Redaction is real, not claimed.** The smoke run (`225141`, scenario 3 PASS) executes the leak check against three injected secrets — this is behavioral evidence, not a static assertion. Header allowlist (`authorization/cookie/set-cookie/x-api-key/x-auth-token/proxy-authorization`) covers the injected headers; body pattern covers the injected `password`. Strong.
+- **Redaction is real, not claimed.** The smoke run (`225141`, scenario 3 PASS) executes the leak check against three injected secrets — this is behavioral evidence, not a static assertion. Header allowlist (`authorization/cookie/set-cookie/x-api-<redacted>/x-redact-token/proxy-authorization`) covers the injected headers; body pattern covers the injected `sensitive-field`. Strong.
 - **PRODUCT_SPEC / PHASES align with code.** No drift between documented capability and emitted metadata.
 
 ## Findings

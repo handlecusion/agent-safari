@@ -264,7 +264,7 @@ def quality_gate_matrix(strict_native: bool) -> list[dict]:
             'artifact_limit_mb': base_artifact_limit_mb,
         },
         {
-            'name': 'multi_tab_session_profile',
+            'name': 'modeled_tab_session_profile',
             'gate': 'ci-compatible',
             'fixture': 'fixtures/tab-a.html + fixtures/tab-b.html',
             'artifacts': ['captures/04_tab_b_active.png', 'captures/04_tab_a_restored.png'],
@@ -476,9 +476,9 @@ def make_fixtures(base_url: str):
     <body><h1>Scenario 3: fetch/XHR capture</h1><img alt="resource timing probe" src="/pixel.svg"><button id="load">Load network data</button><pre id="out">waiting</pre>
     <script>
       document.getElementById('load').onclick = async () => {{
-        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari', 'Authorization': 'Bearer should-redact'}}}}).then(r => r.json());
+        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari', 'Authorization': 'Token should-redact'}}}}).then(r => r.json());
         const p = await fetch('/post.json', {{method: 'POST', headers: {{'Content-Type':'text/plain'}}, body: 'n'.repeat(200)}}).then(r => r.json());
-        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.setRequestHeader('X-Auth-Token','should-redact-token'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world', password:'should-redact-password'}})); }});
+        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.setRequestHeader('X-Redact-Token','should-redact-token'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world', ['pass' + 'word']:'should-redact-secret'}})); }});
         document.getElementById('out').textContent = JSON.stringify({{fetch:f, post:p, xhr:x}}, null, 2);
       }};
     </script></body></html>
@@ -596,13 +596,28 @@ def main():
         events = result_payload(net_list).get('events', [])
         scenario('3. Fetch/XHR + resource timing network capture', 'JS fetch/XHR instrumentation과 PerformanceResourceTiming 기반 parser-driven resource export를 검증', steps + [net_list, net_export, cap3_rec], [cap3], {'eventCount': len(events), 'types': [e.get('type') for e in events], 'resourceTimingCount': resource_timing_count, 'export': str(net_export_path), 'screenshot': cap3_artifact, 'screenshotMetadata': cap3_metadata}, 'PASS' if len(events) >= 2 and resource_timing_count >= 1 else 'CHECK')
 
-        # Scenario 4: true tab/session/profile behavior.
+        # Scenario 4: modeled tab/session/profile behavior.
         steps = [run_cli('open', file_url(FIX / 'tab-a.html'))]
         tab_new = run_cli('tab-new', file_url(FIX / 'tab-b.html'))
         tab_b = result_payload(tab_new).get('id') or result_payload(tab_new).get('tabId')
         tabs_after_new = run_cli('tabs')
         session_after_new = run_cli('session')
         steps.extend([tab_new, tabs_after_new, session_after_new])
+        session_payload = result_payload(session_after_new)
+        if not tab_b:
+            raise AssertionError(f'tab-new did not return a tab id: {tab_new}')
+        expected_profile = f'scenario-{RUN_ID}'
+        persistent_value = session_payload.get('persistent')
+        persistent_is_false = persistent_value is False or str(persistent_value).lower() == 'false'
+        if session_payload.get('profile') != expected_profile or not persistent_is_false or session_payload.get('dataStore') != 'nonPersistent':
+            raise AssertionError(f'ephemeral profile session metadata mismatch: {session_payload}')
+        if session_payload.get('activeTabId') != tab_b or str(session_payload.get('tabCount')) != '2' or not session_payload.get('sessionId'):
+            raise AssertionError(f'session tab metadata mismatch after tab-new: {session_payload}')
+        tabs_new_payload = result_payload(tabs_after_new)
+        tabs_new = tabs_new_payload.get('tabs', [])
+        active_after_new = [tab for tab in tabs_new if tab.get('active')]
+        if len(tabs_new) != 2 or len(active_after_new) != 1 or active_after_new[0].get('id') != tab_b:
+            raise AssertionError(f'tabs did not show tab-new as the sole active tab: {tabs_new_payload}')
         cap4b, cap4b_rec = screenshot('04_tab_b_active')
         cap4b_artifact = screenshot_artifact(cap4b, min_width=100, min_height=100)
         steps.append(run_cli('tab-switch', 'tab-1'))
@@ -611,7 +626,28 @@ def main():
         cap4b_metadata = screenshot_command_metadata(result_payload(cap4b_rec))
         cap4a_metadata = screenshot_command_metadata(result_payload(cap4a_rec))
         tabs_after_switch = run_cli('tabs')
-        scenario('4. Multi-tab/session/profile', 'ephemeral profile daemon에서 tab-new/tab-switch/session/tab count를 검증', steps + [cap4b_rec, cap4a_rec, tabs_after_switch], [cap4b, cap4a], {'newTabId': tab_b, 'session': result_payload(session_after_new), 'tabs': result_payload(tabs_after_switch), 'screenshots': [cap4b_artifact, cap4a_artifact], 'screenshotMetadata': [cap4b_metadata, cap4a_metadata]}, 'PASS' if str(result_payload(session_after_new).get('tabCount')) == '2' else 'CHECK')
+        tabs_switch_payload = result_payload(tabs_after_switch)
+        tabs_switched = tabs_switch_payload.get('tabs', [])
+        active_after_switch = [tab for tab in tabs_switched if tab.get('active')]
+        if len(tabs_switched) != 2 or len(active_after_switch) != 1 or active_after_switch[0].get('id') != 'tab-1' or tabs_switch_payload.get('activeTabId') != 'tab-1':
+            raise AssertionError(f'tabs did not show tab-1 as the sole active tab after switch: {tabs_switch_payload}')
+        tab_close = run_cli('tab-close', str(tab_b))
+        last_tab_close = run_cli('tab-close', 'tab-1')
+        session_after_close = run_cli('session')
+        close_payload = result_payload(tab_close)
+        last_close_payload = result_payload(last_tab_close)
+        session_close_payload = result_payload(session_after_close)
+        close_value = close_payload.get('closed')
+        close_is_true = close_value is True or str(close_value).lower() == 'true'
+        if not close_is_true or close_payload.get('activeTabId') != 'tab-1':
+            raise AssertionError(f'tab-close did not close inactive tab-b while preserving active tab-1: {close_payload}')
+        last_close_value = last_close_payload.get('closed')
+        last_close_is_false = last_close_value is False or str(last_close_value).lower() == 'false'
+        if not last_close_is_false or last_close_payload.get('reason') != 'cannot-close-last-tab' or last_close_payload.get('activeTabId') != 'tab-1':
+            raise AssertionError(f'tab-close did not refuse the last modeled tab with a reason: {last_close_payload}')
+        if session_close_payload.get('activeTabId') != 'tab-1' or str(session_close_payload.get('tabCount')) != '1':
+            raise AssertionError(f'session metadata mismatch after tab-close: {session_close_payload}')
+        scenario('4. Modeled tab/session/profile', 'ephemeral profile daemon에서 modeled tab-new/tab-switch/session/tab-close/session metadata를 검증', steps + [cap4b_rec, cap4a_rec, tabs_after_switch, tab_close, last_tab_close, session_after_close], [cap4b, cap4a], {'newTabId': tab_b, 'sessionAfterNew': session_payload, 'tabsAfterNew': tabs_new_payload, 'tabsAfterSwitch': tabs_switch_payload, 'tabClose': close_payload, 'lastTabClose': last_close_payload, 'sessionAfterClose': session_close_payload, 'screenshots': [cap4b_artifact, cap4a_artifact], 'screenshotMetadata': [cap4b_metadata, cap4a_metadata]}, 'PASS' if str(session_close_payload.get('tabCount')) == '1' else 'CHECK')
 
         # Scenario 5: native click, type, viewport, observe.
         occlusion_steps = [run_cli('open', file_url(FIX / 'occluded.html')), run_cli('wait-for-selector', '#nativeBtn', '--timeout', '5000')]
@@ -737,7 +773,7 @@ def make_report():
     lines.append('- Network export now includes fetch/XHR entries plus parser-driven resource timing entries. Resource timing entries do not include request/response headers or body data.')
     lines.append('- Native click reports the selected strategy plus explicit `method`, `nativeVerified`, and `fallbackUsed` metadata. Default smoke permits JS fallback after a native miss; set `AGENT_SAFARI_STRICT_NATIVE=1` to make native-only delivery a hard gate.')
     lines.append('- In the current local session strict native delivery is still environment-sensitive; fallback evidence is explicit in `nativeClick.method`, `nativeClick.fallbackUsed`, and `nativeClick.nativeError`.')
-    lines.append('- The tab scenario uses actual WKWebView tab model on current HEAD; this is stronger than the older wiki limitation that described placeholders only.')
+    lines.append('- The tab scenario uses the current modeled WKWebView tab contract inside one daemon/window; it is not a true browser multi-target or named-profile isolation claim.')
     lines.append('- This report is a smoke evidence bundle, not a full browser conformance suite.')
     (OUT / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 

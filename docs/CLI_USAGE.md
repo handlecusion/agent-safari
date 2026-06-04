@@ -41,7 +41,7 @@ SOCKET="/tmp/agent-safari.$$.sock"
 .build/debug/agent-safari daemon --socket "$SOCKET"
 ```
 
-Select a named persistent profile contract or an isolated non-persistent data store:
+Select profile metadata for persistent mode or an isolated non-persistent data store:
 
 ```sh
 .build/debug/agent-safari daemon --profile qa --socket /tmp/agent-safari-qa.sock
@@ -165,6 +165,20 @@ Element screenshot using a CSS selector or latest snapshot ref:
 .build/debug/agent-safari screenshot-element '@e2' --out /tmp/button.png --socket /tmp/agent-safari.sock
 .build/debug/agent-safari screenshot --element '#submit' --out /tmp/submit.png --socket /tmp/agent-safari.sock
 ```
+
+### Session, tabs, and profile state
+
+The daemon exposes a modeled tab set inside one native WebKit window. Each modeled tab has a `WKWebView`; one active tab is attached to the window at a time.
+
+```sh
+.build/debug/agent-safari session --socket /tmp/agent-safari.sock
+.build/debug/agent-safari tabs --socket /tmp/agent-safari.sock
+.build/debug/agent-safari tab-new 'https://example.com' --socket /tmp/agent-safari.sock
+.build/debug/agent-safari tab-switch tab-1 --socket /tmp/agent-safari.sock
+.build/debug/agent-safari tab-close tab-2 --socket /tmp/agent-safari.sock
+```
+
+`session` reports `sessionId`, `activeTabId`, `profile`, `persistent`, `dataStore`, and `tabCount`. `--profile <name>` is metadata reserved for future named stores; today persistent mode uses WebKit's default data store, and `--ephemeral` uses a non-persistent store. Use separate daemon sockets plus `--ephemeral` for isolated automation runs.
 
 ## Local file navigation
 

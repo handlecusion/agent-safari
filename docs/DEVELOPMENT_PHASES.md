@@ -25,7 +25,7 @@ Every phase follows the same loop:
 
 - `docs/PRODUCT_VISION.md` Priority 1, strict native click/actionability hardening → Phase 2.
 - `docs/PRODUCT_VISION.md` Priority 2, capture and inspection metadata → Phase 3.
-- `docs/PRODUCT_VISION.md` Priority 3, session/browser model after single-WebView stability → Phase 5.
+- `docs/PRODUCT_VISION.md` Priority 3, session/browser model after modeled WebView stability → Phase 5.
 - Network export beyond the current fetch/XHR instrumentation → Phase 4.
 - Packaging, installation, public demo, and distribution polish → Phase 6.
 
@@ -190,24 +190,36 @@ Acceptance criteria:
 
 ## Phase 5 — Session, Tab, And Profile Model
 
-Status: Gated.
+Status: Product-vision reviewed and Done for the current modeled session/tab/profile contract.
 
-Goal: Move beyond placeholder tab/session/profile commands only after single-WebView semantics are stable.
+Goal: Make the shipped daemon session, modeled tab, and profile-persistence semantics explicit without overclaiming true browser/profile isolation.
 
-Work items:
+Completed in current checkpoint:
 
-1. Define what a tab/window/session/profile means in a WKWebView daemon.
-2. Decide artifact isolation rules.
-3. Decide cookie/cache/storage lifecycle.
-4. Define MCP multi-session behavior.
-5. Implement only the smallest model that supports reliable agent workflows.
+1. `docs/PROFILE_PERSISTENCE.md` is the Phase 5 design note for the current model.
+2. A session means one daemon process on one Unix socket, with one `sessionId`, one native WebKit window, one active tab id, and one selected persistence mode.
+3. A tab means one in-process modeled target backed by a `WKWebView`; one tab is active and attached to the native window at a time.
+4. A profile means daemon startup metadata plus the selected `WKWebsiteDataStore`: persistent mode uses WebKit's default store, while `--ephemeral` uses a non-persistent store. Named per-profile stores are not implemented.
+5. MCP multi-session behavior is socket-scoped: clients target one daemon through `AGENT_SAFARI_SOCKET`; multiple sessions require multiple daemons/sockets.
+6. Artifact isolation is caller-owned path isolation. Smoke runs create per-run artifact directories; the daemon does not maintain a separate artifact namespace per tab/profile.
+7. CLI/MCP contracts expose the current session/tab fields and are pinned by contract tests.
+8. Real-world smoke exercises modeled tab creation, switching, tab close/last-tab refusal, session metadata, active-tab flags, and ephemeral data-store reporting (`.tmp/agent-safari-5-scenarios-20260604-154342/REPORT.md`).
+9. Product-vision reviewer passed the close in `docs/reviews/product-vision-review-phase5-session-tab-profile-2026-06-04.md`.
+
+Future work, not part of this closed contract:
+
+1. Cookie export/import tools using `WKHTTPCookieStore`.
+2. Named profile registry under `~/.agent-safari/profiles/<name>/metadata.json`.
+3. Explicit clear-profile command for destructive test isolation.
+4. Session snapshot artifacts that record active tab id, URLs, viewport, capture settings, and artifact paths.
+5. True profile/session isolation beyond the current one-daemon model.
 
 Acceptance criteria:
 
-- A written design note exists before implementation.
-- Existing single-WebView commands remain deterministic.
-- New IDs and lifecycle commands are contract-tested.
-- State cleanup is documented and smoke-tested.
+- A written design note exists. Done in `docs/PROFILE_PERSISTENCE.md`.
+- Existing daemon/window commands remain deterministic. Done for current command surface.
+- New IDs and lifecycle commands are contract-tested. Done through Swift parser tests, MCP contract tests, and `Tests/test_session_profile_contract.py`.
+- State cleanup and isolation boundaries are documented and smoke-tested. Done for current daemon/socket/ephemeral/artifact contract in `.tmp/agent-safari-5-scenarios-20260604-154342/REPORT.md`.
 
 ## Phase 6 — Productization And Distribution
 

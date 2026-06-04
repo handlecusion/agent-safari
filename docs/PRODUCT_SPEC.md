@@ -93,7 +93,7 @@ The current product contract after `v0.0.6` includes:
 - JavaScript fetch/XHR instrumentation for network metadata capture, list, stop, and redacted export;
 - network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no downloads, and no default proxy capture;
 - network export must keep body preview limits explicit and redaction conservative for sensitive headers and body previews;
-- first modeled tab/session/profile command surfaces around a single-WebView model;
+- modeled session/tab/profile command surface inside one daemon and one native WebKit window: each modeled tab has a `WKWebView`, one tab is active at a time, and all tabs share the daemon's selected persistence mode;
 - public release gates and smoke artifacts.
 
 ## 5. Quality Bar
@@ -165,12 +165,12 @@ Do not add these without a separate decision note and phase update:
 - default proxy/HAR capture;
 - browser extension dependency;
 - cloud-hosted multi-user architecture;
-- true profile/session isolation before single-WebView semantics are stable;
+- true profile/session isolation beyond the current one-daemon modeled tab contract;
 - claims of CDP parity.
 
 ## 10. Open Product Questions
 
 - What exact native-click error taxonomy should be exposed to agents?
 - Which occlusion checks are stable enough across macOS/WebKit environments?
-- What is the smallest real multi-tab/profile model that does not overcomplicate the CLI/MCP contract?
+- Which future cookie/profile APIs should graduate beyond the current one-daemon modeled tab contract?
 - Which GUI checks can run reliably in GitHub Actions, if any?

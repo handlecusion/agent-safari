@@ -196,7 +196,7 @@ def test_quality_gate_matrix_separates_ci_local_and_strict_native() -> None:
         "snapshot_refs_form",
         "full_page_screenshot",
         "fetch_xhr_resource_timing",
-        "multi_tab_session_profile",
+        "modeled_tab_session_profile",
         "native_click_type_viewport",
         "strict_native_click_only",
     }

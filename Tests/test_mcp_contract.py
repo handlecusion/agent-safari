@@ -91,6 +91,7 @@ def test_network_tools_advertise_structured_result_shape() -> None:
 def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
     tools = {tool["name"]: tool for tool in load_contract()}
     expected = {
+        "status": {"cli": ["status"], "input": [], "result": ["url", "title", "loading", "sessionId", "tabId"]},
         "screenshot": {"cli": ["screenshot", "--out", "<path>"], "input": ["path"]},
         "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"]},
         "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"]},
@@ -106,7 +107,11 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "wait_for_visible": {"cli": ["wait-for-visible", "<selector-or-ref>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "visible", "timeoutMs"]},
         "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"], "result": ["idle", "timeoutMs", "quietWindowMs"]},
         "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy"]},
-        "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"]},
+        "session": {"cli": ["session"], "input": [], "result": ["sessionId", "activeTabId", "profile", "persistent", "dataStore", "tabCount"]},
+        "tabs": {"cli": ["tabs"], "input": [], "result": ["tabs", "activeTabId"]},
+        "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
+        "tab_switch": {"cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
+        "tab_close": {"cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
     }
     for name, contract in expected.items():
         assert tools[name]["cli"] == contract["cli"], name

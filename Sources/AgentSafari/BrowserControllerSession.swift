@@ -142,13 +142,13 @@ extension BrowserController {
     func tabClose(id: String) async throws -> [String: String] {
         guard let index = tabsModel.firstIndex(where: { $0.id == id }) else { throw AgentSafariError.unknownTab(id) }
         guard tabsModel.count > 1 else {
-            return ["id": activeTabID, "tabId": activeTabID, "closed": "false", "reason": "cannot-close-last-tab"]
+            return ["id": activeTabID, "tabId": activeTabID, "closed": "false", "activeTabId": activeTabID, "reason": "cannot-close-last-tab"]
         }
         tabsModel.remove(at: index)
         if activeTabID == id {
             let replacement = tabsModel[min(index, tabsModel.count - 1)].id
             try activateTab(id: replacement)
         }
-        return ["id": id, "tabId": activeTabID, "closed": "true", "activeTabId": activeTabID]
+        return ["id": id, "tabId": activeTabID, "closed": "true", "activeTabId": activeTabID, "reason": ""]
     }
 }

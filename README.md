@@ -276,6 +276,11 @@ agent-safari network export <path> [--body-preview-bytes <n>] [--max-entries <n>
 agent-safari network-start [--socket /tmp/agent-safari.sock]  # backward-compatible alias
 agent-safari network-list [--socket /tmp/agent-safari.sock]
 agent-safari network-stop [--socket /tmp/agent-safari.sock]
+agent-safari session [--socket /tmp/agent-safari.sock]
+agent-safari tabs [--socket /tmp/agent-safari.sock]
+agent-safari tab-new [url] [--socket /tmp/agent-safari.sock]
+agent-safari tab-switch <id> [--socket /tmp/agent-safari.sock]
+agent-safari tab-close <id> [--socket /tmp/agent-safari.sock]
 ```
 
 ### Agentic refs workflow
@@ -445,7 +450,7 @@ The full release gate is documented in `docs/RELEASE_CHECKLIST.md`.
 ## Current limitations
 
 - The current daemon controls a modeled WKWebView tab set inside a single native WebKit window.
-- Profile persistence/isolation is daemon-level; use `--profile` and `--ephemeral` deliberately.
+- Profile persistence mode is daemon-level; `--profile` is metadata for future named stores, while `--ephemeral` selects a non-persistent WebKit data store.
 - The MCP wrapper exposes wait commands, history commands, viewport, session, and tab commands, but it remains a thin CLI wrapper rather than a separate browser runtime.
 - Passkey/WebAuthn automation is out of scope for the current roadmap.
 - `key` dispatches synthetic DOM keyboard events; `type` is a DOM-level text insertion helper, not full native keyboard automation.

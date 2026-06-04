@@ -112,9 +112,9 @@ Improve screenshots, full-page capture, wait predicates, and `observe` so agents
 - pending network count;
 - selected text where useful.
 
-### Priority 3 — Session/browser model after single-WebView stability
+### Priority 3 — Session/browser model after modeled WebView stability
 
-Only after the single-WebView semantics stay stable, evolve the placeholder tab/session/profile surface toward real isolation.
+Only after the single-daemon modeled WebView semantics stay stable, evolve the tab/session/profile surface toward stronger isolation.
 
 Questions to resolve:
 
@@ -127,7 +127,7 @@ Questions to resolve:
 
 - Full Chrome DevTools Protocol replacement.
 - HAR-grade proxy capture by default.
-- True multi-tab/profile isolation before single-WebView command semantics are stable.
+- True multi-tab/profile isolation before modeled daemon command semantics are stable.
 - WebAuthn/passkey automation.
 - Browser extension dependency.
 - Cloud-hosted multi-user browser service.

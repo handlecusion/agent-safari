@@ -43,6 +43,42 @@ func describeError(_ error: Error) -> String {
     return error.localizedDescription
 }
 
+func agentSafariErrorCode(_ error: Error) -> String {
+    agentSafariErrorCode(describeError(error))
+}
+
+func agentSafariErrorCode(_ message: String) -> String {
+    if message.contains("No element found for snapshot ref:") {
+        return "actionability_stale_ref"
+    }
+    if message.contains("Snapshot refs are not available") {
+        return "actionability_refs_unavailable"
+    }
+    if message.contains("No element found for selector:") {
+        return "actionability_missing_selector"
+    }
+    if message.contains("Element is disabled:") {
+        return "actionability_disabled"
+    }
+    if message.contains("Element is hidden:") {
+        return "actionability_hidden"
+    }
+    if message.contains("Element center is outside viewport:")
+        || message.contains("Failed to resolve clickable element: offscreen center") {
+        return "actionability_off_viewport"
+    }
+    if message.contains("Element center is occluded:") {
+        return "actionability_occluded"
+    }
+    if message.contains("Native Quartz click posted but no DOM click event was observed") {
+        return "native_click_unverified"
+    }
+    if message.contains("Native input failed:") || message.contains("Failed to create native mouse events") {
+        return "native_input_failed"
+    }
+    return "error"
+}
+
 func parseNonNegativeIntParam(_ params: [String: String], name: String, defaultValue: Int? = nil) throws -> Int {
     guard let value = params[name] else {
         if let defaultValue { return defaultValue }
@@ -53,4 +89,3 @@ func parseNonNegativeIntParam(_ params: [String: String], name: String, defaultV
     }
     return intValue
 }
-

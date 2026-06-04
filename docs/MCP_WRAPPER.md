@@ -57,6 +57,10 @@ Override them with environment variables:
 - `AGENT_SAFARI_BIN`
 - `AGENT_SAFARI_SOCKET`
 
+## Action result contract
+
+The MCP wrapper mirrors CLI result fields instead of inventing a separate browser protocol. `click` advertises native/fallback metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError`, `nativeErrorCode`) plus viewport, bounds, scroll, and coordinate fields emitted by the Swift daemon. `fill` returns `selector` and `value`, matching the CLI.
+
 ## Hermes config example
 
 Add an entry under `mcp_servers` (or run the `hermes mcp add` command below):

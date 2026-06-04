@@ -127,8 +127,7 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
             id: request.id,
             ok: false,
             result: nil,
-            error: RPCErrorPayload(code: "error", message: describeError(error))
+            error: RPCErrorPayload(code: agentSafariErrorCode(error), message: describeError(error))
         )
     }
 }
-

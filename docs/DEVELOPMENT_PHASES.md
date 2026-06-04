@@ -87,6 +87,7 @@ Completed checkpoints:
 - snapshot schema v2 and stable DOM-order indexing;
 - agentic refs contract tests;
 - actionability validation for hidden/disabled/off-viewport targets;
+- stable JSON-RPC actionability/native-input error codes for current click/fill failure classes;
 - input/textarea/contenteditable key-path coverage;
 - `Enter`, `Backspace`, and select-all shortcut coverage;
 - real-world smoke scenario 5.
@@ -111,6 +112,7 @@ Current strict-native-click slice acceptance:
 - `elementHitTarget` records scroll position before/after `scrollIntoView` so agents can tell whether a target required scrolling.
 - The hit target is validated with `document.elementFromPoint` after scrolling; truly occluded centers fail with an explicit `Element center is occluded` error before native or DOM fallback actions.
 - Native click results include viewport bounds/center, scroll delta, coordinate strategy, native verification, fallback use, and native error where applicable.
+- Native fallback results include `nativeErrorCode`, and actionability/native-input failures expose typed JSON-RPC `error.code` values while preserving human-readable messages.
 - Contract tests lock the above strings/fields so future refactors do not silently drop diagnostics.
 
 Verification on 2026-06-02 for the fallback-documented checkpoint:
@@ -120,6 +122,16 @@ Verification on 2026-06-02 for the fallback-documented checkpoint:
 - `swift test`
 - `python3 scripts/smoke_real_world.py --skip-build` → report at `.tmp/agent-safari-5-scenarios-20260602-202144/REPORT.md`; native click used DOM fallback in this local session and remains environment-sensitive; occlusion diagnostic smoke path fired before fallback scenario.
 - `AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py --skip-build` failed at strict native click with `Native Quartz click posted but no DOM click event was observed`, confirming strict native is environment-gated here rather than complete.
+
+Post-Phase 5 actionability taxonomy verification on 2026-06-04:
+
+- `swift test`
+- `python3 Tests/test_agentic_refs_contract.py`
+- `python3 Tests/test_mcp_contract.py`
+- `python3 Tests/test_smoke_real_world.py`
+- `bash scripts/smoke_cli.sh`
+- `python3 scripts/smoke_real_world.py --skip-build` → report at `.tmp/agent-safari-5-scenarios-20260604-161658/REPORT.md`; scenario 5 records `nativeErrorCode: native_click_unverified` for fallback and verifies runtime actionability codes for refs unavailable, missing selector, disabled, hidden, off-viewport, stale ref, and occluded center-hit failures.
+- `AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py --skip-build` failed as expected in this environment with JSON-RPC `error.code: native_click_unverified`, preserving the strict-native environment gate.
 
 Acceptance criteria:
 

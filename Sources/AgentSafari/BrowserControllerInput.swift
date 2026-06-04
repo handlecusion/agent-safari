@@ -304,7 +304,9 @@ extension BrowserController {
                         result["fallbackUsed"] = "false"
                         result["beforeURL"] = beforeURL
                         result["afterURL"] = afterURL
-                        result["nativeError"] = "Probe failed during navigation: \(describeError(error))"
+                        let nativeError = "Probe failed during navigation: \(describeError(error))"
+                        result["nativeError"] = nativeError
+                        result["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                         return result
                     }
                     throw error
@@ -339,6 +341,7 @@ extension BrowserController {
                 fallback["nativeVerified"] = "false"
                 fallback["fallbackUsed"] = "true"
                 fallback["nativeError"] = "Native Quartz click posted but no DOM click event was observed"
+                fallback["nativeErrorCode"] = "native_click_unverified"
                 fallback.merge(target.resultFields) { current, _ in current }
                 return fallback
             } catch {
@@ -351,7 +354,9 @@ extension BrowserController {
                 fallback["method"] = "dom-fallback"
                 fallback["nativeVerified"] = "false"
                 fallback["fallbackUsed"] = "true"
-                fallback["nativeError"] = describeError(error)
+                let nativeError = describeError(error)
+                fallback["nativeError"] = nativeError
+                fallback["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                 return fallback
             }
         }

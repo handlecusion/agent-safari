@@ -89,6 +89,7 @@ The current product contract after `v0.0.6` includes:
 - observe metadata for load state, pending network count, selected text, viewport/page size, and active element selector;
 - snapshot refs with schema/actionability metadata;
 - click, fill, type, key;
+- stable actionability/native-input JSON-RPC error codes for current click/fill failure classes;
 - waits for URL, title, visible selector, idle, selector, text, and loaded state, with bounded structured timeout failures;
 - JavaScript fetch/XHR instrumentation for network metadata capture, list, stop, and redacted export;
 - network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no downloads, and no default proxy capture;
@@ -138,6 +139,18 @@ Native click and native typing may remain environment-sensitive, but default beh
 
 Native click target preparation must also report whether the target was scrolled into view, which viewport center/bounds were used, and whether center-hit testing found an occluder before posting native events.
 
+Current stable actionability/native-input error codes:
+
+- `actionability_stale_ref`
+- `actionability_refs_unavailable`
+- `actionability_missing_selector`
+- `actionability_disabled`
+- `actionability_hidden`
+- `actionability_off_viewport`
+- `actionability_occluded`
+- `native_click_unverified`
+- `native_input_failed`
+
 ## 8. Evidence Contract
 
 Agent Safari should make actions auditable.
@@ -150,6 +163,7 @@ Evidence surfaces include:
 - screenshot metadata in smoke evidence, including viewport/page dimensions, scale, tile count/preflight scroll count, strategy, and warnings;
 - observe metadata in smoke evidence, including load state, pending network count, selected text, viewport/page dimensions, and active element selector;
 - bounded wait-predicate success/failure evidence for URL/title/visible waits;
+- typed actionability/native-input `error.code` values and `nativeErrorCode` fallback metadata;
 - network export JSON with JavaScript fetch/XHR instrumentation metadata, PerformanceResourceTiming limitations, body preview bounds, and redaction policy;
 - daemon logs;
 - CI/release workflow output;
@@ -170,7 +184,7 @@ Do not add these without a separate decision note and phase update:
 
 ## 10. Open Product Questions
 
-- What exact native-click error taxonomy should be exposed to agents?
+- Which additional native-click/actionability codes should be added beyond the current stable taxonomy?
 - Which occlusion checks are stable enough across macOS/WebKit environments?
 - Which future cookie/profile APIs should graduate beyond the current one-daemon modeled tab contract?
 - Which GUI checks can run reliably in GitHub Actions, if any?

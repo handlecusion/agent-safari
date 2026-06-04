@@ -82,6 +82,17 @@ def agent_safari_socket() -> str:
     return os.environ.get("AGENT_SAFARI_SOCKET", DEFAULT_SOCKET)
 
 
+class AgentSafariCLIError(RuntimeError):
+    """CLI payload error that keeps the daemon's stable error code available."""
+
+    def __init__(self, command: str, code: Any, message: str) -> None:
+        self.command = command
+        self.code = str(code) if code else None
+        self.message = message
+        code_label = f" [{self.code}]" if self.code else ""
+        super().__init__(f"agent-safari {command} error{code_label}: {message}")
+
+
 def _run_cli(command: str, *args: str, timeout: float = 30.0) -> dict[str, Any]:
     """Run agent-safari CLI and return the decoded JSON-RPC response."""
     binary = agent_safari_bin()
@@ -123,8 +134,13 @@ def _run_cli(command: str, *args: str, timeout: float = 30.0) -> dict[str, Any]:
 
     if not payload.get("ok", False):
         error = payload.get("error") or {}
-        message = error.get("message") if isinstance(error, dict) else str(error)
-        raise RuntimeError(f"agent-safari {command} error: {message or payload}")
+        if isinstance(error, dict):
+            message = str(error.get("message") or payload)
+            code = error.get("code")
+        else:
+            message = str(error or payload)
+            code = None
+        raise AgentSafariCLIError(command, code, message)
     return payload.get("result") or {}
 
 

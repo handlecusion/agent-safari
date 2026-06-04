@@ -435,6 +435,7 @@ Useful release-smoke options:
 python3 scripts/smoke_real_world.py --out-dir .tmp/release-smoke
 python3 scripts/smoke_real_world.py --socket /tmp/agent-safari-release-smoke.sock
 python3 scripts/smoke_real_world.py --skip-build
+python3 scripts/smoke_real_world.py --strict-native-probe
 AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
 ```
 
@@ -446,6 +447,7 @@ The full release gate is documented in `docs/RELEASE_CHECKLIST.md`.
 - `AGENT_SAFARI_SOCKET`: Unix socket path for daemon and client commands.
 - `AGENT_SAFARI_SMOKE_DIR`: optional directory for real-world smoke artifacts.
 - `AGENT_SAFARI_STRICT_NATIVE`: set to `1` to make native-click fallback a hard failure in `scripts/smoke_real_world.py`.
+- `--strict-native-probe`: run a focused `--native --no-fallback` probe and record whether the current GUI environment verifies native delivery or remains environment-gated.
 
 ## Current limitations
 

@@ -9,6 +9,8 @@ enum AgentSafariError: Error, LocalizedError {
     case invalidIntegerParam(String, String)
     case waitTimedOut(Int)
     case elementResolutionFailed(String)
+    case actionabilityFailed(code: String, message: String)
+    case nativeClickUnverified(String)
     case nativeInputFailed(String)
     case unknownMethod(String)
     case unknownTab(String)
@@ -25,11 +27,26 @@ enum AgentSafariError: Error, LocalizedError {
         case .invalidIntegerParam(let name, let value): return "Invalid integer for \(name): \(value)"
         case .waitTimedOut(let timeoutMs): return "Timed out after \(timeoutMs) ms"
         case .elementResolutionFailed(let target): return "Failed to resolve clickable element: \(target)"
+        case .actionabilityFailed(_, let message): return message
+        case .nativeClickUnverified(let message): return "Native input failed: \(message)"
         case .nativeInputFailed(let message): return "Native input failed: \(message)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
         case .socketPathTooLong(let path): return "Unix socket path is too long: \(path)"
         case .socketOperationFailed(let message): return message
+        }
+    }
+
+    var errorCode: String? {
+        switch self {
+        case .actionabilityFailed(let code, _):
+            return code
+        case .nativeClickUnverified:
+            return "native_click_unverified"
+        case .nativeInputFailed:
+            return "native_input_failed"
+        default:
+            return nil
         }
     }
 }
@@ -44,7 +61,10 @@ func describeError(_ error: Error) -> String {
 }
 
 func agentSafariErrorCode(_ error: Error) -> String {
-    agentSafariErrorCode(describeError(error))
+    if let agentSafariError = error as? AgentSafariError, let errorCode = agentSafariError.errorCode {
+        return errorCode
+    }
+    return agentSafariErrorCode(describeError(error))
 }
 
 func agentSafariErrorCode(_ message: String) -> String {

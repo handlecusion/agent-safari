@@ -89,7 +89,7 @@ The current product contract after `v0.0.6` includes:
 - observe metadata for load state, pending network count, selected text, viewport/page size, and active element selector;
 - snapshot refs with schema/actionability metadata;
 - click, fill, type, key;
-- stable actionability/native-input JSON-RPC error codes for current click/fill failure classes;
+- stable actionability/native-input JSON-RPC error codes for current click/fill failure classes, raised from structured actionability results before falling back to legacy message classification;
 - waits for URL, title, visible selector, idle, selector, text, and loaded state, with bounded structured timeout failures;
 - JavaScript fetch/XHR instrumentation for network metadata capture, list, stop, and redacted export;
 - network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no downloads, and no default proxy capture;
@@ -164,6 +164,7 @@ Evidence surfaces include:
 - observe metadata in smoke evidence, including load state, pending network count, selected text, viewport/page dimensions, and active element selector;
 - bounded wait-predicate success/failure evidence for URL/title/visible waits;
 - typed actionability/native-input `error.code` values and `nativeErrorCode` fallback metadata;
+- focused strict-native probe artifacts that record `native-verified` or `environment-gated` without changing the strict hard gate;
 - network export JSON with JavaScript fetch/XHR instrumentation metadata, PerformanceResourceTiming limitations, body preview bounds, and redaction policy;
 - daemon logs;
 - CI/release workflow output;

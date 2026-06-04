@@ -48,6 +48,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action='store_true',
         help='Skip swift build/test preflight when the binary and tests were already verified.',
     )
+    parser.add_argument(
+        '--strict-native-probe',
+        action='store_true',
+        help='Run only the strict native click probe and record whether the environment verifies native delivery or remains gated.',
+    )
     return parser.parse_args(argv)
 
 
@@ -427,6 +432,48 @@ def scenario(name: str, purpose: str, steps: list, captures: list[str], evidence
     })
 
 
+def run_strict_native_probe() -> None:
+    steps = [
+        run_cli('viewport', '900', '640'),
+        run_cli('open', file_url(FIX / 'native.html')),
+        run_cli('wait-for-selector', '#nativeTarget', '--timeout', '5000'),
+    ]
+    cap, cap_rec = screenshot('strict_native_probe')
+    click = run_cli('click', '#nativeTarget', '--native', '--no-fallback', check=False)
+    steps.append(click)
+    click_payload = click.get('json') or {}
+    ok = click_payload.get('ok') is True
+    if ok:
+        native_payload = result_payload(click)
+        native_delivery = native_click_delivery(native_payload, strict_native=True)
+        outcome = 'native-verified' if native_delivery['acceptable'] else 'unexpected-native-result'
+        evidence = {
+            'outcome': outcome,
+            'nativeClick': native_payload,
+            'nativeDelivery': native_delivery,
+        }
+        verdict = 'PASS' if native_delivery['acceptable'] else 'CHECK'
+    else:
+        error = assert_error_code(click, 'native_click_unverified', 'Native Quartz click posted but no DOM click event was observed')
+        evidence = {
+            'outcome': 'environment-gated',
+            'error': error,
+            'strictNativeGate': 'native click unverified in this local GUI session',
+        }
+        verdict = 'PASS'
+    cap_artifact = screenshot_artifact(cap, min_width=100, min_height=100)
+    cap_metadata = screenshot_command_metadata(result_payload(cap_rec))
+    evidence['screenshot'] = cap_artifact
+    evidence['screenshotMetadata'] = cap_metadata
+    json_dump(DATA / 'strict-native-probe.json', evidence)
+    scenario('Strict native click probe', 'native --no-fallback click이 현재 GUI 환경에서 verified native인지 environment-gated인지 machine-readable evidence로 기록', steps + [cap_rec], [cap], evidence, verdict)
+    json_dump(DATA / 'scenario-results.json', SCENARIOS)
+    make_contact_sheet()
+    make_report()
+    if verdict != 'PASS':
+        raise RuntimeError(f'strict native probe did not produce acceptable evidence: {evidence}')
+
+
 def make_contact_sheet() -> Path | None:
     try:
         from PIL import Image, ImageDraw
@@ -553,6 +600,11 @@ def main():
     daemon = subprocess.Popen([str(BIN), 'daemon', '--profile', f'scenario-{RUN_ID}', '--ephemeral', '--socket', str(SOCKET)], cwd=ROOT, stdout=LOG.open('w'), stderr=subprocess.STDOUT, text=True)
     try:
         wait_for_daemon()
+        if ARGS.strict_native_probe:
+            run_strict_native_probe()
+            print(f'report={OUT / "REPORT.md"}')
+            print(f'artifacts={OUT}')
+            return
 
         # Scenario 1: snapshot refs + form fill/click + element screenshot.
         steps = []
@@ -775,7 +827,7 @@ def main():
 def make_report():
     passed = sum(1 for s in SCENARIOS if s['verdict'] == 'PASS')
     lines = []
-    lines.append(f'# agent-safari 5-scenario screenshot report')
+    lines.append(f'# agent-safari {len(SCENARIOS)}-scenario screenshot report')
     lines.append('')
     lines.append(f'- run id: `{RUN_ID}`')
     lines.append(f'- repo: `{ROOT}`')

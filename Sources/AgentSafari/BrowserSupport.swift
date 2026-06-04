@@ -41,6 +41,16 @@ func stringifyJavaScriptValue(_ value: Any) -> String {
     return String(describing: value)
 }
 
+func throwActionabilityFailureIfPresent(_ result: [String: Any]) throws {
+    guard let ok = result["ok"] as? Bool, ok == false else { return }
+    let code = stringifyJavaScriptValue(result["code"] as Any)
+    let message = stringifyJavaScriptValue(result["message"] as Any)
+    if code.hasPrefix("actionability_") {
+        throw AgentSafariError.actionabilityFailed(code: code, message: message)
+    }
+    throw AgentSafariError.elementResolutionFailed(message.isEmpty ? code : message)
+}
+
 func javaScriptStringLiteral(_ value: String) throws -> String {
     let data = try JSONEncoder().encode(value)
     guard let literal = String(data: data, encoding: .utf8) else {
@@ -55,4 +65,3 @@ enum BrowserUserAgentSettings {
     // an unsupported-browser banner or fallback login UI in that case.
     static let safariUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Safari/605.1.15"
 }
-

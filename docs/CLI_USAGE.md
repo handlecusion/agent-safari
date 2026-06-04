@@ -57,7 +57,7 @@ Client commands print one JSON line. Success looks like:
 ```
 
 Failures return `"ok": false` with an `error` object, or the CLI exits non-zero if it cannot connect to the daemon.
-Actionability/native-input failures use stable `error.code` values where possible:
+Click/fill actionability failures are raised from structured WebKit evaluation results; native input failures are raised from typed Swift errors. Both use stable `error.code` values:
 
 - `actionability_stale_ref`
 - `actionability_refs_unavailable`

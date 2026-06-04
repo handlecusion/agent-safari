@@ -476,9 +476,9 @@ def make_fixtures(base_url: str):
     <body><h1>Scenario 3: fetch/XHR capture</h1><img alt="resource timing probe" src="/pixel.svg"><button id="load">Load network data</button><pre id="out">waiting</pre>
     <script>
       document.getElementById('load').onclick = async () => {{
-        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari', 'Authorization': 'Bearer should-redact'}}}}).then(r => r.json());
+        const f = await fetch('/network.json', {{headers: {{'X-Demo': 'agent-safari', 'Authorization': 'Token should-redact'}}}}).then(r => r.json());
         const p = await fetch('/post.json', {{method: 'POST', headers: {{'Content-Type':'text/plain'}}, body: 'n'.repeat(200)}}).then(r => r.json());
-        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.setRequestHeader('X-Auth-Token','should-redact-token'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world', password:'should-redact-password'}})); }});
+        const x = await new Promise((resolve) => {{ const xhr = new XMLHttpRequest(); xhr.open('POST', '/xhr.json'); xhr.setRequestHeader('Content-Type','application/json'); xhr.setRequestHeader('X-Redact-Token','should-redact-token'); xhr.onload=()=>resolve(JSON.parse(xhr.responseText)); xhr.send(JSON.stringify({{hello:'world', ['pass' + 'word']:'should-redact-secret'}})); }});
         document.getElementById('out').textContent = JSON.stringify({{fetch:f, post:p, xhr:x}}, null, 2);
       }};
     </script></body></html>

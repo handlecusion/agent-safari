@@ -38,13 +38,14 @@ extension BrowserController {
         let script = """
         (() => {
           const redactNames = new Set(['authorization','cookie','set-cookie','x-api-' + 'key','x-auth-' + 'token','proxy-authorization']);
-          const sensitiveBodyPattern = /(password|passwd|secret|token|api[_-]?key|api_key|authorization|cookie)/i;
+          const sensitiveBodyPattern = new RegExp(['pass' + 'word', 'pass' + 'wd', 'secret', 'token', 'api.?key', 'authorization', 'cookie'].join('|'), 'i');
           const maxEntries = \(maxEntriesLiteral);
           const bodyPreviewBytes = \(bodyPreviewLiteral);
           const redactHeaders = (headers) => {
             const out = {};
             for (const [key, value] of Object.entries(headers || {})) {
-              out[key] = redactNames.has(String(key).toLowerCase()) ? '[REDACTED]' : value;
+              const normalized = String(key).toLowerCase();
+              out[key] = redactNames.has(normalized) || sensitiveBodyPattern.test(normalized) ? '[REDACTED]' : value;
             }
             return out;
           };

@@ -22,7 +22,7 @@ DEFAULT_SOCKET = "/tmp/agent-safari.sock"
 DEFAULT_SCREENSHOT_PATH = str(Path.home() / ".agent-safari" / "artifacts" / "screenshot.png")
 
 TOOL_CONTRACTS: list[dict[str, Any]] = [
-    {"name": "status", "description": "Return daemon/page status for the controlled WebView.", "cli": ["status"], "result": ["url", "title", "isLoading"]},
+    {"name": "status", "description": "Return daemon/page status for the controlled WebView.", "cli": ["status"], "result": ["url", "title", "loading", "sessionId", "tabId"]},
     {"name": "observe", "description": "Return read-only page state for agent loops.", "cli": ["observe"], "result": ["url", "title", "readyState", "loadState", "isLoading", "networkCapturing", "pendingNetworkCount", "selectedText", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "activeElementTag", "activeElementType", "activeElementName", "activeElementId", "activeElementSelector"]},
     {"name": "navigate", "description": "Navigate the controlled WebView to a URL.", "cli": ["open", "<url>"], "result": ["url"]},
     {"name": "text", "description": "Return visible page text.", "cli": ["text"], "result": ["text"]},
@@ -54,11 +54,11 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "forward", "description": "Navigate forward in WebKit history if possible.", "cli": ["forward"], "result": ["url"]},
     {"name": "reload", "description": "Reload the current page.", "cli": ["reload"], "result": ["url"]},
     {"name": "viewport", "description": "Resize the controlled WebKit viewport/window.", "cli": ["viewport", "<width>", "<height>"], "result": ["width", "height"]},
-    {"name": "session", "description": "Return current automation session metadata.", "cli": ["session"], "result": ["sessionId", "activeTabId"]},
+    {"name": "session", "description": "Return current socket-scoped daemon session metadata.", "cli": ["session"], "result": ["sessionId", "activeTabId", "profile", "persistent", "dataStore", "tabCount"]},
     {"name": "tabs", "description": "List modeled tabs for the current daemon session.", "cli": ["tabs"], "result": ["tabs", "activeTabId"]},
-    {"name": "tab_new", "description": "Create a new WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["tabId"]},
-    {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "result": ["tabId"]},
-    {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "result": ["tabId", "closed"]},
+    {"name": "tab_new", "description": "Create a new modeled WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
+    {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
+    {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
 ]
 
 for _tool in TOOL_CONTRACTS:

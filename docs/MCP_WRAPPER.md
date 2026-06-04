@@ -129,6 +129,12 @@ That JSON lists each tool name, short description, normalized CLI equivalent,
 input names, `contractVersion`, and expected top-level result keys. CI locks this
 with `Tests/test_mcp_contract.py`.
 
+Session and tab tools are socket-scoped because the MCP wrapper delegates to the
+CLI. `session()` reports the daemon's current `sessionId`, active tab, profile
+metadata, persistence mode, data store mode, and tab count. `tabs()` returns the
+modeled tab list for that daemon. Multiple independent MCP browser sessions
+require multiple daemon processes with separate sockets.
+
 ## Local checks
 
 ```sh

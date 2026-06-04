@@ -4,7 +4,7 @@ This document defines the recommended `observe -> act -> wait -> verify` loop fo
 
 ## Loop
 
-1. Open or switch to the target tab.
+1. Open or switch to the target modeled tab.
 
 ```sh
 agent-safari open 'https://example.com'
@@ -12,6 +12,8 @@ agent-safari open 'https://example.com'
 agent-safari tab-new 'https://example.com'
 agent-safari tab-switch tab-2
 ```
+
+Modeled tabs are scoped to the current daemon/socket. Use separate daemons and sockets for independent browser sessions.
 
 2. Observe stable page state.
 

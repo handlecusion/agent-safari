@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
@@ -60,6 +61,14 @@ def load_contract() -> list[dict[str, object]]:
         text=True,
     )
     return json.loads(completed.stdout)
+
+
+def load_wrapper_module():
+    spec = importlib.util.spec_from_file_location("agent_safari_mcp", WRAPPER)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def tool_names(tools: list[dict[str, object]]) -> set[str]:
@@ -121,11 +130,51 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
             assert tools[name]["result"] == contract["result"], name
 
 
+def test_failed_cli_payload_preserves_error_code_in_mcp_exception() -> None:
+    module = load_wrapper_module()
+    original_bin = module.os.environ.get("AGENT_SAFARI_BIN")
+    original_run = module.subprocess.run
+    payload = {
+        "ok": False,
+        "error": {
+            "code": "actionability_hidden",
+            "message": "Element is hidden: #hidden",
+        },
+    }
+
+    def fake_run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=["agent-safari"],
+            returncode=0,
+            stdout=json.dumps(payload) + "\n",
+            stderr="",
+        )
+
+    try:
+        module.os.environ["AGENT_SAFARI_BIN"] = "/bin/echo"
+        module.subprocess.run = fake_run
+        try:
+            module._run_cli("click", "#hidden")
+        except RuntimeError as exc:
+            assert getattr(exc, "code", None) == "actionability_hidden"
+            assert "[actionability_hidden]" in str(exc)
+            assert "Element is hidden: #hidden" in str(exc)
+        else:
+            raise AssertionError("expected MCP wrapper to raise on failed CLI payload")
+    finally:
+        module.subprocess.run = original_run
+        if original_bin is None:
+            module.os.environ.pop("AGENT_SAFARI_BIN", None)
+        else:
+            module.os.environ["AGENT_SAFARI_BIN"] = original_bin
+
+
 def main() -> int:
     for test in (
         test_tools_json_lists_stable_tool_contract,
         test_network_tools_advertise_structured_result_shape,
         test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs,
+        test_failed_cli_payload_preserves_error_code_in_mcp_exception,
     ):
         test()
     print("mcp contract tests passed")

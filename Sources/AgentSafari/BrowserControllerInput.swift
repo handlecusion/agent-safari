@@ -11,11 +11,13 @@ extension BrowserController {
         let script = """
         (() => {
           const target = \(selectorLiteral);
+          const fail = (code, message) => ({ ok: false, code, message });
+          const isFailure = (value) => value && value.ok === false;
           const resolveElement = (target) => {
             if (target.startsWith('@e')) {
               const refs = window.__agentSafariSnapshotRefs;
               if (!refs || typeof refs.get !== 'function') {
-                throw new Error(`Snapshot refs are not available for ${target}; run snapshot first.`);
+                return fail('actionability_refs_unavailable', `Snapshot refs are not available for ${target}; run snapshot first.`);
               }
 
               const candidates = [
@@ -28,38 +30,40 @@ extension BrowserController {
                 seen.add(element);
                 if (refs.get(element) === target) return element;
               }
-              throw new Error(`No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
+              return fail('actionability_stale_ref', `No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
             }
 
             const element = document.querySelector(target);
             if (!element) {
-              throw new Error(`No element found for selector: ${target}`);
+              return fail('actionability_missing_selector', `No element found for selector: ${target}`);
             }
             return element;
           };
 
           const validateActionableElement = (element, target) => {
             if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
-              throw new Error(`Element is disabled: ${target}`);
+              return fail('actionability_disabled', `Element is disabled: ${target}`);
             }
             const rect = element.getBoundingClientRect();
             const style = window.getComputedStyle(element);
             if (!rect || rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0) {
-              throw new Error(`Element is hidden: ${target}`);
+              return fail('actionability_hidden', `Element is hidden: ${target}`);
             }
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             if (centerX < 0 || centerY < 0 || centerX > window.innerWidth || centerY > window.innerHeight) {
-              throw new Error(`Element center is outside viewport: ${target}`);
+              return fail('actionability_off_viewport', `Element center is outside viewport: ${target}`);
             }
             return rect;
           };
 
           const element = resolveElement(target);
+          if (isFailure(element)) return element;
           const scrollXBefore = window.scrollX;
           const scrollYBefore = window.scrollY;
           element.scrollIntoView({ block: 'center', inline: 'center' });
-          validateActionableElement(element, target);
+          const actionableRect = validateActionableElement(element, target);
+          if (isFailure(actionableRect)) return actionableRect;
           const rect = element.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2;
           const centerY = rect.top + rect.height / 2;
@@ -69,9 +73,10 @@ extension BrowserController {
           );
           if (centerHit && centerHit !== element && !element.contains(centerHit)) {
             const hitName = `${centerHit.tagName || ''}${centerHit.id ? '#' + centerHit.id : ''}`;
-            throw new Error(`Element center is occluded: ${target}; hit ${hitName}`);
+            return fail('actionability_occluded', `Element center is occluded: ${target}; hit ${hitName}`);
           }
           return {
+            ok: true,
             x: rect.left,
             y: rect.top,
             width: rect.width,
@@ -91,6 +96,7 @@ extension BrowserController {
         guard let result = try await webView.evaluateJavaScript(script) as? [String: Any] else {
             throw AgentSafariError.elementResolutionFailed(selector)
         }
+        try throwActionabilityFailureIfPresent(result)
         let x = CGFloat((result["x"] as? NSNumber)?.doubleValue ?? 0)
         let y = CGFloat((result["y"] as? NSNumber)?.doubleValue ?? 0)
         let width = CGFloat((result["width"] as? NSNumber)?.doubleValue ?? 0)
@@ -332,7 +338,7 @@ extension BrowserController {
                     return result
                 }
                 if fallbackPolicy == "none" {
-                    throw AgentSafariError.nativeInputFailed("Native Quartz click posted but no DOM click event was observed")
+                    throw AgentSafariError.nativeClickUnverified("Native Quartz click posted but no DOM click event was observed")
                 }
                 var fallback = try await javaScriptClick(selector: selector)
                 fallback["selector"] = selector
@@ -373,11 +379,13 @@ extension BrowserController {
         (() => {
           const target = \(selectorLiteral);
           const value = \(valueLiteral);
+          const fail = (code, message) => ({ ok: false, code, message });
+          const isFailure = (value) => value && value.ok === false;
           const resolveElement = (target) => {
             if (target.startsWith('@e')) {
               const refs = window.__agentSafariSnapshotRefs;
               if (!refs || typeof refs.get !== 'function') {
-                throw new Error(`Snapshot refs are not available for ${target}; run snapshot first.`);
+                return fail('actionability_refs_unavailable', `Snapshot refs are not available for ${target}; run snapshot first.`);
               }
 
               const candidates = [
@@ -390,44 +398,50 @@ extension BrowserController {
                 seen.add(element);
                 if (refs.get(element) === target) return element;
               }
-              throw new Error(`No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
+              return fail('actionability_stale_ref', `No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
             }
 
             const element = document.querySelector(target);
             if (!element) {
-              throw new Error(`No element found for selector: ${target}`);
+              return fail('actionability_missing_selector', `No element found for selector: ${target}`);
             }
             return element;
           };
 
           const validateActionableElement = (element, target) => {
             if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
-              throw new Error(`Element is disabled: ${target}`);
+              return fail('actionability_disabled', `Element is disabled: ${target}`);
             }
             const rect = element.getBoundingClientRect();
             const style = window.getComputedStyle(element);
             if (!rect || rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0) {
-              throw new Error(`Element is hidden: ${target}`);
+              return fail('actionability_hidden', `Element is hidden: ${target}`);
             }
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             if (centerX < 0 || centerY < 0 || centerX > window.innerWidth || centerY > window.innerHeight) {
-              throw new Error(`Element center is outside viewport: ${target}`);
+              return fail('actionability_off_viewport', `Element center is outside viewport: ${target}`);
             }
+            return { ok: true };
           };
 
           const element = resolveElement(target);
+          if (isFailure(element)) return element;
           element.scrollIntoView({ block: 'center', inline: 'center' });
-          validateActionableElement(element, target);
+          const actionability = validateActionableElement(element, target);
+          if (isFailure(actionability)) return actionability;
           if (typeof element.focus === 'function') element.focus({ preventScroll: true });
           element.value = value;
           element.dispatchEvent(new Event('input', { bubbles: true }));
           element.dispatchEvent(new Event('change', { bubbles: true }));
-          return element.value || '';
+          return { ok: true, value: element.value || '' };
         })()
         """
-        let jsResult = try await webView.evaluateJavaScript(script)
-        return ["selector": selector, "value": stringifyJavaScriptValue(jsResult as Any)]
+        guard let result = try await webView.evaluateJavaScript(script) as? [String: Any] else {
+            throw AgentSafariError.elementResolutionFailed(selector)
+        }
+        try throwActionabilityFailureIfPresent(result)
+        return ["selector": selector, "value": stringifyJavaScriptValue(result["value"] as Any)]
     }
 
     func key(_ key: String) async throws -> [String: String] {

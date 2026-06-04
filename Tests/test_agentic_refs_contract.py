@@ -37,7 +37,7 @@ def test_action_targets_reject_stale_disabled_hidden_and_offscreen_refs() -> Non
 def test_fill_uses_same_actionability_contract_as_click() -> None:
     source = read(INPUT)
 
-    assert "validateActionableElement(element, target);" in source
+    assert "validateActionableElement(element, target)" in source
     assert source.count("validateActionableElement") >= 2
 
 
@@ -59,7 +59,7 @@ def test_native_click_reports_scroll_coordinates_and_occlusion_diagnostics() -> 
 
 
 def test_actionability_errors_have_stable_rpc_codes() -> None:
-    source = read(ERRORS) + read(RPC) + read(INPUT)
+    source = read(ERRORS) + read(RPC) + read(INPUT) + read(SUPPORT)
 
     for code in (
         "actionability_stale_ref",
@@ -73,6 +73,13 @@ def test_actionability_errors_have_stable_rpc_codes() -> None:
         "native_input_failed",
     ):
         assert code in source
+    assert "case actionabilityFailed(code: String, message: String)" in source
+    assert "case nativeClickUnverified(String)" in source
+    assert "var errorCode: String?" in source
+    assert "if let agentSafariError = error as? AgentSafariError, let errorCode = agentSafariError.errorCode" in source
+    assert "throwActionabilityFailureIfPresent(result)" in source
+    assert "const fail = (code, message) => ({ ok: false, code, message });" in source
+    assert 'throw AgentSafariError.nativeClickUnverified("Native Quartz click posted but no DOM click event was observed")' in source
     assert "error: RPCErrorPayload(code: agentSafariErrorCode(error)" in source
     assert '"nativeErrorCode"' in source
 

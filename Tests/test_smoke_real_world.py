@@ -224,6 +224,16 @@ def test_quality_gate_matrix_separates_ci_local_and_strict_native() -> None:
     assert all(item["artifact_limit_mb"] <= 25 for item in matrix)
 
 
+def test_strict_native_probe_keeps_environment_gate_explicit() -> None:
+    source = SMOKE.read_text(encoding="utf-8")
+
+    assert "--strict-native-probe" in source
+    assert "run_strict_native_probe" in source
+    assert "native-verified" in source
+    assert "environment-gated" in source
+    assert "assert_error_code(click, 'native_click_unverified'" in source
+
+
 def test_failure_diagnostics_payload_is_bounded_and_actionable(tmp_path: Path) -> None:
     smoke = load_smoke_module()
     log = tmp_path / "daemon.log"
@@ -260,6 +270,7 @@ def main() -> int:
     test_native_click_delivery_metadata_is_explicit()
     test_bounded_timeout_failure_helper_requires_structured_error()
     test_quality_gate_matrix_separates_ci_local_and_strict_native()
+    test_strict_native_probe_keeps_environment_gate_explicit()
     with tempfile.TemporaryDirectory() as d:
         test_failure_diagnostics_payload_is_bounded_and_actionable(Path(d))
     print("smoke_real_world helper tests passed")

@@ -88,6 +88,7 @@ Useful controls:
 python3 scripts/smoke_real_world.py --out-dir .tmp/release-smoke
 python3 scripts/smoke_real_world.py --socket /tmp/agent-safari-release-smoke.sock
 python3 scripts/smoke_real_world.py --skip-build
+python3 scripts/smoke_real_world.py --strict-native-probe
 AGENT_SAFARI_STRICT_NATIVE=1 python3 scripts/smoke_real_world.py
 ```
 

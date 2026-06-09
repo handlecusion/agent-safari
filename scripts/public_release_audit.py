@@ -92,7 +92,7 @@ TEXT_SUFFIXES = {
     ".toml",
     ".gitignore",
 }
-SKIP_DIRS = {".git", ".build", ".swiftpm", ".venv", ".venv-mcp", "venv", "__pycache__", ".tmp", ".hermes"}
+SKIP_DIRS = {".git", ".build", ".swiftpm", ".venv", ".venv-mcp", "venv", "__pycache__", ".tmp", ".hermes", ".omc"}
 SECRET_PATTERNS = [
     re.compile(part, re.IGNORECASE)
     for part in [

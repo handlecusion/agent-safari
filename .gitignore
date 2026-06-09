@@ -11,6 +11,7 @@ __pycache__/
 # Local runtime/socket/artifact scratch
 .tmp/
 .hermes/
+.omc/
 *.sock
 *.pid
 *.log

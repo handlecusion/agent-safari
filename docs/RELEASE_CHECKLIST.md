@@ -115,3 +115,11 @@ npm publish
 ```
 
 Homebrew tap updates should also wait for explicit approval and verified tap credentials.
+
+Note: pushing a version tag now also publishes packages automatically. The
+`release.yml` workflow calls `publish-packages.yml` as a `needs: release`
+job in the same run, so a successful release triggers the npm publish and
+Homebrew tap update without a separate manual step. These steps no-op unless
+the `NPM_TOKEN` and `HOMEBREW_TAP_TOKEN` secrets (and the `HOMEBREW_TAP_REPO`
+variable) are configured. Treat tagging as a full publish: only tag a version
+when you intend npm and the Homebrew tap to update.

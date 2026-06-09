@@ -1,6 +1,12 @@
 name: Publish Packages
 
 on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Release tag to publish, e.g. v0.1.0'
+        required: true
+        type: string
   release:
     types: [published]
   workflow_dispatch:
@@ -14,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-packages-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+  group: publish-packages-${{ inputs.version || github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
@@ -22,7 +28,7 @@ jobs:
     name: Publish npm package
     runs-on: macos-15
     env:
-      AGENT_SAFARI_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+      AGENT_SAFARI_VERSION: ${{ inputs.version || github.event.release.tag_name }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v5
@@ -52,7 +58,7 @@ jobs:
     name: Render or update Homebrew formula
     runs-on: macos-15
     env:
-      AGENT_SAFARI_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.event.release.tag_name }}
+      AGENT_SAFARI_VERSION: ${{ inputs.version || github.event.release.tag_name }}
       HOMEBREW_TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
     steps:

@@ -82,6 +82,9 @@ Click/fill actionability failures are raised from structured WebKit evaluation r
 - `navigation_in_progress` — a navigation is already in flight on the target tab
 - `tab_closed_during_command` — the target tab was closed while the command was running
 - `tab_not_active_for_native_input` — native Quartz input requires the visible tab
+- `upload_file_not_found` — an `upload` path does not exist on disk
+- `upload_panel_not_triggered` — the upload click never opened a file panel for the input
+- `upload_multiple_not_allowed` — multiple paths were given for an input without the `multiple` attribute
 
 ## Commands
 
@@ -157,6 +160,44 @@ Keyboard events are dispatched to the active element. `type` inserts text into t
 ```
 
 Native click fallback is explicit in the JSON result. Verified native clicks report `method: "native"`, `nativeVerified: true`, and `fallbackUsed: false`. If default native click cannot be verified and DOM fallback succeeds, the result reports `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters. When a click triggers a `target=_blank` link or `window.open()`, the navigation is redirected to the current active WebView and the result includes `popupRedirectedURL` with the intercepted URL. A bare `window.open()` with no URL is ignored and reports nothing.
+
+### Upload files to a file input
+
+Drive an `<input type="file">` element by setting its files through the WebKit
+open panel. The selector may be a CSS selector or a snapshot `@e` ref:
+
+```sh
+.build/debug/agent-safari upload '#avatar' /path/to/photo.png --socket /tmp/agent-safari.sock
+.build/debug/agent-safari upload '@e4' /path/to/a.txt /path/to/b.txt --socket /tmp/agent-safari.sock
+```
+
+The command validates every path exists, arms the pending files for the target
+tab, clicks the input to open the WebKit file panel, and then verifies the input
+actually received the files. Result fields:
+
+- `selector`: the resolved selector or ref.
+- `fileCount`: the number of files now on the input (`element.files.length`).
+- `files`: a JSON array string of the selected file basenames.
+- `changeEventSynthesized`: `"true"` if agent-safari dispatched `input`/`change`
+  because WebKit did not fire `change` natively, `"false"` if WebKit fired it.
+
+Rules and failures:
+
+- Multiple paths are only allowed when the input has the `multiple` attribute;
+  otherwise the command fails with `upload_multiple_not_allowed`.
+- A missing path fails with `upload_file_not_found` and names the missing path.
+- If the click never opens a file panel, the pending files are disarmed and the
+  command fails with `upload_panel_not_triggered`. This also happens when the
+  selector is not a file input.
+
+Like native Quartz input, the WebKit file open panel is presented by macOS only
+in a real GUI session. Validation (`upload_file_not_found`,
+`upload_multiple_not_allowed`) and arming are environment-independent, but the
+panel that actually sets the files requires a logged-in GUI session (the same
+gate as `click --native`); a headless daemon returns `upload_panel_not_triggered`.
+
+Each `--tab <id>` upload arms files only for that modeled tab; a click on the
+visible tab cannot consume another tab's pending upload files.
 
 ### Wait and observe page state
 

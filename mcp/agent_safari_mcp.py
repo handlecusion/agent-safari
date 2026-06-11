@@ -37,6 +37,7 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "screenshot_element", "description": "Capture a screenshot clipped to a CSS selector or snapshot ref.", "cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>", "[--tab <id>]"], "input": ["selector", "path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "element", "strategy", "tabId"]},
     {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--tab <id>]"], "input": ["selector", "native", "fallback", "tab"], "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"]},
     {"name": "fill", "description": "Fill an input-like element matching a CSS selector or snapshot ref.", "cli": ["fill", "<selector-or-ref>", "<value>", "[--tab <id>]"], "input": ["selector", "value", "tab"], "result": ["selector", "value", "tabId"]},
+    {"name": "upload", "description": "Set files on an <input type=file> by selector or snapshot ref via the WebKit open panel.", "cli": ["upload", "<selector-or-ref>", "<path>", "[<path>...]", "[--tab <id>]"], "input": ["selector", "paths", "tab"], "result": ["selector", "files", "fileCount", "changeEventSynthesized", "strategy", "tabId"]},
     {"name": "key", "description": "Dispatch synthetic DOM keyboard events.", "cli": ["key", "<key>", "[--tab <id>]"], "input": ["key", "tab"], "result": ["key", "tabId"]},
     {"name": "type_text", "description": "Insert text into the active input, textarea, or contenteditable element.", "cli": ["type", "<text>", "[--tab <id>]"], "input": ["text", "tab"], "result": ["text", "tabId"]},
     {"name": "wait", "description": "Sleep for the requested number of milliseconds in the daemon command queue.", "cli": ["wait", "<ms>", "[--tab <id>]"], "input": ["ms", "tab"], "result": ["waitedMs", "tabId"]},
@@ -253,6 +254,11 @@ def create_server() -> Any:
     def fill(selector: str, value: str, tab: str = "") -> dict[str, Any]:
         """Fill an input-like element matching a CSS selector or snapshot ref."""
         return _run_cli("fill", selector, value, tab=tab)
+
+    @mcp.tool()
+    def upload(selector: str, paths: list[str], tab: str = "") -> dict[str, Any]:
+        """Set files on an <input type=file> by selector or snapshot ref. Pass multiple paths only when the input has the multiple attribute."""
+        return _run_cli("upload", selector, *paths, tab=tab)
 
     @mcp.tool()
     def key(key: str, tab: str = "") -> dict[str, Any]:

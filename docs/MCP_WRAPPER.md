@@ -103,6 +103,7 @@ hermes mcp add agent-safari \
 - `screenshot_element(selector, path)`
 - `click(selector, native=False, fallback=True)`
 - `fill(selector, value)`
+- `upload(selector, paths)` set files on an `<input type=file>`; pass multiple paths only when the input has the `multiple` attribute
 - `key(key)`
 - `type_text(text)`
 - `wait(ms)`

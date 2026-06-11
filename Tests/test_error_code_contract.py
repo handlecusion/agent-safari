@@ -34,6 +34,9 @@ EXPECTED_MAPPINGS = [
     # Pre-existing codes must still be present
     ("case .nativeClickUnverified", "native_click_unverified"),
     ("case .nativeInputFailed", "native_input_failed"),
+    ("case .uploadFileNotFound", "upload_file_not_found"),
+    ("case .uploadPanelNotTriggered", "upload_panel_not_triggered"),
+    ("case .uploadMultipleNotAllowed", "upload_multiple_not_allowed"),
 ]
 
 

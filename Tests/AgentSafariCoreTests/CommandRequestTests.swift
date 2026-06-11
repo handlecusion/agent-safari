@@ -43,6 +43,22 @@ import Testing
     #expect(command.params == ["selector": "@e2", "value": "Genie"])
 }
 
+@Test func commandRequestParsesUploadSelectorAndSinglePath() throws {
+    let command = try CommandRequest.parse(["upload", "#file", "/tmp/a.txt"])
+
+    #expect(command.method == "upload")
+    #expect(command.params["selector"] == "#file")
+    #expect(command.params["paths"] == "[\"\\/tmp\\/a.txt\"]")
+}
+
+@Test func commandRequestParsesUploadRefAndMultiplePaths() throws {
+    let command = try CommandRequest.parse(["upload", "@e3", "/tmp/a.txt", "/tmp/b.png"])
+
+    #expect(command.method == "upload")
+    #expect(command.params["selector"] == "@e3")
+    #expect(command.params["paths"] == "[\"\\/tmp\\/a.txt\",\"\\/tmp\\/b.png\"]")
+}
+
 @Test func commandRequestParsesKeyValue() throws {
     let command = try CommandRequest.parse(["key", "Enter"])
 

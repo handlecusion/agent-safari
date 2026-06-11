@@ -17,6 +17,7 @@ import Testing
         "screenshot-element": ["#hero", "--out", "/tmp/hero.png"],
         "click": ["#submit"],
         "fill": ["#name", "Genie"],
+        "upload": ["#file", "/tmp/example.txt"],
         "key": ["Enter"],
         "type": ["hello"],
         "wait": ["100"],

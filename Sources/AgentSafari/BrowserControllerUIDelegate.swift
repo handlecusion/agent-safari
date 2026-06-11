@@ -27,6 +27,23 @@ extension BrowserController {
 
     func webView(
         _ webView: WKWebView,
+        runOpenPanelWith parameters: WKOpenPanelParameters,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping ([URL]?) -> Void
+    ) {
+        // The upload command arms pending file URLs for this webView before clicking
+        // the <input type="file">. Consume them here so WebKit fills the input without
+        // a real GUI open panel. With nothing armed, dismiss explicitly and log it.
+        if let urls = consumePendingUploadFileURLs(for: webView) {
+            completionHandler(urls)
+            return
+        }
+        fputs("[agent-safari] open panel dismissed (no pending upload files)\n", stderr)
+        completionHandler(nil)
+    }
+
+    func webView(
+        _ webView: WKWebView,
         runJavaScriptAlertPanelWithMessage message: String,
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping () -> Void

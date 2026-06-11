@@ -25,7 +25,8 @@ Do not propose or implement these unless the user explicitly reopens scope with 
 - claims of CDP parity;
 - hosted multi-user browser service;
 - browser extension dependency;
-- true multi-tab/profile isolation before single-WebView semantics are stable.
+- true multi-tab/profile isolation beyond the Phase 5.5 shared-cookie parallel tab targeting (per-tab profile/cookie isolation, multiple native windows, hosted multi-session remain out);
+- media stream reassembly or DRM circumvention (HLS/DASH segment downloading, FairPlay/Widevine bypass, yt-dlp-style extraction) — media support ends at observation, playback state, frame evidence, and surfaced resource URLs.
 
 ## Development Process
 

@@ -23,6 +23,7 @@ enum AgentSafariError: Error, LocalizedError {
     case tabNotActiveForNativeInput(String)
     case socketPathTooLong(String)
     case socketOperationFailed(String)
+    case artifactWriteFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -48,6 +49,7 @@ enum AgentSafariError: Error, LocalizedError {
         case .tabNotActiveForNativeInput(let id): return "Native input requires the visible tab; tab \(id) is not active. Use tab-switch first or use DOM input"
         case .socketPathTooLong(let path): return "Unix socket path is too long: \(path)"
         case .socketOperationFailed(let message): return message
+        case .artifactWriteFailed(let message): return "Failed to write session snapshot artifact: \(message)"
         }
     }
 
@@ -95,6 +97,8 @@ enum AgentSafariError: Error, LocalizedError {
             return "tab_closed_during_command"
         case .tabNotActiveForNativeInput:
             return "tab_not_active_for_native_input"
+        case .artifactWriteFailed:
+            return "artifact_write_failed"
         }
     }
 }

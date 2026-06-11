@@ -174,6 +174,10 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "status", params: [:])
         case "observe":
             return CommandRequest(method: "observe", params: [:])
+        case "session-snapshot":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "sessionSnapshot", params: ["path": args[1]])
+        
         default:
             throw CommandRequestError.unknownCommand(command)
         }

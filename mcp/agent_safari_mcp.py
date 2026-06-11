@@ -62,6 +62,7 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tabs", "description": "List modeled tabs for the current daemon session.", "cli": ["tabs"], "result": ["tabs", "activeTabId"]},
     {"name": "tab_new", "description": "Create a new modeled WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
     {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
+    {"name": "session_snapshot", "description": "Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics.", "cli": ["session-snapshot", "<path>"], "input": ["path"], "result": ["path", "tabCount"]},
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
 ]
 
@@ -393,6 +394,11 @@ def create_server() -> Any:
     def tab_close(tab_id: str) -> dict[str, Any]:
         """Close a modeled tab id when supported."""
         return _run_cli("tab-close", tab_id)
+
+    @mcp.tool()
+    def session_snapshot(path: str) -> dict[str, Any]:
+        """Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics."""
+        return _run_cli("session-snapshot", path)
 
     return mcp
 

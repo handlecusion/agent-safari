@@ -35,11 +35,11 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     var tabsModel: [BrowserTab] = []
     var navigationContinuations: [ObjectIdentifier: CheckedContinuation<Void, Error>] = [:]
     private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
-    private var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
+    var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var consoleUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
-    private var consoleCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
+    var consoleCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
-    private var pendingSuppressedDialogsByTab: [ObjectIdentifier: [String]] = [:]
+    var pendingSuppressedDialogsByTab: [ObjectIdentifier: [String]] = [:]
     private var pendingUploadFileURLsByTab: [ObjectIdentifier: [URL]] = [:]
     let sessionID = UUID().uuidString
     let profileName: String

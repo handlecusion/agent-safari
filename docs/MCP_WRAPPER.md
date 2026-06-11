@@ -126,6 +126,7 @@ hermes mcp add agent-safari \
 - `tab_new(url=None)`
 - `tab_switch(tab_id)`
 - `tab_close(tab_id)`
+- `session_snapshot(path)` — dump full session state as a JSON artifact for failure reports
 
 Most tools return the CLI result object decoded from the JSON-RPC response. For
 example, `text()` returns an object like `{ "text": "..." }`. The wrapper also

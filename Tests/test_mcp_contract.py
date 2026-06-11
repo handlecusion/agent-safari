@@ -54,6 +54,7 @@ EXPECTED_TOOLS = {
     "console_start",
     "console_list",
     "console_stop",
+    "session_snapshot",
 }
 
 

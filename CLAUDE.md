@@ -64,6 +64,7 @@ python3 Tests/test_same_document_nav_contract.py
 python3 Tests/test_dialog_evidence_contract.py
 python3 Tests/test_console_capture_contract.py
 python3 Tests/test_upload_contract.py
+python3 Tests/test_session_snapshot_contract.py
 bash scripts/smoke_cli.sh
 ```
 

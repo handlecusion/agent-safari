@@ -168,6 +168,10 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
             result = JSONValue.fromStringMap(try await browser.status())
         case "observe":
             result = JSONValue.fromStringMap(try await browser.observe())
+        case "sessionSnapshot":
+            guard let path = params["path"] else { throw AgentSafariError.missingParam("path") }
+            result = JSONValue.fromStringMap(try await browser.sessionSnapshot(path: path))
+        
         default:
             throw AgentSafariError.unknownMethod(method)
         }

@@ -46,7 +46,8 @@ import Testing
         "tab-switch": ["tab-1"],
         "tab-close": ["tab-1"],
         "status": [],
-        "observe": []
+        "observe": [],
+        "session-snapshot": ["/tmp/session.json"]
     ]
 
     #expect(Set(commandArguments.keys) == AgentSafariMetadata.clientCommands)

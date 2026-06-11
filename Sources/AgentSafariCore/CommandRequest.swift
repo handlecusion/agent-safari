@@ -174,6 +174,15 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "status", params: [:])
         case "observe":
             return CommandRequest(method: "observe", params: [:])
+        case "downloads":
+            return CommandRequest(method: "downloads", params: [:])
+        case "wait-for-download":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("id") }
+            var params = ["id": args[1], "timeoutMs": Self.defaultTimeoutMs]
+            if let timeoutMs = try parseTimeoutMs(args, startingAt: 2) {
+                params["timeoutMs"] = timeoutMs
+            }
+            return CommandRequest(method: "waitForDownload", params: params)
         default:
             throw CommandRequestError.unknownCommand(command)
         }

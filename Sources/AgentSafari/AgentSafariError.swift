@@ -18,6 +18,7 @@ enum AgentSafariError: Error, LocalizedError {
     case uploadFileTooLargeForFallback(String)
     case unknownMethod(String)
     case unknownTab(String)
+    case unknownDownload(String)
     case navigationInProgress(String)
     case tabClosedDuringCommand(String)
     case tabNotActiveForNativeInput(String)
@@ -43,6 +44,7 @@ enum AgentSafariError: Error, LocalizedError {
         case .uploadFileTooLargeForFallback(let path): return "Upload file exceeds the 8 MB DOM-fallback limit (grant Accessibility permission for native open-panel upload): \(path)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
+        case .unknownDownload(let id): return "Unknown download id: \(id)"
         case .navigationInProgress(let id): return "Navigation already in progress on tab \(id); wait for it or target another tab"
         case .tabClosedDuringCommand(let id): return "Tab \(id) was closed while the command was running"
         case .tabNotActiveForNativeInput(let id): return "Native input requires the visible tab; tab \(id) is not active. Use tab-switch first or use DOM input"
@@ -89,6 +91,8 @@ enum AgentSafariError: Error, LocalizedError {
             return "socket_error"
         case .unknownTab:
             return "unknown_tab"
+        case .unknownDownload:
+            return "unknown_download"
         case .navigationInProgress:
             return "navigation_in_progress"
         case .tabClosedDuringCommand:

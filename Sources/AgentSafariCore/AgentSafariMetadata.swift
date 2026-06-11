@@ -12,6 +12,6 @@ public enum AgentSafariMetadata {
         "network", "network-start", "network-list", "network-stop", "network-export",
         "console", "console-start", "console-list", "console-stop",
         "session", "tabs", "tab-new", "tab-switch", "tab-close",
-        "status", "observe"
+        "status", "observe", "downloads", "wait-for-download"
     ]
 }

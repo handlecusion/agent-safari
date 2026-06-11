@@ -31,6 +31,7 @@ EXPECTED_MAPPINGS = [
     ("case .javascriptEncodingFailed", "javascript_encoding_failed"),
     ("case .socketPathTooLong, .socketOperationFailed", "socket_error"),
     ("case .unknownTab", "unknown_tab"),
+    ("case .unknownDownload", "unknown_download"),
     # Pre-existing codes must still be present
     ("case .nativeClickUnverified", "native_click_unverified"),
     ("case .nativeInputFailed", "native_input_failed"),

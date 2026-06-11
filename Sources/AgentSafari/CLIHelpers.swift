@@ -53,6 +53,8 @@ func usage() {
     agent-safari tab-switch <id> [--socket /tmp/agent-safari.sock]
     agent-safari tab-close <id> [--socket /tmp/agent-safari.sock]
     agent-safari status|observe [--socket /tmp/agent-safari.sock]
+    agent-safari downloads [--socket /tmp/agent-safari.sock]
+    agent-safari wait-for-download <id|--last> [--timeout <ms>] [--socket /tmp/agent-safari.sock]
 
     Any page command accepts --tab <id> to target a modeled tab without switching
     the active tab (default: active tab). Commands on different tabs run in parallel.

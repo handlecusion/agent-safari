@@ -10,9 +10,16 @@ SHOT="$SMOKE_DIR/full-page.png"
 ELEMENT_SHOT="$SMOKE_DIR/element.png"
 NETWORK_EXPORT="$SMOKE_DIR/network.har.json"
 UPLOAD_FILE="$SMOKE_DIR/upload-sample.txt"
+DOWNLOAD_SERVER="$SMOKE_DIR/download_server.py"
+DOWNLOAD_PORT_FILE="$SMOKE_DIR/download_port.txt"
 DAEMON_PID=""
+DOWNLOAD_SERVER_PID=""
 
 cleanup() {
+  if [[ -n "$DOWNLOAD_SERVER_PID" ]] && kill -0 "$DOWNLOAD_SERVER_PID" 2>/dev/null; then
+    kill "$DOWNLOAD_SERVER_PID" 2>/dev/null || true
+    wait "$DOWNLOAD_SERVER_PID" 2>/dev/null || true
+  fi
   if [[ -n "$DAEMON_PID" ]] && kill -0 "$DAEMON_PID" 2>/dev/null; then
     kill "$DAEMON_PID" 2>/dev/null || true
     wait "$DAEMON_PID" 2>/dev/null || true
@@ -564,6 +571,142 @@ if printf '%s\n' "$usage_console" | grep -E 'console( |$)|console-(start|stop)' 
   assert_ok_json "$response"
 else
   log "console commands not advertised; skipping optional console smoke"
+log "verifying download handling: attachment navigate + download-link click do not hang and write files"
+cat > "$DOWNLOAD_SERVER" <<'PYSERVER'
+import http.server, socketserver, sys
+
+PORT_FILE = sys.argv[1]
+PAYLOAD = b"AGENT-SAFARI-SMOKE-DOWNLOAD-PAYLOAD\n"
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+    def do_GET(self):
+        if self.path in ("/file.bin", "/file2.bin"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="smoke-download.bin"')
+            self.send_header("Content-Length", str(len(PAYLOAD)))
+            self.end_headers()
+            self.wfile.write(PAYLOAD)
+        elif self.path == "/page.html":
+            body = (b'<!doctype html><html><body>'
+                    b'<a id="dl" download="clicked-download.txt" '
+                    b'href="data:text/plain,AGENT-SAFARI-SMOKE-DOWNLOAD-PAYLOAD">download link</a>'
+                    b'</body></html>')
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+with socketserver.TCPServer(("127.0.0.1", 0), Handler) as httpd:
+    with open(PORT_FILE, "w") as fh:
+        fh.write(str(httpd.server_address[1]))
+    httpd.serve_forever()
+PYSERVER
+
+rm -f "$DOWNLOAD_PORT_FILE"
+python3 "$DOWNLOAD_SERVER" "$DOWNLOAD_PORT_FILE" &
+DOWNLOAD_SERVER_PID=$!
+download_deadline=$((SECONDS + 15))
+while (( SECONDS < download_deadline )); do
+  [[ -s "$DOWNLOAD_PORT_FILE" ]] && break
+  sleep 0.2
+done
+if [[ ! -s "$DOWNLOAD_PORT_FILE" ]]; then
+  log "download server did not report a port"
+  exit 1
+fi
+DOWNLOAD_PORT="$(cat "$DOWNLOAD_PORT_FILE")"
+log "download server on 127.0.0.1:$DOWNLOAD_PORT"
+
+assert_download_completed() {
+  python3 - "$1" "AGENT-SAFARI-SMOKE-DOWNLOAD-PAYLOAD" <<'PY'
+import json
+import os
+import sys
+payload = json.loads(sys.argv[1])
+expected_marker = sys.argv[2]
+result = payload.get("result", {})
+if not payload.get("ok"):
+    raise SystemExit(f"download wait was not ok: {payload}")
+if result.get("state") != "completed":
+    raise SystemExit(f"download did not complete: {payload}")
+path = result.get("path")
+if not path or not os.path.isfile(path) or os.path.getsize(path) <= 0:
+    raise SystemExit(f"download file missing or empty: {path!r}; payload={payload}")
+with open(path, "rb") as fh:
+    data = fh.read()
+if expected_marker.encode() not in data:
+    raise SystemExit(f"download bytes did not match expected payload: {data!r}")
+print(f"download_path={path} bytes={len(data)} state={result.get('state')}")
+PY
+}
+
+assert_download_started() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+if not payload.get("ok"):
+    raise SystemExit(f"command was not ok: {payload}")
+if str(result.get("downloadStarted")).lower() != "true" or not result.get("downloadId"):
+    raise SystemExit(f"expected downloadStarted/downloadId evidence: {payload}")
+print(f"downloadId={result.get('downloadId')}")
+PY
+}
+
+# Run the click case first on a clean tab history. Navigating directly to a download
+# URL leaves the tab's current entry on that URL; clicking a link back to the same URL
+# afterwards can be deduplicated by WebKit, so the two cases use independent tabs.
+log "click on a download link reports downloadStarted instead of a silent no-op"
+response="$(run_cli navigate "http://127.0.0.1:$DOWNLOAD_PORT/page.html")"
+assert_ok_json "$response"
+response="$(run_cli wait-for-selector '#dl' --timeout 5000)"
+assert_ok_json "$response"
+response="$(run_cli click '#dl')"
+assert_ok_json "$response"
+click_download="$(assert_download_started "$response")"
+log "click download evidence: $click_download"
+response="$(run_cli wait-for-download --last --timeout 8000)"
+click_completed="$(assert_download_completed "$response")"
+log "click download completed: $click_completed"
+
+# Use a fresh tab so the navigate runs against clean history (a download leaves the tab's
+# current entry on the download URL, which can dedup a later same-tab download navigation).
+log "navigate to attachment URL returns downloadStarted instead of hanging or erroring"
+response="$(run_cli tab-new)"
+assert_ok_json "$response"
+download_tab="$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['result']['id'])" "$response")"
+response="$(run_cli navigate "http://127.0.0.1:$DOWNLOAD_PORT/file2.bin" --tab "$download_tab")"
+assert_ok_json "$response"
+nav_download="$(assert_download_started "$response")"
+log "navigate download evidence on $download_tab: $nav_download"
+response="$(run_cli wait-for-download --last --timeout 8000)"
+nav_completed="$(assert_download_completed "$response")"
+log "navigate download completed: $nav_completed"
+
+response="$(run_cli downloads)"
+assert_ok_json "$response"
+python3 - "$response" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+downloads = result.get("downloads", [])
+if len([d for d in downloads if d.get("state") == "completed"]) < 2:
+    raise SystemExit(f"expected at least two completed downloads: {payload}")
+PY
+log "verified downloads list reports completed downloads"
+
+if [[ -n "$DOWNLOAD_SERVER_PID" ]] && kill -0 "$DOWNLOAD_SERVER_PID" 2>/dev/null; then
+  kill "$DOWNLOAD_SERVER_PID" 2>/dev/null || true
+  wait "$DOWNLOAD_SERVER_PID" 2>/dev/null || true
+  DOWNLOAD_SERVER_PID=""
 fi
 
 log "ok"

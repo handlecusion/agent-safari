@@ -14,6 +14,8 @@ extension BrowserController {
         guard navigationContinuations[key] == nil else {
             throw AgentSafariError.navigationInProgress(tabID(for: target) ?? "unknown")
         }
+        // Discard download evidence from earlier actions so it cannot attach to this navigate.
+        setPendingDownloadStarted("", for: target)
         if isSameDocumentNavigation(to: url, in: target) {
             // WebKit performs same-document navigations (fragment-only changes) without
             // firing didFinish/didFail, so the load/continuation path would hang forever.
@@ -31,6 +33,12 @@ extension BrowserController {
             navigationContinuations[key] = continuation
             if target === activeTabWebView { updateAddressBar(urlString) }
             target.load(URLRequest(url: url))
+        }
+        // A response that became a download resumed the continuation without loading a
+        // frame; report it instead of an empty/stale page result so callers never hang.
+        if let downloadID = pendingDownloadStarted(for: target) {
+            setPendingDownloadStarted("", for: target)
+            return ["url": target.url?.absoluteString ?? "", "title": target.title ?? "", "downloadStarted": "true", "downloadId": downloadID]
         }
         if target === activeTabWebView { updateAddressBar(target.url?.absoluteString ?? urlString) }
         return ["url": target.url?.absoluteString ?? "", "title": target.title ?? ""]

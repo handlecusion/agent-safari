@@ -54,6 +54,8 @@ EXPECTED_TOOLS = {
     "console_start",
     "console_list",
     "console_stop",
+    "cookies_export",
+    "cookies_import",
 }
 
 

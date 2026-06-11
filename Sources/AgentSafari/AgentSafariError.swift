@@ -16,6 +16,7 @@ enum AgentSafariError: Error, LocalizedError {
     case uploadPanelNotTriggered(String)
     case uploadMultipleNotAllowed(String)
     case uploadFileTooLargeForFallback(String)
+    case cookieFileInvalid(String)
     case unknownMethod(String)
     case unknownTab(String)
     case navigationInProgress(String)
@@ -41,6 +42,7 @@ enum AgentSafariError: Error, LocalizedError {
         case .uploadPanelNotTriggered(let target): return "Upload click did not open a file panel: \(target)"
         case .uploadMultipleNotAllowed(let target): return "Element does not accept multiple files: \(target)"
         case .uploadFileTooLargeForFallback(let path): return "Upload file exceeds the 8 MB DOM-fallback limit (grant Accessibility permission for native open-panel upload): \(path)"
+        case .cookieFileInvalid(let detail): return "Cookie file invalid: \(detail)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
         case .navigationInProgress(let id): return "Navigation already in progress on tab \(id); wait for it or target another tab"
@@ -67,6 +69,8 @@ enum AgentSafariError: Error, LocalizedError {
             return "upload_multiple_not_allowed"
         case .uploadFileTooLargeForFallback:
             return "upload_file_too_large_for_fallback"
+        case .cookieFileInvalid:
+            return "cookie_file_invalid"
         case .waitTimedOut:
             return "wait_timeout"
         case .invalidURL:

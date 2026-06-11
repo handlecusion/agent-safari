@@ -63,6 +63,8 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tab_new", "description": "Create a new modeled WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
     {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
+    {"name": "cookies_export", "description": "Export all cookies from the daemon websiteDataStore to a JSON file (0600 permissions). Cookies are session-wide and shared across all tabs.", "cli": ["cookies", "export", "<path>"], "input": ["path"], "result": ["path", "count", "tabId"]},
+    {"name": "cookies_import", "description": "Import cookies from a previously-exported JSON file into the daemon websiteDataStore. Cookies are session-wide; all tabs share them.", "cli": ["cookies", "import", "<path>"], "input": ["path"], "result": ["path", "count", "tabId"]},
 ]
 
 for _tool in TOOL_CONTRACTS:
@@ -393,6 +395,17 @@ def create_server() -> Any:
     def tab_close(tab_id: str) -> dict[str, Any]:
         """Close a modeled tab id when supported."""
         return _run_cli("tab-close", tab_id)
+
+
+    @mcp.tool()
+    def cookies_export(path: str) -> dict[str, Any]:
+        """Export all cookies from the daemon websiteDataStore to a JSON file. The file is written with 0600 permissions because cookies are credentials. Cookies are session-wide and shared across all tabs; --tab has no effect."""
+        return _run_cli("cookies", "export", path)
+
+    @mcp.tool()
+    def cookies_import(path: str) -> dict[str, Any]:
+        """Import cookies from a previously-exported JSON file into the daemon websiteDataStore. Cookies are session-wide; all tabs share them. --tab has no effect."""
+        return _run_cli("cookies", "import", path)
 
     return mcp
 

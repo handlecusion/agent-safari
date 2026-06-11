@@ -566,6 +566,46 @@ else
   log "console commands not advertised; skipping optional console smoke"
 fi
 
+log "verifying cookies export and import"
+COOKIE_EXPORT="$SMOKE_DIR/cookies.json"
+# Set a cookie via JS on the current page then export
+response="$(run_cli evaluate 'document.cookie="smoke_cookie=smoke_value_1; path=/"')"
+assert_ok_json "$response"
+response="$(run_cli cookies export "$COOKIE_EXPORT")"
+assert_ok_json "$response"
+assert_result_field "$response" "path" "$COOKIE_EXPORT"
+python3 - "$COOKIE_EXPORT" <<'COOKIEPY'
+import json, os, stat, sys
+path = sys.argv[1]
+if not os.path.isfile(path) or os.path.getsize(path) == 0:
+    raise SystemExit(f"cookies export file missing or empty: {path}")
+mode = stat.S_IMODE(os.stat(path).st_mode)
+if mode != 0o600:
+    raise SystemExit(f"cookies export file has wrong permissions: {oct(mode)} (expected 0o600)")
+data = json.load(open(path))
+if data.get("schemaVersion") != 1:
+    raise SystemExit(f"unexpected schemaVersion: {data.get('schemaVersion')}")
+cookies = data.get("cookies", [])
+names = [c["name"] for c in cookies]
+if "smoke_cookie" not in names:
+    raise SystemExit(f"smoke_cookie not found in export; cookies={names}")
+count = len(cookies)
+print(f"cookies export ok: count={count} smoke_cookie present permissions=0o600")
+COOKIEPY
+# Import the same file back (idempotent round-trip)
+response="$(run_cli cookies import "$COOKIE_EXPORT")"
+assert_ok_json "$response"
+assert_result_field "$response" "path" "$COOKIE_EXPORT"
+python3 - "$response" <<'COOKIEPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+count = int(payload.get("result", {}).get("count", -1))
+if count < 1:
+    raise SystemExit(f"cookies import returned count < 1: {payload}")
+print(f"cookies import ok: count={count}")
+COOKIEPY
+log "verified cookies export and import"
+
 log "ok"
 log "artifacts: $SMOKE_DIR"
 

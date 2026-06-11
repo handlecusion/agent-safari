@@ -259,6 +259,72 @@ The daemon exposes a modeled tab set inside one native WebKit window. Each model
 
 `session` reports `sessionId`, `activeTabId`, `profile`, `persistent`, `dataStore`, and `tabCount`. `--profile <name>` is metadata reserved for future named stores; today persistent mode uses WebKit's default data store, and `--ephemeral` uses a non-persistent store. Use separate daemon sockets plus `--ephemeral` for isolated automation runs.
 
+### Cookie export and import
+
+Export all cookies from the daemon's `WKWebsiteDataStore` to a JSON file and import them back. Cookies are session-wide (shared across all modeled tabs in a daemon); the `--tab` flag has no effect on these commands.
+
+```sh
+.build/debug/agent-safari cookies export /tmp/my-session.cookies.json --socket /tmp/agent-safari.sock
+.build/debug/agent-safari cookies import /tmp/my-session.cookies.json --socket /tmp/agent-safari.sock
+```
+
+The hyphenated aliases are equivalent:
+
+```sh
+.build/debug/agent-safari cookies-export /tmp/my-session.cookies.json --socket /tmp/agent-safari.sock
+.build/debug/agent-safari cookies-import /tmp/my-session.cookies.json --socket /tmp/agent-safari.sock
+```
+
+**Security warning:** The export file contains all cookies for the daemon's WebKit data store, including session tokens and auth cookies. It is written with `0600` permissions (`rw-------`) so only the owning user can read it. Treat it like a password file: do not commit it to version control, do not pass it to untrusted processes, and delete it when done.
+
+Result fields:
+
+- `path`: the written (export) or read (import) file path.
+- `count`: number of cookies exported or imported.
+
+Export file format (`schemaVersion: 1`):
+
+```json
+{
+  "schemaVersion": 1,
+  "cookies": [
+    {
+      "name": "session",
+      "value": "abc123",
+      "domain": "example.com",
+      "path": "/",
+      "secure": true,
+      "httpOnly": true,
+      "expiresEpoch": 1800000000.0,
+      "sameSite": "lax"
+    }
+  ]
+}
+```
+
+Fields `expiresEpoch` and `sameSite` are omitted for session cookies and unset same-site policies respectively.
+
+**Cross-daemon recipe** (log in once, share cookies with N parallel daemons):
+
+```sh
+# Daemon A: log in and export
+SOCKET_A=/tmp/agent-safari-a.sock
+.build/debug/agent-safari daemon --socket "$SOCKET_A" &
+.build/debug/agent-safari open 'https://example.com/login' --socket "$SOCKET_A"
+# ... perform login actions ...
+.build/debug/agent-safari cookies export /tmp/session.json --socket "$SOCKET_A"
+
+# Daemon B: import and use
+SOCKET_B=/tmp/agent-safari-b.sock
+.build/debug/agent-safari daemon --socket "$SOCKET_B" &
+.build/debug/agent-safari cookies import /tmp/session.json --socket "$SOCKET_B"
+.build/debug/agent-safari open 'https://example.com/dashboard' --socket "$SOCKET_B"
+```
+
+Import errors:
+
+- `cookie_file_invalid`: malformed JSON, missing required fields (`name`, `value`, `domain`, `path`), or the file cannot be read.
+
 ### Parallel multi-tab targeting
 
 Any page command accepts a global `--tab <id>` option that routes it to a modeled tab without changing the active tab. Commands addressed to different tabs run concurrently: a long `wait-for-*` on one tab does not delay commands on another, and parallel `navigate` calls land on their own tabs. Every result reports the `tabId` it acted on.

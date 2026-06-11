@@ -170,6 +170,14 @@ public struct CommandRequest: Equatable {
         case "tab-close":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("id") }
             return CommandRequest(method: "tabClose", params: ["id": args[1]])
+        case "cookies-export":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "cookiesExport", params: ["path": args[1]])
+        case "cookies-import":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "cookiesImport", params: ["path": args[1]])
+        case "cookies":
+            return try parseCookiesCommand(args)
         case "status":
             return CommandRequest(method: "status", params: [:])
         case "observe":
@@ -286,6 +294,20 @@ public struct CommandRequest: Equatable {
         case "stop":
             guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
             return CommandRequest(method: "consoleStop", params: [:])
+        default:
+            throw CommandRequestError.unknownArgument(args[1])
+        }
+    }
+
+    private static func parseCookiesCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 2 else { throw CommandRequestError.missingArgument("cookies subcommand") }
+        switch args[1] {
+        case "export":
+            guard args.count >= 3 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "cookiesExport", params: ["path": args[2]])
+        case "import":
+            guard args.count >= 3 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "cookiesImport", params: ["path": args[2]])
         default:
             throw CommandRequestError.unknownArgument(args[1])
         }

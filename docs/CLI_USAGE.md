@@ -355,7 +355,7 @@ The hyphenated aliases are equivalent:
 .build/debug/agent-safari cookies-import /tmp/my-session.cookies.json --socket /tmp/agent-safari.sock
 ```
 
-**Security warning:** The export file contains all cookies for the daemon's WebKit data store, including session tokens and auth cookies. It is written with `0600` permissions (`rw-------`) so only the owning user can read it. Treat it like a password file: do not commit it to version control, do not pass it to untrusted processes, and delete it when done. Note that the default persistent profile shares WebKit's default data store, so exporting from it dumps the user's real browsing cookies — for tests and scripted runs, export from `--ephemeral` daemons so only cookies your automation created leave the store.
+**Security warning:** The export file contains all cookies for the daemon's WebKit data store, including session tokens and auth cookies. It is written with `0600` permissions (`rw-------`) so only the owning user can read it. Treat it like a credentials file: do not commit it to version control, do not pass it to untrusted processes, and delete it when done. Note that the default persistent profile shares WebKit's default data store, so exporting from it dumps the user's real browsing cookies — for tests and scripted runs, export from `--ephemeral` daemons so only cookies your automation created leave the store.
 
 Result fields:
 

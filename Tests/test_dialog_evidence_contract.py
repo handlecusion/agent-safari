@@ -25,7 +25,7 @@ def test_per_tab_dialog_buffer_mirrors_popup_shape() -> None:
     source = read(CONTROLLER)
     # Per-tab storage keyed by ObjectIdentifier, same shape as popup redirect.
     assert "pendingSuppressedDialogsByTab: [ObjectIdentifier: [String]]" in source
-    # Computed accessor resolves through `webView` (task-local aware) like the popup one.
+    # Computed accessor resolves through `webView` (TaskLocal aware) like the popup one.
     assert "var pendingSuppressedDialogs: [String]" in source
     assert "pendingSuppressedDialogsByTab[ObjectIdentifier(webView)]" in source
     # Explicit setter takes the delegate's webView, mirroring setPendingPopupRedirectURL.

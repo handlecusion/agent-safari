@@ -41,7 +41,7 @@ enum TabTarget {
 }
 
 /// Per-command JS dialog confirm policy. Confirm dialogs fire synchronously
-/// inside the command's JS evaluation, so a task-local applies for the duration
+/// inside the command's JS evaluation, so a TaskLocal applies for the duration
 /// of one command Task. Values: "accept" | "dismiss" (nil = dismiss).
 enum DialogPolicy {
     @TaskLocal static var confirm: String?
@@ -75,7 +75,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     let ephemeral: Bool
     var activeTabID: String
 
-    /// Resolves to the command's target tab (TabTarget task-local) or the active tab.
+    /// Resolves to the command's target tab (TabTarget TaskLocal) or the active tab.
     /// The RPC layer validates unknown tab ids before dispatch and re-checks after
     /// completion, so a fallback here only happens if the tab closed mid-command.
     var webView: WKWebView {

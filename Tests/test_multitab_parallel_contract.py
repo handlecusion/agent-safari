@@ -25,7 +25,7 @@ def test_task_local_tab_target_exists() -> None:
     source = read(CONTROLLER)
     assert "enum TabTarget" in source
     assert "@TaskLocal static var tabID: String?" in source
-    # webView resolution must consult the task-local target before the active tab
+    # webView resolution must consult the TaskLocal target before the active tab
     assert "TabTarget.tabID ?? activeTabID" in source
 
 

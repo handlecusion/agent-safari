@@ -222,12 +222,35 @@ extension BrowserController {
           const anchor = typeof element.closest === 'function' ? element.closest('a[target]') : null;
           const anchorTarget = anchor ? anchor.getAttribute('target') : null;
           const popupExpected = !!anchorTarget && !['_self', '_parent', '_top'].includes(anchorTarget);
+          // A click on a cross-document anchor (or one with a download attribute) can become
+          // a download whose callback arrives after a navigation round-trip. Same-document
+          // fragment links and in-page buttons never do, so they skip the longer wait.
+          const navAnchor = typeof element.closest === 'function' ? element.closest('a[href],a[download]') : null;
+          let navigationLikely = false;
+          if (navAnchor) {
+            if (navAnchor.hasAttribute('download')) {
+              navigationLikely = true;
+            } else {
+              try {
+                const dest = new URL(navAnchor.href, document.baseURI);
+                const here = new URL(document.URL);
+                const sameDocument = dest.origin === here.origin && dest.pathname === here.pathname && dest.search === here.search;
+                const downloadableScheme = ['http:', 'https:', 'file:', 'data:', 'blob:'].includes(dest.protocol);
+                navigationLikely = downloadableScheme && !sameDocument;
+              } catch (_) {
+                navigationLikely = false;
+              }
+            }
+          }
           element.click();
-          return popupExpected;
+          return { popupExpected, navigationLikely };
         })()
         """
-        let popupExpected = (try await webView.evaluateJavaScript(script) as? Bool) ?? false
+        let clickInfo = (try await webView.evaluateJavaScript(script) as? [String: Any]) ?? [:]
+        let popupExpected = (clickInfo["popupExpected"] as? Bool) ?? false
+        let navigationLikely = (clickInfo["navigationLikely"] as? Bool) ?? false
         await settlePendingPopupRedirect(expected: popupExpected)
+        if navigationLikely { await settlePendingDownload() }
         var result = target.resultFields
         result.merge([
             "strategy": "js-click",
@@ -301,9 +324,24 @@ extension BrowserController {
         }
     }
 
+    // WebKit decides downloads asynchronously after a cross-document anchor click; give it a
+    // bounded window so a download triggered by this click is reported on the click that
+    // caused it, returning as soon as the evidence arrives (the common case settles in well
+    // under this window). Only called when the click could navigate (cross-document anchor or
+    // a download attribute), so plain buttons and same-document links stay fast. `downloads` /
+    // `wait-for-download` remain the authoritative confirmation regardless.
+    private func settlePendingDownload() async {
+        guard pendingDownloadStarted == nil else { return }
+        for _ in 0..<50 {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            if pendingDownloadStarted != nil { return }
+        }
+    }
+
     func click(selector: String, native: Bool = false, fallbackPolicy: String = "js") async throws -> [String: String] {
-        // Discard popup evidence from earlier actions so it cannot attach to this click.
+        // Discard popup/download evidence from earlier actions so it cannot attach to this click.
         pendingPopupRedirectURL = nil
+        pendingDownloadStarted = nil
         if native {
             // Quartz events land on the visible tab; refuse rather than click the wrong page.
             guard webView === activeTabWebView else {
@@ -334,6 +372,7 @@ extension BrowserController {
                         result["nativeError"] = nativeError
                         result["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                         if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                        if let d = pendingDownloadStarted { result["downloadStarted"] = "true"; result["downloadId"] = d; pendingDownloadStarted = nil }
                         return result
                     }
                     throw error
@@ -345,6 +384,7 @@ extension BrowserController {
                     result["nativeVerified"] = "true"
                     result["fallbackUsed"] = "false"
                     if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                    if let d = pendingDownloadStarted { result["downloadStarted"] = "true"; result["downloadId"] = d; pendingDownloadStarted = nil }
                     return result
                 }
                 let afterURL = webView.url?.absoluteString ?? ""
@@ -358,6 +398,7 @@ extension BrowserController {
                     result["beforeURL"] = beforeURL
                     result["afterURL"] = afterURL
                     if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                    if let d = pendingDownloadStarted { result["downloadStarted"] = "true"; result["downloadId"] = d; pendingDownloadStarted = nil }
                     return result
                 }
                 if fallbackPolicy == "none" {
@@ -373,6 +414,7 @@ extension BrowserController {
                 fallback["nativeErrorCode"] = "native_click_unverified"
                 fallback.merge(target.resultFields) { current, _ in current }
                 if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                if let d = pendingDownloadStarted { fallback["downloadStarted"] = "true"; fallback["downloadId"] = d; pendingDownloadStarted = nil }
                 return fallback
             } catch {
                 if fallbackPolicy == "none" {
@@ -388,6 +430,7 @@ extension BrowserController {
                 fallback["nativeError"] = nativeError
                 fallback["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                 if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                if let d = pendingDownloadStarted { fallback["downloadStarted"] = "true"; fallback["downloadId"] = d; pendingDownloadStarted = nil }
                 return fallback
             }
         }
@@ -395,6 +438,7 @@ extension BrowserController {
         var result = try await javaScriptClick(selector: selector)
         result["selector"] = selector
         if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+        if let d = pendingDownloadStarted { result["downloadStarted"] = "true"; result["downloadId"] = d; pendingDownloadStarted = nil }
         return result
     }
 

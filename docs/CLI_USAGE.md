@@ -227,6 +227,31 @@ Limits, by design:
 - Native (Quartz) input requires the visible tab; `click --native --tab <background>` fails with `tab_not_active_for_native_input`. DOM click/fill/evaluate work on background tabs.
 - Background tabs render off-window: screenshots and DOM reads work, but rendering may be throttled by WebKit for long-idle background tabs.
 
+### Downloads
+
+WebKit converts a response it cannot display (e.g. `Content-Disposition: attachment` or an unrenderable MIME type) and clicks on `<a download>` links into downloads instead of frame loads. Agent Safari handles these so a download never hangs `navigate` or silently no-ops a `click`:
+
+- A `navigate` to a download URL returns immediately with `"downloadStarted": "true"` and a `"downloadId"`, instead of failing with `Frame load interrupted`.
+- A `click` on a download link reports the same `downloadStarted`/`downloadId` evidence on the click result, alongside the existing `popupRedirectedURL` evidence.
+
+Files are written under a per-download directory:
+
+```
+~/.agent-safari/downloads/<download-id>/<suggested-filename>
+```
+
+List and wait on downloads:
+
+```sh
+.build/debug/agent-safari downloads --socket /tmp/agent-safari.sock
+.build/debug/agent-safari wait-for-download <download-id> --timeout 30000 --socket /tmp/agent-safari.sock
+.build/debug/agent-safari wait-for-download --last --timeout 30000 --socket /tmp/agent-safari.sock
+```
+
+`downloads` lists every download observed by the daemon session (daemon-wide, not per-tab), each with `id`, `url`, `filename`, `path`, `state` (`pending` | `completed` | `failed`), `error`, and the originating `tabId`. The log is capped at 50 entries; the oldest completed entry is dropped first. `wait-for-download` polls until the download leaves `pending`; `--last` targets the most recently started download. An unknown id fails with `error.code: "unknown_download"`, and a timeout fails with `wait_timeout`.
+
+Downloads are local-disk only. There is no proxy/HAR capture of download traffic; see `docs/AGENT_LOOP.md` for the network capture scope.
+
 ## Local file navigation
 
 Generate an absolute `file://` URL and pass it to `open`:

@@ -145,6 +145,13 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
             result = JSONValue.fromStringMap(try await browser.status())
         case "observe":
             result = JSONValue.fromStringMap(try await browser.observe())
+        case "downloads":
+            let downloads = try await browser.downloads()
+            result = .object(["downloads": JSONValue.parseJSONText(downloads["downloads"] ?? "[]"), "count": .number(Double(Int(downloads["count"] ?? "0") ?? 0))])
+        case "waitForDownload":
+            guard let id = params["id"] else { throw AgentSafariError.missingParam("id") }
+            let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
+            result = JSONValue.fromStringMap(try await browser.waitForDownload(id: id, timeoutMs: timeoutMs))
         default:
             throw AgentSafariError.unknownMethod(method)
         }

@@ -50,6 +50,8 @@ EXPECTED_TOOLS = {
     "tab_new",
     "tab_switch",
     "tab_close",
+    "downloads",
+    "wait_for_download",
 }
 
 
@@ -122,6 +124,8 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
         "tab_switch": {"cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
         "tab_close": {"cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
+        "downloads": {"cli": ["downloads"], "input": [], "result": ["downloads", "count"]},
+        "wait_for_download": {"cli": ["wait-for-download", "<id-or---last>", "--timeout", "<ms>"], "input": ["download_id", "timeout_ms"], "result": ["id", "url", "filename", "path", "state", "error", "downloadTabId", "timeoutMs"]},
     }
     for name, contract in expected.items():
         assert tools[name]["cli"] == contract["cli"], name

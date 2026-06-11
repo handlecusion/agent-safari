@@ -61,6 +61,8 @@ Override them with environment variables:
 
 The MCP wrapper mirrors CLI result fields instead of inventing a separate browser protocol. `click` advertises native/fallback metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError`, `nativeErrorCode`, and `popupRedirectedURL` when a popup or `target=_blank` navigation was intercepted) plus viewport, bounds, scroll, and coordinate fields emitted by the Swift daemon. `fill` returns `selector` and `value`, matching the CLI. Failed CLI payloads preserve the daemon's stable `error.code` in the wrapper exception message and `AgentSafariCLIError.code`.
 
+Downloads are surfaced as evidence rather than a separate protocol: a `navigate` or `click` that triggers a download reports `downloadStarted`/`downloadId`, and `downloads()` plus `wait_for_download(download_id, timeout_ms)` expose the daemon-wide download log written under `~/.agent-safari/downloads/<id>/<filename>` (see `docs/CLI_USAGE.md` for states, the 50-entry cap, and the `unknown_download` error code).
+
 Page-level tools accept an optional `tab` input that maps to the CLI's global `--tab <id>` option: the command targets that modeled tab without switching the active tab, commands on different tabs run concurrently, and every result reports the `tabId` it acted on. Tabs share one window and one cookie/data store; per-tab limits and error codes (`unknown_tab`, `navigation_in_progress`, `tab_closed_during_command`, `tab_not_active_for_native_input`) are documented in `docs/CLI_USAGE.md`.
 
 ## Hermes config example
@@ -122,6 +124,8 @@ hermes mcp add agent-safari \
 - `tab_new(url=None)`
 - `tab_switch(tab_id)`
 - `tab_close(tab_id)`
+- `downloads()`
+- `wait_for_download(download_id="--last", timeout_ms=10000)`
 
 Most tools return the CLI result object decoded from the JSON-RPC response. For
 example, `text()` returns an object like `{ "text": "..." }`. The wrapper also

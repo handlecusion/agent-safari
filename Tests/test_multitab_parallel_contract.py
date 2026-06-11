@@ -63,8 +63,10 @@ def test_concurrent_navigation_isolation() -> None:
     # Address bar only reflects the visible tab
     assert "target === activeTabWebView" in nav
     delegate = read(NAV_DELEGATE)
-    # Delegate callbacks resolve the continuation of the webView that fired them
-    assert delegate.count("removeValue(forKey: ObjectIdentifier(webView))") == 3
+    # Delegate callbacks resolve the continuation of the webView that fired them:
+    # didFinish, navigationResponse/navigationAction didBecome download, didFail, and
+    # didFailProvisionalNavigation (policy-change-to-download swallow + the throwing path).
+    assert delegate.count("removeValue(forKey: ObjectIdentifier(webView))") == 6
 
 
 def test_tab_close_fails_inflight_navigation_and_clears_state() -> None:

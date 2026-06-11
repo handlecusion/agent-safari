@@ -59,6 +59,8 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tab_new", "description": "Create a new modeled WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
     {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
+    {"name": "downloads", "description": "List downloads observed by this daemon session (daemon-wide, capped at 50).", "cli": ["downloads"], "input": [], "result": ["downloads", "count"]},
+    {"name": "wait_for_download", "description": "Wait until a download leaves the pending state; id may be a download id or --last.", "cli": ["wait-for-download", "<id-or---last>", "--timeout", "<ms>"], "input": ["download_id", "timeout_ms"], "result": ["id", "url", "filename", "path", "state", "error", "downloadTabId", "timeoutMs"]},
 ]
 
 for _tool in TOOL_CONTRACTS:
@@ -369,6 +371,16 @@ def create_server() -> Any:
     def tab_close(tab_id: str) -> dict[str, Any]:
         """Close a modeled tab id when supported."""
         return _run_cli("tab-close", tab_id)
+
+    @mcp.tool()
+    def downloads() -> dict[str, Any]:
+        """List downloads observed by this daemon session (daemon-wide, capped at 50)."""
+        return _run_cli("downloads")
+
+    @mcp.tool()
+    def wait_for_download(download_id: str = "--last", timeout_ms: int = 10000) -> dict[str, Any]:
+        """Wait until a download leaves the pending state; download_id may be an id or --last."""
+        return _run_cli("wait-for-download", download_id, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
 
     return mcp
 

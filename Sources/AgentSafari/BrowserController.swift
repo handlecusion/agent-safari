@@ -11,6 +11,29 @@ struct BrowserTab {
     var createdAt: Date
 }
 
+/// One observed download. State moves pending -> completed|failed. `tabId` is the
+/// modeled tab that originated the download when resolvable, else the active tab.
+@MainActor
+final class DownloadRecord {
+    let id: String
+    let url: String
+    var suggestedFilename: String
+    var path: String
+    var state: String
+    var error: String?
+    let tabId: String
+
+    init(id: String, url: String, suggestedFilename: String, path: String, tabId: String) {
+        self.id = id
+        self.url = url
+        self.suggestedFilename = suggestedFilename
+        self.path = path
+        self.state = "pending"
+        self.error = nil
+        self.tabId = tabId
+    }
+}
+
 /// Per-command tab targeting. The RPC layer binds the requested tab id for the
 /// duration of one command Task; controller code resolves `webView` through it.
 enum TabTarget {
@@ -18,7 +41,7 @@ enum TabTarget {
 }
 
 @MainActor
-final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
+final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     let window: NSWindow
     let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 764))
     let chromeView = NSView(frame: NSRect(x: 0, y: 720, width: 1280, height: 44))
@@ -30,6 +53,12 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
     private var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
+    private var pendingDownloadStartedByTab: [ObjectIdentifier: String] = [:]
+    // Daemon-wide download log capped at downloadModelCap entries (oldest completed dropped first).
+    var downloadsModel: [DownloadRecord] = []
+    let downloadModelCap = 50
+    // Maps an in-flight WKDownload to its DownloadRecord id for delegate callbacks.
+    var downloadRecordsByDownload: [ObjectIdentifier: String] = [:]
     let sessionID = UUID().uuidString
     let profileName: String
     let ephemeral: Bool
@@ -82,11 +111,29 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] = url
     }
 
+    // Download-started evidence drained by navigate()/click() on the originating tab,
+    // mirroring the pendingPopupRedirectURL pattern so a download is reported on the
+    // command that triggered it.
+    var pendingDownloadStarted: String? {
+        get { pendingDownloadStartedByTab[ObjectIdentifier(webView)] }
+        set { pendingDownloadStartedByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    func setPendingDownloadStarted(_ downloadID: String, for webView: WKWebView) {
+        pendingDownloadStartedByTab[ObjectIdentifier(webView)] = downloadID
+    }
+
+    func pendingDownloadStarted(for webView: WKWebView) -> String? {
+        let value = pendingDownloadStartedByTab[ObjectIdentifier(webView)]
+        return (value?.isEmpty ?? true) ? nil : value
+    }
+
     func clearPerTabState(for webView: WKWebView) {
         let key = ObjectIdentifier(webView)
         networkUserScriptInstalledByTab.removeValue(forKey: key)
         networkCaptureActiveByTab.removeValue(forKey: key)
         pendingPopupRedirectURLByTab.removeValue(forKey: key)
+        pendingDownloadStartedByTab.removeValue(forKey: key)
     }
 
     init(focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false) {

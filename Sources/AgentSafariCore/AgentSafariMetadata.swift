@@ -11,6 +11,6 @@ public enum AgentSafariMetadata {
         "back", "forward", "reload", "viewport",
         "network", "network-start", "network-list", "network-stop", "network-export",
         "session", "tabs", "tab-new", "tab-switch", "tab-close",
-        "status", "observe"
+        "status", "observe", "downloads", "wait-for-download"
     ]
 }

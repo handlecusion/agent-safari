@@ -61,6 +61,8 @@ Override them with environment variables:
 
 The MCP wrapper mirrors CLI result fields instead of inventing a separate browser protocol. `click` advertises native/fallback metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError`, `nativeErrorCode`, and `popupRedirectedURL` when a popup or `target=_blank` navigation was intercepted) plus viewport, bounds, scroll, and coordinate fields emitted by the Swift daemon. `fill` returns `selector` and `value`, matching the CLI. Failed CLI payloads preserve the daemon's stable `error.code` in the wrapper exception message and `AgentSafariCLIError.code`.
 
+Page-level tools accept an optional `tab` input that maps to the CLI's global `--tab <id>` option: the command targets that modeled tab without switching the active tab, commands on different tabs run concurrently, and every result reports the `tabId` it acted on. Tabs share one window and one cookie/data store; per-tab limits and error codes (`unknown_tab`, `navigation_in_progress`, `tab_closed_during_command`, `tab_not_active_for_native_input`) are documented in `docs/CLI_USAGE.md`.
+
 ## Hermes config example
 
 Add an entry under `mcp_servers` (or run the `hermes mcp add` command below):

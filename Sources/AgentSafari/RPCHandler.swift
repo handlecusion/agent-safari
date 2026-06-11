@@ -12,8 +12,35 @@ func structuredNetworkResult(_ result: [String: String], capturingOverride: Bool
 func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCResponse {
     do {
         let params = request.params ?? [:]
+        let requestedTabID = params["tab"]
+        if let requestedTabID, !browser.hasTab(requestedTabID) {
+            throw AgentSafariError.unknownTab(requestedTabID)
+        }
+        var result = try await TabTarget.$tabID.withValue(requestedTabID) {
+            try await dispatch(request.method, params: params, browser: browser)
+        }
+        if let requestedTabID, !browser.hasTab(requestedTabID) {
+            throw AgentSafariError.tabClosedDuringCommand(requestedTabID)
+        }
+        if case .object(var object) = result, object["tabId"] == nil {
+            object["tabId"] = .string(requestedTabID ?? browser.activeTabID)
+            result = .object(object)
+        }
+        return RPCResponse(id: request.id, ok: true, result: result, error: nil)
+    } catch {
+        return RPCResponse(
+            id: request.id,
+            ok: false,
+            result: nil,
+            error: RPCErrorPayload(code: agentSafariErrorCode(error), message: describeError(error))
+        )
+    }
+}
+
+@MainActor
+private func dispatch(_ method: String, params: [String: String], browser: BrowserController) async throws -> JSONValue {
         let result: JSONValue
-        switch request.method {
+        switch method {
         case "navigate":
             guard let url = params["url"] else { throw AgentSafariError.missingParam("url") }
             result = JSONValue.fromStringMap(try await browser.navigate(url))
@@ -119,15 +146,7 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
         case "observe":
             result = JSONValue.fromStringMap(try await browser.observe())
         default:
-            throw AgentSafariError.unknownMethod(request.method)
+            throw AgentSafariError.unknownMethod(method)
         }
-        return RPCResponse(id: request.id, ok: true, result: result, error: nil)
-    } catch {
-        return RPCResponse(
-            id: request.id,
-            ok: false,
-            result: nil,
-            error: RPCErrorPayload(code: agentSafariErrorCode(error), message: describeError(error))
-        )
-    }
+        return result
 }

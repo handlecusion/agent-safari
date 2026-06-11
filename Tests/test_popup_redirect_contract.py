@@ -25,8 +25,9 @@ def test_wkuidelegate_conformance_on_class_declaration() -> None:
 
 def test_pending_popup_redirect_url_property_exists() -> None:
     source = read(CONTROLLER)
-    # Property must be a var of Optional String initialised to nil
-    assert "var pendingPopupRedirectURL: String? = nil" in source
+    # Per-tab storage exposed through the original property name
+    assert "var pendingPopupRedirectURL: String?" in source
+    assert "pendingPopupRedirectURLByTab" in source
 
 
 def test_uidelegete_assigned_in_make_web_view() -> None:
@@ -46,8 +47,10 @@ def test_create_web_view_with_is_implemented() -> None:
 
 def test_popup_redirect_navigates_current_webview_and_returns_nil() -> None:
     source = read(UI_DELEGATE)
-    # Must load URL into current WebView via navigate(), not create a new WKWebView
-    assert "navigate(" in source
+    # Must load URL into the ORIGINATING webView via navigate(), not create a new
+    # WKWebView — the popup may come from a background tab under parallel use
+    assert "navigate(urlString, in: webView)" in source
+    assert "setPendingPopupRedirectURL(urlString, for: webView)" in source
     assert "return nil" in source
     # Bare window.open() yields a non-nil but EMPTY request URL in WebKit — must be
     # ignored without navigating or recording a pending redirect

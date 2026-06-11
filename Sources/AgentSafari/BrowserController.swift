@@ -11,6 +11,12 @@ struct BrowserTab {
     var createdAt: Date
 }
 
+/// Per-command tab targeting. The RPC layer binds the requested tab id for the
+/// duration of one command Task; controller code resolves `webView` through it.
+enum TabTarget {
+    @TaskLocal static var tabID: String?
+}
+
 @MainActor
 final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let window: NSWindow
@@ -20,20 +26,67 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let webContainerView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))
     static let addressBarHeight: CGFloat = 44
     var tabsModel: [BrowserTab] = []
-    var navigationContinuation: CheckedContinuation<Void, Error>?
-    var networkUserScriptInstalled = false
-    var networkCaptureActive = false
+    var navigationContinuations: [ObjectIdentifier: CheckedContinuation<Void, Error>] = [:]
+    private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
+    private var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
+    private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
     let sessionID = UUID().uuidString
     let profileName: String
     let ephemeral: Bool
     var activeTabID: String
-    var pendingPopupRedirectURL: String? = nil
 
+    /// Resolves to the command's target tab (TabTarget task-local) or the active tab.
+    /// The RPC layer validates unknown tab ids before dispatch and re-checks after
+    /// completion, so a fallback here only happens if the tab closed mid-command.
     var webView: WKWebView {
-        guard let tab = tabsModel.first(where: { $0.id == activeTabID }) ?? tabsModel.first else {
-            fatalError("BrowserController has no active WebKit tab")
+        let targetID = TabTarget.tabID ?? activeTabID
+        guard let tab = tabsModel.first(where: { $0.id == targetID }) ?? tabsModel.first else {
+            fatalError("BrowserController has no WebKit tabs")
         }
         return tab.webView
+    }
+
+    var activeTabWebView: WKWebView {
+        guard let tab = tabsModel.first(where: { $0.id == activeTabID }) ?? tabsModel.first else {
+            fatalError("BrowserController has no WebKit tabs")
+        }
+        return tab.webView
+    }
+
+    func hasTab(_ id: String) -> Bool {
+        tabsModel.contains { $0.id == id }
+    }
+
+    func tabID(for webView: WKWebView) -> String? {
+        tabsModel.first { $0.webView === webView }?.id
+    }
+
+    // Per-tab state exposed under the original property names so call sites and
+    // the network/popup logic stay tab-correct without signature changes.
+    var networkUserScriptInstalled: Bool {
+        get { networkUserScriptInstalledByTab[ObjectIdentifier(webView)] ?? false }
+        set { networkUserScriptInstalledByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    var networkCaptureActive: Bool {
+        get { networkCaptureActiveByTab[ObjectIdentifier(webView)] ?? false }
+        set { networkCaptureActiveByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    var pendingPopupRedirectURL: String? {
+        get { pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] }
+        set { pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    func setPendingPopupRedirectURL(_ url: String, for webView: WKWebView) {
+        pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] = url
+    }
+
+    func clearPerTabState(for webView: WKWebView) {
+        let key = ObjectIdentifier(webView)
+        networkUserScriptInstalledByTab.removeValue(forKey: key)
+        networkCaptureActiveByTab.removeValue(forKey: key)
+        pendingPopupRedirectURLByTab.removeValue(forKey: key)
     }
 
     init(focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false) {

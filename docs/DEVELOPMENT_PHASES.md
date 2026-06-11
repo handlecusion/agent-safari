@@ -235,6 +235,57 @@ Acceptance criteria:
 - New IDs and lifecycle commands are contract-tested. Done through Swift parser tests, MCP contract tests, and `Tests/test_session_profile_contract.py`.
 - State cleanup and isolation boundaries are documented and smoke-tested. Done for current daemon/socket/ephemeral/artifact contract in `.tmp/agent-safari-5-scenarios-20260604-154342/REPORT.md`.
 
+## Phase 5.5 — Parallel Multi-Tab Targeting (2026-06-11)
+
+Status: Implemented and gate-verified; live evidence below.
+
+Verified evidence (2026-06-11):
+
+- CLI smoke proves a `title --tab tab-2` returns in 81ms while a 6s `wait-for-selector`
+  runs on tab-1, and parallel navigates land on their own tabs (`scripts/smoke_cli.sh`,
+  "verifying parallel multi-tab targeting" section).
+- Live daemon run verified: per-tab routing with `tabId` evidence, `unknown_tab`,
+  `navigation_in_progress`, `tab_not_active_for_native_input` error codes, per-tab
+  network capture flags, popup redirect on a background tab staying on that tab, and a
+  non-blank 2560x1440 background-tab screenshot (background rendering is supported).
+- Contracts pinned in `Tests/test_multitab_parallel_contract.py` and
+  `Tests/test_mcp_contract.py`; full gate suite plus `scripts/smoke_real_world.py` pass.
+
+Decision note (2026-06-11): The user explicitly reopened the multi-tab scope boundary for
+parallel work. Scope is limited to per-command tab targeting and concurrent command
+handling inside the existing single-window, shared-cookie session model. Per-tab
+profile/cookie isolation, multiple native windows, and hosted multi-session remain out of
+scope; isolation still means one daemon per socket.
+
+Goal: Let multiple agent clients drive different tabs of one daemon concurrently, with
+per-tab evidence and explicit failure codes, without breaking the Phase 5 modeled
+session/tab contract for callers that never pass a tab id.
+
+Contract:
+
+1. Every RPC method accepts an optional `tab` param (CLI `--tab <id>`, MCP `tab` input).
+   Omitted means the active tab — existing callers see unchanged behavior.
+2. An unknown tab id fails with the stable `unknown_tab` error code before any action runs.
+3. Long waits on one tab must not block commands on other tabs.
+4. Concurrent navigations on different tabs are isolated; a second navigate on a tab whose
+   navigation is still in flight fails with `navigation_in_progress` instead of silently
+   replacing the pending wait. Closing a tab fails its in-flight navigation explicitly.
+5. Network capture state, snapshot refs, and popup-redirect evidence are per-tab.
+6. Every command result reports the `tabId` it acted on.
+7. Native (Quartz) input targets the visible tab only; native input addressed to a
+   background tab fails with an explicit error code rather than clicking the wrong page.
+8. Background-tab rendering limits (screenshot/viewport) are measured, then either
+   supported or rejected with an explicit error code — no silent wrong-tab artifacts.
+
+Acceptance criteria:
+
+- Contract test pins tab-param routing, per-tab state isolation, and error codes.
+- CLI smoke proves a long wait on tab A does not delay a click on tab B, and parallel
+  navigations land on their own tabs.
+- Docs (`CLI_USAGE.md`, `MCP_WRAPPER.md`, this note) describe the shared-cookie,
+  single-window limits explicitly.
+- Product-vision review passes for the slice.
+
 ## Phase 6 — Productization And Distribution
 
 Status: Planned.

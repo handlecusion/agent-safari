@@ -5,17 +5,22 @@ import WebKit
 
 @MainActor
 extension BrowserController {
-    func navigate(_ urlString: String) async throws -> [String: String] {
+    func navigate(_ urlString: String, in explicitTarget: WKWebView? = nil) async throws -> [String: String] {
         guard let url = URL(string: urlString) else {
             throw AgentSafariError.invalidURL(urlString)
         }
-        try await withCheckedThrowingContinuation { continuation in
-            navigationContinuation = continuation
-            updateAddressBar(urlString)
-            webView.load(URLRequest(url: url))
+        let target = explicitTarget ?? webView
+        let key = ObjectIdentifier(target)
+        guard navigationContinuations[key] == nil else {
+            throw AgentSafariError.navigationInProgress(tabID(for: target) ?? "unknown")
         }
-        updateAddressBar(webView.url?.absoluteString ?? urlString)
-        return ["url": webView.url?.absoluteString ?? "", "title": webView.title ?? ""]
+        try await withCheckedThrowingContinuation { continuation in
+            navigationContinuations[key] = continuation
+            if target === activeTabWebView { updateAddressBar(urlString) }
+            target.load(URLRequest(url: url))
+        }
+        if target === activeTabWebView { updateAddressBar(target.url?.absoluteString ?? urlString) }
+        return ["url": target.url?.absoluteString ?? "", "title": target.title ?? ""]
     }
 
     func evaluate(_ script: String) async throws -> [String: String] {

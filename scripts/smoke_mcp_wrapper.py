@@ -52,7 +52,7 @@ def assert_tools_json_contract() -> None:
         raise RuntimeError(f"tools-json contract missing required tools: {sorted(missing)}")
     network = {tool["name"]: tool for tool in tools if str(tool.get("name", "")).startswith("network_")}
     for name in ("network_start", "network_list", "network_stop"):
-        if network[name].get("result") != ["capturing", "count", "events"]:
+        if network[name].get("result") != ["capturing", "count", "events", "tabId"]:
             raise RuntimeError(f"unexpected {name} result contract: {network[name]}")
     print(f"[smoke_mcp_wrapper] tools-json ok: {len(tools)} tools")
 

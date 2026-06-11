@@ -305,6 +305,10 @@ extension BrowserController {
         // Discard popup evidence from earlier actions so it cannot attach to this click.
         pendingPopupRedirectURL = nil
         if native {
+            // Quartz events land on the visible tab; refuse rather than click the wrong page.
+            guard webView === activeTabWebView else {
+                throw AgentSafariError.tabNotActiveForNativeInput(TabTarget.tabID ?? activeTabID)
+            }
             do {
                 let target = try await elementHitTarget(selector: selector)
                 let token = UUID().uuidString

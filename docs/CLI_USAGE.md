@@ -193,6 +193,24 @@ The daemon exposes a modeled tab set inside one native WebKit window. Each model
 
 `session` reports `sessionId`, `activeTabId`, `profile`, `persistent`, `dataStore`, and `tabCount`. `--profile <name>` is metadata reserved for future named stores; today persistent mode uses WebKit's default data store, and `--ephemeral` uses a non-persistent store. Use separate daemon sockets plus `--ephemeral` for isolated automation runs.
 
+### Parallel multi-tab targeting
+
+Any page command accepts a global `--tab <id>` option that routes it to a modeled tab without changing the active tab. Commands addressed to different tabs run concurrently: a long `wait-for-*` on one tab does not delay commands on another, and parallel `navigate` calls land on their own tabs. Every result reports the `tabId` it acted on.
+
+```sh
+.build/debug/agent-safari navigate 'https://example.com' --tab tab-2 --socket /tmp/agent-safari.sock
+.build/debug/agent-safari wait-for-selector '#result' --timeout 30000 --tab tab-2 --socket /tmp/agent-safari.sock &
+.build/debug/agent-safari click '#submit' --tab tab-1 --socket /tmp/agent-safari.sock
+```
+
+Limits, by design:
+
+- Tabs share one window, one viewport, and one cookie/data store (log in once, drive N tabs). For isolation, run separate daemons on separate sockets.
+- An unknown tab id fails with `error.code: "unknown_tab"` before any action runs; if the tab is closed mid-command the result is `tab_closed_during_command`.
+- A second `navigate` on a tab whose navigation is still in flight fails with `navigation_in_progress`.
+- Native (Quartz) input requires the visible tab; `click --native --tab <background>` fails with `tab_not_active_for_native_input`. DOM click/fill/evaluate work on background tabs.
+- Background tabs render off-window: screenshots and DOM reads work, but rendering may be throttled by WebKit for long-idle background tabs.
+
 ## Local file navigation
 
 Generate an absolute `file://` URL and pass it to `open`:

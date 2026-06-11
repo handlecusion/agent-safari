@@ -335,6 +335,53 @@ if len(tabs) < 2 or not any(tab.get('active') for tab in tabs):
     raise SystemExit(f"expected at least two modeled tabs with one active: {payload}")
 PY
 
+log "verifying parallel multi-tab targeting"
+response="$(run_cli tab-switch tab-1)"
+assert_ok_json "$response"
+response="$(run_cli title --tab tab-2)"
+assert_ok_json "$response"
+assert_result_field "$response" "tabId" "tab-2"
+response="$(run_cli title --tab tab-99 || true)"
+python3 - "$response" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if payload.get("ok") or payload.get("error", {}).get("code") != "unknown_tab":
+    raise SystemExit(f"expected unknown_tab error: {payload}")
+PY
+run_cli wait-for-selector '#never-exists' --timeout 6000 --tab tab-1 >/dev/null 2>&1 &
+WAIT_PID=$!
+sleep 0.3
+START_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
+response="$(run_cli title --tab tab-2)"
+ELAPSED_MS=$(python3 -c "import time; print(int(time.time()*1000) - $START_MS)")
+assert_ok_json "$response"
+if [ "$ELAPSED_MS" -ge 3000 ]; then
+  log "tab-2 command blocked behind tab-1 wait (${ELAPSED_MS}ms)"
+  exit 1
+fi
+log "verified tab-2 command returned in ${ELAPSED_MS}ms while tab-1 wait was running"
+run_cli navigate "$URL?side=left" --tab tab-1 >/dev/null &
+NAV1_PID=$!
+run_cli navigate "$URL?side=right" --tab tab-2 >/dev/null &
+NAV2_PID=$!
+wait "$NAV1_PID" "$NAV2_PID"
+response="$(run_cli url --tab tab-1)"
+python3 - "$response" "side=left" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if sys.argv[2] not in payload.get("result", {}).get("url", ""):
+    raise SystemExit(f"parallel navigate landed on wrong tab: {payload}")
+PY
+response="$(run_cli url --tab tab-2)"
+python3 - "$response" "side=right" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if sys.argv[2] not in payload.get("result", {}).get("url", ""):
+    raise SystemExit(f"parallel navigate landed on wrong tab: {payload}")
+PY
+wait "$WAIT_PID" || true
+log "verified parallel navigates landed on their own tabs"
+
 usage="$($BIN 2>&1 || true)"
 if printf '%s\n' "$usage" | grep -E 'network( |$)|network-(start|stop)' >/dev/null; then
   log "network commands advertised; verifying normalized network start/list/stop capture fetch and XHR"

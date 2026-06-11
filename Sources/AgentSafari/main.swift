@@ -20,7 +20,9 @@ if args.first == "--version" || args.first == "version" {
 } else if AgentSafariMetadata.clientCommands.contains(args.first ?? "") {
     do {
         let command = try CommandRequest.parse(args)
-        try sendClient(method: command.method, params: command.params, socketPath: options.socketPath)
+        var params = command.params
+        if let tabID = options.tabID { params["tab"] = tabID }
+        try sendClient(method: command.method, params: params, socketPath: options.socketPath)
     } catch {
         fputs("\(error.localizedDescription)\n", stderr)
         usage()

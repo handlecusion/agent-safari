@@ -6,18 +6,17 @@ import WebKit
 @MainActor
 extension BrowserController {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        updateAddressBar(webView.url?.absoluteString ?? "")
-        navigationContinuation?.resume()
-        navigationContinuation = nil
+        if webView === activeTabWebView {
+            updateAddressBar(webView.url?.absoluteString ?? "")
+        }
+        navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume()
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        navigationContinuation?.resume(throwing: error)
-        navigationContinuation = nil
+        navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume(throwing: error)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        navigationContinuation?.resume(throwing: error)
-        navigationContinuation = nil
+        navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume(throwing: error)
     }
 }

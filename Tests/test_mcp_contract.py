@@ -94,29 +94,29 @@ def test_tools_json_lists_stable_tool_contract() -> None:
 def test_network_tools_advertise_structured_result_shape() -> None:
     tools = {tool["name"]: tool for tool in load_contract()}
     for name in ("network_start", "network_list", "network_stop"):
-        assert tools[name]["result"] == ["capturing", "count", "events"]
+        assert tools[name]["result"] == ["capturing", "count", "events", "tabId"]
 
 
 def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
     tools = {tool["name"]: tool for tool in load_contract()}
     expected = {
-        "status": {"cli": ["status"], "input": [], "result": ["url", "title", "loading", "sessionId", "tabId"]},
-        "screenshot": {"cli": ["screenshot", "--out", "<path>"], "input": ["path"]},
-        "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>"], "input": ["path"]},
-        "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>"], "input": ["selector", "path"]},
+        "status": {"cli": ["status", "[--tab <id>]"], "input": ["tab"], "result": ["url", "title", "loading", "sessionId", "tabId"]},
+        "screenshot": {"cli": ["screenshot", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"]},
+        "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"]},
+        "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>", "[--tab <id>]"], "input": ["selector", "path", "tab"]},
         "click": {
-            "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"],
-            "input": ["selector", "native", "fallback"],
-            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView"],
+            "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--tab <id>]"],
+            "input": ["selector", "native", "fallback", "tab"],
+            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"],
         },
-        "fill": {"cli": ["fill", "<selector-or-ref>", "<value>"], "input": ["selector", "value"], "result": ["selector", "value"]},
-        "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "found", "timeoutMs"]},
-        "wait_for_text": {"cli": ["wait-for-text", "<text>", "--timeout", "<ms>"], "input": ["text", "timeout_ms"], "result": ["text", "found", "timeoutMs"]},
-        "wait_for_url": {"cli": ["wait-for-url", "<url-substring>", "--timeout", "<ms>"], "input": ["url", "timeout_ms"], "result": ["url", "matched", "currentURL", "timeoutMs"]},
-        "wait_for_title": {"cli": ["wait-for-title", "<title-substring>", "--timeout", "<ms>"], "input": ["title", "timeout_ms"], "result": ["title", "matched", "currentTitle", "timeoutMs"]},
-        "wait_for_visible": {"cli": ["wait-for-visible", "<selector-or-ref>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "visible", "timeoutMs"]},
-        "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>"], "input": ["timeout_ms"], "result": ["idle", "timeoutMs", "quietWindowMs"]},
-        "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]"], "input": ["path", "body_preview_bytes", "max_entries"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy"]},
+        "fill": {"cli": ["fill", "<selector-or-ref>", "<value>", "[--tab <id>]"], "input": ["selector", "value", "tab"], "result": ["selector", "value", "tabId"]},
+        "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["selector", "timeout_ms", "tab"], "result": ["selector", "found", "timeoutMs", "tabId"]},
+        "wait_for_text": {"cli": ["wait-for-text", "<text>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["text", "timeout_ms", "tab"], "result": ["text", "found", "timeoutMs", "tabId"]},
+        "wait_for_url": {"cli": ["wait-for-url", "<url-substring>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["url", "timeout_ms", "tab"], "result": ["url", "matched", "currentURL", "timeoutMs", "tabId"]},
+        "wait_for_title": {"cli": ["wait-for-title", "<title-substring>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["title", "timeout_ms", "tab"], "result": ["title", "matched", "currentTitle", "timeoutMs", "tabId"]},
+        "wait_for_visible": {"cli": ["wait-for-visible", "<selector-or-ref>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["selector", "timeout_ms", "tab"], "result": ["selector", "visible", "timeoutMs", "tabId"]},
+        "wait_for_idle": {"cli": ["wait-for-idle", "--timeout", "<ms>", "[--tab <id>]"], "input": ["timeout_ms", "tab"], "result": ["idle", "timeoutMs", "quietWindowMs", "tabId"]},
+        "network_export": {"cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]", "[--tab <id>]"], "input": ["path", "body_preview_bytes", "max_entries", "tab"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy", "tabId"]},
         "session": {"cli": ["session"], "input": [], "result": ["sessionId", "activeTabId", "profile", "persistent", "dataStore", "tabCount"]},
         "tabs": {"cli": ["tabs"], "input": [], "result": ["tabs", "activeTabId"]},
         "tab_new": {"cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},

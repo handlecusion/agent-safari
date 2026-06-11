@@ -14,12 +14,14 @@ extension BrowserController {
             return nil
         }
         let urlString = url.absoluteString
+        // Redirect into the tab that spawned the popup, not the active tab — the
+        // originating webView may be a background tab under parallel use.
         Task { @MainActor in
             do {
-                _ = try await navigate(urlString)
+                _ = try await navigate(urlString, in: webView)
             } catch { fputs("[agent-safari] popup redirect navigation failed: \(error.localizedDescription)\n", stderr) }
         }
-        pendingPopupRedirectURL = urlString
+        setPendingPopupRedirectURL(urlString, for: webView)
         return nil
     }
 

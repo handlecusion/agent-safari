@@ -14,6 +14,9 @@ enum AgentSafariError: Error, LocalizedError {
     case nativeInputFailed(String)
     case unknownMethod(String)
     case unknownTab(String)
+    case navigationInProgress(String)
+    case tabClosedDuringCommand(String)
+    case tabNotActiveForNativeInput(String)
     case socketPathTooLong(String)
     case socketOperationFailed(String)
 
@@ -32,6 +35,9 @@ enum AgentSafariError: Error, LocalizedError {
         case .nativeInputFailed(let message): return "Native input failed: \(message)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
+        case .navigationInProgress(let id): return "Navigation already in progress on tab \(id); wait for it or target another tab"
+        case .tabClosedDuringCommand(let id): return "Tab \(id) was closed while the command was running"
+        case .tabNotActiveForNativeInput(let id): return "Native input requires the visible tab; tab \(id) is not active. Use tab-switch first or use DOM input"
         case .socketPathTooLong(let path): return "Unix socket path is too long: \(path)"
         case .socketOperationFailed(let message): return message
         }
@@ -45,6 +51,14 @@ enum AgentSafariError: Error, LocalizedError {
             return "native_click_unverified"
         case .nativeInputFailed:
             return "native_input_failed"
+        case .unknownTab:
+            return "unknown_tab"
+        case .navigationInProgress:
+            return "navigation_in_progress"
+        case .tabClosedDuringCommand:
+            return "tab_closed_during_command"
+        case .tabNotActiveForNativeInput:
+            return "tab_not_active_for_native_input"
         default:
             return nil
         }

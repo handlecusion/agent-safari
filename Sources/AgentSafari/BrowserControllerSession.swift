@@ -11,7 +11,7 @@ extension BrowserController {
             "title": webView.title ?? "",
             "loading": webView.isLoading ? "true" : "false",
             "sessionId": sessionID,
-            "tabId": activeTabID
+            "tabId": TabTarget.tabID ?? activeTabID
         ]
     }
 
@@ -89,7 +89,7 @@ extension BrowserController {
             "activeElementId": stringifyJavaScriptValue((pageState?["activeElementId"] ?? "") as Any),
             "activeElementSelector": stringifyJavaScriptValue((pageState?["activeElementSelector"] ?? "") as Any),
             "sessionId": sessionID,
-            "tabId": activeTabID
+            "tabId": TabTarget.tabID ?? activeTabID
         ]
     }
 
@@ -124,19 +124,15 @@ extension BrowserController {
         let newWebView = makeWebView()
         tabsModel.append(BrowserTab(id: id, webView: newWebView, createdAt: Date()))
         try activateTab(id: id)
-        networkUserScriptInstalled = false
-        networkCaptureActive = false
         if let url, !url.isEmpty {
-            _ = try await navigate(url)
+            _ = try await navigate(url, in: newWebView)
         }
-        return ["id": id, "tabId": id, "created": "true", "url": webView.url?.absoluteString ?? "", "title": webView.title ?? ""]
+        return ["id": id, "tabId": id, "created": "true", "url": newWebView.url?.absoluteString ?? "", "title": newWebView.title ?? ""]
     }
 
     func tabSwitch(id: String) async throws -> [String: String] {
         try activateTab(id: id)
-        networkUserScriptInstalled = false
-        networkCaptureActive = false
-        return ["id": activeTabID, "tabId": activeTabID, "active": "true", "url": webView.url?.absoluteString ?? "", "title": webView.title ?? ""]
+        return ["id": activeTabID, "tabId": activeTabID, "active": "true", "url": activeTabWebView.url?.absoluteString ?? "", "title": activeTabWebView.title ?? ""]
     }
 
     func tabClose(id: String) async throws -> [String: String] {
@@ -144,6 +140,10 @@ extension BrowserController {
         guard tabsModel.count > 1 else {
             return ["id": activeTabID, "tabId": activeTabID, "closed": "false", "activeTabId": activeTabID, "reason": "cannot-close-last-tab"]
         }
+        let closingWebView = tabsModel[index].webView
+        navigationContinuations.removeValue(forKey: ObjectIdentifier(closingWebView))?
+            .resume(throwing: AgentSafariError.tabClosedDuringCommand(id))
+        clearPerTabState(for: closingWebView)
         tabsModel.remove(at: index)
         if activeTabID == id {
             let replacement = tabsModel[min(index, tabsModel.count - 1)].id

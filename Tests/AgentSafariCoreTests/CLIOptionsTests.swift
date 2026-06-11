@@ -50,3 +50,16 @@ import Testing
     #expect(options.profileName == "default")
     #expect(options.ephemeral == false)
 }
+
+@Test func cliOptionsParsesTabFlag() {
+    let options = CLIOptions.parse(["click", "#btn", "--tab", "tab-2"])
+
+    #expect(options.tabID == "tab-2")
+    #expect(options.positionalArguments == ["click", "#btn"])
+}
+
+@Test func cliOptionsDefaultsToNoTab() {
+    let options = CLIOptions.parse(["click", "#btn"])
+
+    #expect(options.tabID == nil)
+}

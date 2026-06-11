@@ -230,6 +230,9 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         configuration.websiteDataStore = ephemeral ? .nonPersistent() : .default()
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        // Agent-controlled browser: allow programmatic media playback so media-control
+        // play() and waitForMedia(state: playing) work without a real user gesture.
+        configuration.mediaTypesRequiringUserActionForPlayback = []
         let newWebView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720), configuration: configuration)
         newWebView.customUserAgent = BrowserUserAgentSettings.safariUserAgent
         newWebView.navigationDelegate = self

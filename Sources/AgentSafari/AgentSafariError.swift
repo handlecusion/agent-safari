@@ -17,6 +17,7 @@ enum AgentSafariError: Error, LocalizedError {
     case uploadMultipleNotAllowed(String)
     case uploadFileTooLargeForFallback(String)
     case cookieFileInvalid(String)
+    case mediaPlayRejected(String)
     case unknownMethod(String)
     case unknownTab(String)
     case unknownDownload(String)
@@ -45,6 +46,7 @@ enum AgentSafariError: Error, LocalizedError {
         case .uploadMultipleNotAllowed(let target): return "Element does not accept multiple files: \(target)"
         case .uploadFileTooLargeForFallback(let path): return "Upload file exceeds the 8 MB DOM-fallback limit (grant Accessibility permission for native open-panel upload): \(path)"
         case .cookieFileInvalid(let detail): return "Cookie file invalid: \(detail)"
+        case .mediaPlayRejected(let message): return "Media play() was rejected: \(message)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
         case .unknownDownload(let id): return "Unknown download id: \(id)"
@@ -75,6 +77,8 @@ enum AgentSafariError: Error, LocalizedError {
             return "upload_file_too_large_for_fallback"
         case .cookieFileInvalid:
             return "cookie_file_invalid"
+        case .mediaPlayRejected:
+            return "media_play_rejected"
         case .waitTimedOut:
             return "wait_timeout"
         case .invalidURL:
@@ -168,4 +172,15 @@ func parseNonNegativeIntParam(_ params: [String: String], name: String, defaultV
         throw AgentSafariError.invalidIntegerParam(name, value)
     }
     return intValue
+}
+
+func parseNonNegativeDoubleParam(_ params: [String: String], name: String, defaultValue: Double? = nil) throws -> Double {
+    guard let value = params[name] else {
+        if let defaultValue { return defaultValue }
+        throw AgentSafariError.missingParam(name)
+    }
+    guard let doubleValue = Double(value), doubleValue.isFinite, doubleValue >= 0 else {
+        throw AgentSafariError.invalidIntegerParam(name, value)
+    }
+    return doubleValue
 }

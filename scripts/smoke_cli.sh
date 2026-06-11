@@ -258,6 +258,8 @@ cat > "$HTML" <<'HTML'
     <output id="status">waiting</output>
     <input type="file" id="upload" name="upload">
     <output id="upload-status">no-upload</output>
+    <video id="vid" width="160" height="90"></video>
+    <audio id="beep" src="__BEEP_DATA_URI__" preload="auto"></audio>
   </main>
   <script>
     document.getElementById('commit').addEventListener('click', () => {
@@ -303,6 +305,25 @@ cat > "$HTML" <<'HTML'
 </body>
 </html>
 HTML
+
+# Synthesize a small ~0.5s 8-bit PCM WAV beep and inject it as the <audio> src
+# data URI. Generated inline (not committed as a constant) so the smoke is
+# self-contained; substitution is done in Python to avoid sed escaping the
+# long base64 payload.
+log "synthesizing inline WAV data URI for media smoke"
+python3 - "$HTML" <<'BEEPPY'
+import base64, math, struct, sys
+sr, dur = 8000, 0.5
+n = int(sr * dur)
+samples = bytes(max(0, min(255, int(127.5 + 120 * math.sin(2 * math.pi * 440 * i / sr)))) for i in range(n))
+header = b'RIFF' + struct.pack('<I', 36 + len(samples)) + b'WAVE'
+header += b'fmt ' + struct.pack('<IHHIIHH', 16, 1, 1, sr, sr, 1, 8)
+header += b'data' + struct.pack('<I', len(samples))
+data_uri = 'data:audio/wav;base64,' + base64.b64encode(header + samples).decode()
+path = sys.argv[1]
+html = open(path, encoding='utf-8').read().replace('__BEEP_DATA_URI__', data_uri)
+open(path, 'w', encoding='utf-8').write(html)
+BEEPPY
 
 log "building Swift package"
 (cd "$ROOT_DIR" && swift build)
@@ -401,6 +422,86 @@ if files != ["upload-sample.txt"]:
     raise SystemExit(f"unexpected upload files metadata: {result}")
 print(f"upload set files via method={result.get('method')}")
 UPLOADPY
+
+log "verifying media inventory and playback control"
+response="$(run_cli media)"
+assert_ok_json "$response"
+python3 - "$response" <<'MEDIAPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+count = result.get("count", 0)
+if isinstance(count, str):
+    count = int(count)
+if count < 2:
+    raise SystemExit(f"expected >=2 media elements; got count={count}; result={result}")
+elements = result.get("elements", [])
+if isinstance(elements, str):
+    elements = json.loads(elements)
+ids = {e.get("id") for e in elements}
+if not {"beep", "vid"}.issubset(ids):
+    raise SystemExit(f"expected #beep and #vid in inventory; ids={ids}")
+beep = next(e for e in elements if e.get("id") == "beep")
+if "paused" not in beep or "muted" not in beep or "readyState" not in beep:
+    raise SystemExit(f"media element missing playback-state fields: {beep}")
+print(f"media inventory count={count} ids={sorted(i for i in ids if i)}")
+MEDIAPY
+
+# Programmatic play() works without a user gesture because makeWebView sets
+# mediaTypesRequiringUserActionForPlayback = []. If WebKit still rejects (e.g. the
+# data URI failed to decode), the command surfaces media_play_rejected — record it
+# honestly and fail, since the documented design is that playback is allowed.
+log "playing #beep and waiting for state=playing"
+response="$(run_cli media-control '#beep' play)"
+if ! is_ok_json "$response"; then
+  code="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("error",{}).get("code",""))' "$response")"
+  raise_msg="media-control play failed (code=$code); payload=$response"
+  raise_msg="$raise_msg -- expected programmatic playback to be allowed by mediaTypesRequiringUserActionForPlayback=[]"
+  log "$raise_msg"
+  exit 1
+fi
+assert_result_field "$response" "action" "play"
+response="$(run_cli wait-for-media '#beep' --state playing --timeout 4000)"
+assert_ok_json "$response"
+assert_result_field "$response" "matched" "true"
+assert_result_field "$response" "state" "playing"
+
+log "pausing #beep and waiting for state=paused"
+response="$(run_cli media-control '#beep' pause)"
+assert_ok_json "$response"
+assert_result_field "$response" "pausedAfter" "true"
+response="$(run_cli wait-for-media '#beep' --state paused --timeout 4000)"
+assert_ok_json "$response"
+assert_result_field "$response" "matched" "true"
+
+log "verifying mute/unmute evidence"
+response="$(run_cli media-control '#beep' mute)"
+assert_ok_json "$response"
+assert_result_field "$response" "mutedBefore" "false"
+assert_result_field "$response" "mutedAfter" "true"
+response="$(run_cli media-control '#beep' unmute)"
+assert_ok_json "$response"
+assert_result_field "$response" "mutedBefore" "true"
+assert_result_field "$response" "mutedAfter" "false"
+
+log "verifying seek evidence"
+response="$(run_cli media-control '#beep' seek 0.2)"
+assert_ok_json "$response"
+assert_result_field "$response" "action" "seek"
+python3 - "$response" <<'MEDIAPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+after = result.get("currentTimeAfter")
+try:
+    after = float(after)
+except (TypeError, ValueError):
+    raise SystemExit(f"seek currentTimeAfter not numeric: {result}")
+if after < 0.1:
+    raise SystemExit(f"seek did not advance currentTime: {result}")
+print(f"seek currentTimeAfter={after}")
+MEDIAPY
+log "verified media observation, playback control, wait predicate, mute/unmute, seek"
 
 log "capturing full-page screenshot"
 response="$(run_cli screenshot --full --out "$SHOT")"

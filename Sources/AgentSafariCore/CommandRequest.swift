@@ -26,6 +26,13 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "html", params: [:])
         case "snapshot":
             return CommandRequest(method: "snapshot", params: [:])
+        case "media":
+            return CommandRequest(method: "media", params: [:])
+        case "wait-for-media":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("selector") }
+            return try parseWaitForMediaCommand(args)
+        case "media-control":
+            return try parseMediaControlCommand(args)
         case "evaluate":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("javascript") }
             return CommandRequest(method: "evaluate", params: ["script": args[1]])
@@ -324,6 +331,40 @@ public struct CommandRequest: Equatable {
         default:
             throw CommandRequestError.unknownArgument(args[1])
         }
+    }
+
+    private static func parseWaitForMediaCommand(_ args: [String]) throws -> CommandRequest {
+        let selector = args[1]
+        var params = ["selector": selector, "timeoutMs": Self.defaultTimeoutMs]
+        var index = 2
+        while index < args.count {
+            let arg = args[index]
+            if arg == "--state" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("state") }
+                params["state"] = args[index + 1]
+                index += 2
+            } else if arg == "--timeout" || arg == "--timeout-ms" {
+                guard index + 1 < args.count else { throw CommandRequestError.missingArgument("timeout") }
+                params["timeoutMs"] = args[index + 1]
+                index += 2
+            } else {
+                throw CommandRequestError.unknownArgument(arg)
+            }
+        }
+        guard params["state"] != nil else { throw CommandRequestError.missingArgument("state") }
+        return CommandRequest(method: "waitForMedia", params: params)
+    }
+
+    private static func parseMediaControlCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 3 else { throw CommandRequestError.missingArgument("selector/action") }
+        var params = ["selector": args[1], "action": args[2]]
+        if args.count >= 4 {
+            params["seconds"] = args[3]
+        }
+        if args.count > 4 {
+            throw CommandRequestError.unknownArgument(args[4])
+        }
+        return CommandRequest(method: "mediaControl", params: params)
     }
 
     private static func parseTimeoutMs(_ args: [String], startingAt startIndex: Int) throws -> String? {

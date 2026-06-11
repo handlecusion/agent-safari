@@ -14,6 +14,7 @@ public enum AgentSafariMetadata {
         "session", "tabs", "tab-new", "tab-switch", "tab-close",
         "session-snapshot",
         "status", "observe", "downloads", "wait-for-download",
-        "cookies", "cookies-export", "cookies-import"
+        "cookies", "cookies-export", "cookies-import",
+        "media", "wait-for-media", "media-control"
     ]
 }

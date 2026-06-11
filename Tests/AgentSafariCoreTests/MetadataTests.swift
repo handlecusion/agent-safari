@@ -52,7 +52,10 @@ import Testing
         "session-snapshot": ["/tmp/session.json"],
         "cookies": ["export", "/tmp/cookies.json"],
         "cookies-export": ["/tmp/cookies.json"],
-        "cookies-import": ["/tmp/cookies.json"]
+        "cookies-import": ["/tmp/cookies.json"],
+        "media": [],
+        "wait-for-media": ["#beep", "--state", "playing"],
+        "media-control": ["#beep", "play"]
     ]
 
     #expect(Set(commandArguments.keys) == AgentSafariMetadata.clientCommands)

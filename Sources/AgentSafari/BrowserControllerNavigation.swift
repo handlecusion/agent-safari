@@ -6,7 +6,7 @@ import WebKit
 @MainActor
 extension BrowserController {
     func navigate(_ urlString: String, in explicitTarget: WKWebView? = nil) async throws -> [String: String] {
-        guard let url = URL(string: urlString) else {
+        guard let url = URL(string: urlString), url.scheme != nil else {
             throw AgentSafariError.invalidURL(urlString)
         }
         let target = explicitTarget ?? webView

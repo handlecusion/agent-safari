@@ -51,6 +51,26 @@ enum AgentSafariError: Error, LocalizedError {
             return "native_click_unverified"
         case .nativeInputFailed:
             return "native_input_failed"
+        case .waitTimedOut:
+            return "wait_timeout"
+        case .invalidURL:
+            return "invalid_url"
+        case .missingParam:
+            return "missing_param"
+        case .invalidIntegerParam:
+            return "invalid_param"
+        case .unknownMethod:
+            return "unknown_method"
+        case .elementResolutionFailed:
+            return "element_resolution_failed"
+        case .screenshotFailed:
+            return "screenshot_failed"
+        case .pageMeasurementFailed:
+            return "page_measurement_failed"
+        case .javascriptEncodingFailed:
+            return "javascript_encoding_failed"
+        case .socketPathTooLong, .socketOperationFailed:
+            return "socket_error"
         case .unknownTab:
             return "unknown_tab"
         case .navigationInProgress:
@@ -59,8 +79,6 @@ enum AgentSafariError: Error, LocalizedError {
             return "tab_closed_during_command"
         case .tabNotActiveForNativeInput:
             return "tab_not_active_for_native_input"
-        default:
-            return nil
         }
     }
 }

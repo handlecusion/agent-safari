@@ -13,6 +13,7 @@ public enum AgentSafariMetadata {
         "console", "console-start", "console-list", "console-stop",
         "session", "tabs", "tab-new", "tab-switch", "tab-close",
         "session-snapshot",
-        "status", "observe", "downloads", "wait-for-download"
+        "status", "observe", "downloads", "wait-for-download",
+        "cookies", "cookies-export", "cookies-import"
     ]
 }

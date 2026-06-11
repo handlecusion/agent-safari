@@ -49,7 +49,10 @@ import Testing
         "observe": [],
         "downloads": [],
         "wait-for-download": ["--last"],
-        "session-snapshot": ["/tmp/session.json"]
+        "session-snapshot": ["/tmp/session.json"],
+        "cookies": ["export", "/tmp/cookies.json"],
+        "cookies-export": ["/tmp/cookies.json"],
+        "cookies-import": ["/tmp/cookies.json"]
     ]
 
     #expect(Set(commandArguments.keys) == AgentSafariMetadata.clientCommands)

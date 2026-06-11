@@ -27,7 +27,7 @@ Current behavior:
 - Ephemeral mode uses `WKWebsiteDataStore.nonPersistent()`.
 - `--profile <name>` is reported in `session()` metadata and reserved as the stable CLI contract for future per-profile stores.
 - All modeled tabs in a daemon share the daemon's selected persistence mode.
-- The daemon does not yet expose cookie import/export commands.
+- Cookie export/import is available via `cookies export <path>` and `cookies import <path>`. See `docs/CLI_USAGE.md` for details.
 
 Check effective session state:
 
@@ -82,7 +82,7 @@ Use these boundaries when designing tests or MCP clients:
 
 The current Phase 5 contract is closed at the modeled daemon/session/tab/profile layer. Future persistence milestones are:
 
-1. Cookie export/import tools using `WKHTTPCookieStore`.
+1. Cookie export/import tools using `WKHTTPCookieStore`. (Implemented 2026-06-11 — see `docs/CLI_USAGE.md` and `BrowserControllerCookies.swift`.)
 2. Named profile registry under `~/.agent-safari/profiles/<name>/metadata.json`.
 3. Explicit clear-profile command for destructive test isolation.
 4. Session snapshot artifact that records active tab id, URLs, viewport, and capture settings.

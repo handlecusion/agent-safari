@@ -66,6 +66,8 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
     {"name": "downloads", "description": "List downloads observed by this daemon session (daemon-wide, capped at 50).", "cli": ["downloads"], "input": [], "result": ["downloads", "count"]},
     {"name": "wait_for_download", "description": "Wait until a download leaves the pending state; id may be a download id or --last.", "cli": ["wait-for-download", "<id-or---last>", "--timeout", "<ms>"], "input": ["download_id", "timeout_ms"], "result": ["id", "url", "filename", "path", "state", "error", "downloadTabId", "timeoutMs"]},
+    {"name": "cookies_export", "description": "Export all cookies from the daemon websiteDataStore to a JSON file (0600 permissions). Cookies are session-wide and shared across all tabs.", "cli": ["cookies", "export", "<path>"], "input": ["path"], "result": ["path", "count", "tabId"]},
+    {"name": "cookies_import", "description": "Import cookies from a previously-exported JSON file into the daemon websiteDataStore. Cookies are session-wide; all tabs share them.", "cli": ["cookies", "import", "<path>"], "input": ["path"], "result": ["path", "count", "tabId"]},
 ]
 
 for _tool in TOOL_CONTRACTS:
@@ -411,6 +413,16 @@ def create_server() -> Any:
     def session_snapshot(path: str) -> dict[str, Any]:
         """Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics."""
         return _run_cli("session-snapshot", path)
+
+    @mcp.tool()
+    def cookies_export(path: str) -> dict[str, Any]:
+        """Export all cookies from the daemon websiteDataStore to a JSON file. The file is written with 0600 permissions because cookies are credentials. Cookies are session-wide and shared across all tabs; --tab has no effect."""
+        return _run_cli("cookies", "export", path)
+
+    @mcp.tool()
+    def cookies_import(path: str) -> dict[str, Any]:
+        """Import cookies from a previously-exported JSON file into the daemon websiteDataStore. Cookies are session-wide; all tabs share them. --tab has no effect."""
+        return _run_cli("cookies", "import", path)
 
     return mcp
 

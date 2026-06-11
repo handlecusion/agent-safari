@@ -747,6 +747,92 @@ print(f"session-snapshot ok: {len(tabs)} tabs, activeTabId={artifact['activeTabI
 PY
 log "verified session-snapshot artifact"
 
+log "verifying cookies export and import on isolated ephemeral daemons"
+# Cookies are credentials: never run this section against the shared smoke daemon,
+# whose persistent default data store contains the user's real WebKit cookies.
+# Two throwaway --ephemeral daemons prove export, permissions, and cross-daemon import.
+COOKIE_EXPORT="$SMOKE_DIR/cookies.json"
+COOKIE_DOCROOT="$SMOKE_DIR/cookie-docroot"
+mkdir -p "$COOKIE_DOCROOT"
+printf '<!doctype html><title>cookie smoke</title>' > "$COOKIE_DOCROOT/index.html"
+COOKIE_PORT_FILE="$SMOKE_DIR/cookie_port.txt"
+python3 - "$COOKIE_DOCROOT" "$COOKIE_PORT_FILE" <<'COOKIESRV' &
+import http.server, functools, sys
+handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=sys.argv[1])
+handler.log_message = lambda *a: None
+server = http.server.HTTPServer(("127.0.0.1", 0), handler)
+with open(sys.argv[2], "w") as fh:
+    fh.write(str(server.server_address[1]))
+server.serve_forever()
+COOKIESRV
+COOKIE_SERVER_PID=$!
+COOKIE_SOCKET_A="$SMOKE_DIR/cookie-a.sock"
+COOKIE_SOCKET_B="$SMOKE_DIR/cookie-b.sock"
+"$BIN" daemon --ephemeral --socket "$COOKIE_SOCKET_A" >"$SMOKE_DIR/cookie-daemon-a.log" 2>&1 &
+COOKIE_DAEMON_A_PID=$!
+"$BIN" daemon --ephemeral --socket "$COOKIE_SOCKET_B" >"$SMOKE_DIR/cookie-daemon-b.log" 2>&1 &
+COOKIE_DAEMON_B_PID=$!
+cookie_cleanup() {
+  for pid in "$COOKIE_DAEMON_A_PID" "$COOKIE_DAEMON_B_PID" "$COOKIE_SERVER_PID"; do
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
+  rm -f "$COOKIE_SOCKET_A" "$COOKIE_SOCKET_B"
+}
+cookie_deadline=$((SECONDS + 20))
+while (( SECONDS < cookie_deadline )); do
+  [[ -s "$COOKIE_PORT_FILE" && -S "$COOKIE_SOCKET_A" && -S "$COOKIE_SOCKET_B" ]] && break
+  sleep 0.2
+done
+COOKIE_PORT="$(cat "$COOKIE_PORT_FILE")"
+COOKIE_URL="http://127.0.0.1:$COOKIE_PORT/"
+"$BIN" navigate "$COOKIE_URL" --socket "$COOKIE_SOCKET_A" >/dev/null
+"$BIN" evaluate 'document.cookie="smoke_cookie=smoke_value_1; path=/"' --socket "$COOKIE_SOCKET_A" >/dev/null
+# document.cookie -> WKHTTPCookieStore propagation is async; poll the export.
+cookie_export_ok=""
+for _ in $(seq 1 10); do
+  "$BIN" cookies export "$COOKIE_EXPORT" --socket "$COOKIE_SOCKET_A" >/dev/null
+  if python3 - "$COOKIE_EXPORT" <<'COOKIEPY'
+import json, os, stat, sys
+path = sys.argv[1]
+if not os.path.isfile(path):
+    raise SystemExit(1)
+if stat.S_IMODE(os.stat(path).st_mode) != 0o600:
+    raise SystemExit("cookies export file has wrong permissions (expected 0o600)")
+data = json.load(open(path))
+if data.get("schemaVersion") != 1:
+    raise SystemExit(f"unexpected schemaVersion: {data.get('schemaVersion')}")
+names = [c["name"] for c in data.get("cookies", [])]
+raise SystemExit(0 if names == ["smoke_cookie"] else 1)
+COOKIEPY
+  then cookie_export_ok="yes"; break; fi
+  sleep 0.3
+done
+if [[ -z "$cookie_export_ok" ]]; then
+  log "cookies export never contained exactly the smoke cookie (ephemeral store should hold only it)"
+  cookie_cleanup
+  exit 1
+fi
+log "verified cookies export: ephemeral store exported exactly [smoke_cookie] with 0600 permissions"
+response="$("$BIN" cookies import "$COOKIE_EXPORT" --socket "$COOKIE_SOCKET_B")"
+assert_ok_json "$response"
+assert_result_field "$response" "path" "$COOKIE_EXPORT"
+"$BIN" navigate "$COOKIE_URL" --socket "$COOKIE_SOCKET_B" >/dev/null
+cookie_cross_ok=""
+for _ in $(seq 1 10); do
+  visible="$("$BIN" evaluate 'document.cookie' --socket "$COOKIE_SOCKET_B")"
+  if printf '%s' "$visible" | grep -q "smoke_cookie=smoke_value_1"; then cookie_cross_ok="yes"; break; fi
+  sleep 0.3
+done
+cookie_cleanup
+if [[ -z "$cookie_cross_ok" ]]; then
+  log "imported cookie never became visible to document.cookie on the second daemon"
+  exit 1
+fi
+log "verified cookies import: second ephemeral daemon sees smoke_cookie via document.cookie"
+rm -f "$COOKIE_EXPORT"
 
 log "ok"
 log "artifacts: $SMOKE_DIR"

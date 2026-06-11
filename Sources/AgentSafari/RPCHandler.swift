@@ -164,6 +164,12 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
         case "tabClose":
             guard let id = params["id"] else { throw AgentSafariError.missingParam("id") }
             result = JSONValue.fromStringMap(try await browser.tabClose(id: id))
+        case "cookiesExport":
+            guard let path = params["path"] else { throw AgentSafariError.missingParam("path") }
+            result = JSONValue.fromStringMap(try await browser.cookiesExport(path: path))
+        case "cookiesImport":
+            guard let path = params["path"] else { throw AgentSafariError.missingParam("path") }
+            result = JSONValue.fromStringMap(try await browser.cookiesImport(path: path))
         case "status":
             result = JSONValue.fromStringMap(try await browser.status())
         case "observe":

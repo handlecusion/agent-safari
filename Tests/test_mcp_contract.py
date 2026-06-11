@@ -57,6 +57,8 @@ EXPECTED_TOOLS = {
     "downloads",
     "wait_for_download",
     "session_snapshot",
+    "cookies_export",
+    "cookies_import",
 }
 
 

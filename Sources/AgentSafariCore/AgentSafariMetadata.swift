@@ -1,7 +1,7 @@
 import Foundation
 
 public enum AgentSafariMetadata {
-    public static let version = "0.0.7"
+    public static let version = "0.0.8"
 
     public static let clientCommands: Set<String> = [
         "navigate", "open", "text", "html", "content", "url", "title",

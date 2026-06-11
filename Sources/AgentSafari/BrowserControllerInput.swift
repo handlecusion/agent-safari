@@ -313,6 +313,7 @@ extension BrowserController {
                         let nativeError = "Probe failed during navigation: \(describeError(error))"
                         result["nativeError"] = nativeError
                         result["nativeErrorCode"] = agentSafariErrorCode(nativeError)
+                        if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
                         return result
                     }
                     throw error
@@ -323,6 +324,7 @@ extension BrowserController {
                     result["method"] = "native"
                     result["nativeVerified"] = "true"
                     result["fallbackUsed"] = "false"
+                    if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
                     return result
                 }
                 let afterURL = webView.url?.absoluteString ?? ""
@@ -335,6 +337,7 @@ extension BrowserController {
                     result["fallbackUsed"] = "false"
                     result["beforeURL"] = beforeURL
                     result["afterURL"] = afterURL
+                    if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
                     return result
                 }
                 if fallbackPolicy == "none" {
@@ -349,6 +352,7 @@ extension BrowserController {
                 fallback["nativeError"] = "Native Quartz click posted but no DOM click event was observed"
                 fallback["nativeErrorCode"] = "native_click_unverified"
                 fallback.merge(target.resultFields) { current, _ in current }
+                if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
                 return fallback
             } catch {
                 if fallbackPolicy == "none" {
@@ -363,12 +367,14 @@ extension BrowserController {
                 let nativeError = describeError(error)
                 fallback["nativeError"] = nativeError
                 fallback["nativeErrorCode"] = agentSafariErrorCode(nativeError)
+                if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
                 return fallback
             }
         }
 
         var result = try await javaScriptClick(selector: selector)
         result["selector"] = selector
+        if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
         return result
     }
 

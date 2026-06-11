@@ -12,7 +12,7 @@ struct BrowserTab {
 }
 
 @MainActor
-final class BrowserController: NSObject, WKNavigationDelegate {
+final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let window: NSWindow
     let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 764))
     let chromeView = NSView(frame: NSRect(x: 0, y: 720, width: 1280, height: 44))
@@ -27,6 +27,7 @@ final class BrowserController: NSObject, WKNavigationDelegate {
     let profileName: String
     let ephemeral: Bool
     var activeTabID: String
+    var pendingPopupRedirectURL: String? = nil
 
     var webView: WKWebView {
         guard let tab = tabsModel.first(where: { $0.id == activeTabID }) ?? tabsModel.first else {
@@ -68,6 +69,7 @@ final class BrowserController: NSObject, WKNavigationDelegate {
         let newWebView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720), configuration: configuration)
         newWebView.customUserAgent = BrowserUserAgentSettings.safariUserAgent
         newWebView.navigationDelegate = self
+        newWebView.uiDelegate = self
         return newWebView
     }
 

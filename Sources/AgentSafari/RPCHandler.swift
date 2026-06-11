@@ -8,6 +8,13 @@ func structuredNetworkResult(_ result: [String: String], capturingOverride: Bool
     return .object(["capturing": .bool(capturing), "events": events, "count": .number(count)])
 }
 
+func structuredConsoleResult(_ result: [String: String], capturingOverride: Bool? = nil) -> JSONValue {
+    let events = JSONValue.parseJSONText(result["events"] ?? "[]")
+    let count = Double(Int(result["count"] ?? "0") ?? 0)
+    let capturing = capturingOverride ?? (result["capturing"] == "true")
+    return .object(["capturing": .bool(capturing), "events": events, "count": .number(count)])
+}
+
 @MainActor
 func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCResponse {
     do {
@@ -123,6 +130,12 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
             result = structuredNetworkResult(try await browser.networkStop(), capturingOverride: false)
         case "networkList":
             result = structuredNetworkResult(try await browser.networkList())
+        case "consoleStart":
+            result = structuredConsoleResult(try await browser.consoleStart(), capturingOverride: true)
+        case "consoleStop":
+            result = structuredConsoleResult(try await browser.consoleStop(), capturingOverride: false)
+        case "consoleList":
+            result = structuredConsoleResult(try await browser.consoleList())
         case "networkExport":
             guard let path = params["path"] else { throw AgentSafariError.missingParam("path") }
             let maxEntries = params["maxEntries"].flatMap(Int.init)

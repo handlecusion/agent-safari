@@ -47,6 +47,7 @@ func usage() {
     agent-safari viewport <width> <height> [--socket /tmp/agent-safari.sock]
     agent-safari network-start|network-list|network-stop [--socket /tmp/agent-safari.sock]
     agent-safari network-export <path> [--body-preview-bytes N] [--max-entries N] [--socket /tmp/agent-safari.sock]
+    agent-safari console-start|console-list|console-stop [--socket /tmp/agent-safari.sock]
     agent-safari session|tabs|tab-new [--socket /tmp/agent-safari.sock]
     agent-safari tab-switch <id> [--socket /tmp/agent-safari.sock]
     agent-safari tab-close <id> [--socket /tmp/agent-safari.sock]

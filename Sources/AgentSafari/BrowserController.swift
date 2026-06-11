@@ -29,6 +29,8 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     var navigationContinuations: [ObjectIdentifier: CheckedContinuation<Void, Error>] = [:]
     private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
     private var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
+    private var consoleUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
+    private var consoleCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
     let sessionID = UUID().uuidString
     let profileName: String
@@ -73,6 +75,16 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         set { networkCaptureActiveByTab[ObjectIdentifier(webView)] = newValue }
     }
 
+    var consoleUserScriptInstalled: Bool {
+        get { consoleUserScriptInstalledByTab[ObjectIdentifier(webView)] ?? false }
+        set { consoleUserScriptInstalledByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    var consoleCaptureActive: Bool {
+        get { consoleCaptureActiveByTab[ObjectIdentifier(webView)] ?? false }
+        set { consoleCaptureActiveByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
     var pendingPopupRedirectURL: String? {
         get { pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] }
         set { pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] = newValue }
@@ -86,6 +98,8 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         let key = ObjectIdentifier(webView)
         networkUserScriptInstalledByTab.removeValue(forKey: key)
         networkCaptureActiveByTab.removeValue(forKey: key)
+        consoleUserScriptInstalledByTab.removeValue(forKey: key)
+        consoleCaptureActiveByTab.removeValue(forKey: key)
         pendingPopupRedirectURLByTab.removeValue(forKey: key)
     }
 

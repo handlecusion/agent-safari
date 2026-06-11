@@ -77,6 +77,7 @@ extension BrowserController {
             "loadState": stringifyJavaScriptValue((pageState?["loadState"] ?? "") as Any),
             "isLoading": webView.isLoading ? "true" : "false",
             "networkCapturing": networkCaptureActive ? "true" : "false",
+            "consoleCapturing": consoleCaptureActive ? "true" : "false",
             "pendingNetworkCount": stringifyJavaScriptValue((pageState?["pendingNetworkCount"] ?? 0) as Any),
             "selectedText": stringifyJavaScriptValue((pageState?["selectedText"] ?? "") as Any),
             "viewportWidth": stringifyJavaScriptValue((pageState?["viewportWidth"] ?? 0) as Any),

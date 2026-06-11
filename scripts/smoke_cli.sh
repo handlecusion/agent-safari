@@ -142,6 +142,50 @@ print(f"network_events={len(events)} types={','.join(sorted(types))}")
 PY
 }
 
+assert_console_events() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+events_raw = result.get("events", [])
+if isinstance(events_raw, str):
+    events = json.loads(events_raw)
+else:
+    events = events_raw
+count = result.get("count", 0)
+if isinstance(count, str):
+    count = int(count)
+if count < 2:
+    raise SystemExit(f"Expected at least 2 console events; got count={count}; events={events}")
+error_events = [e for e in events if e.get("type") in {"console", "error", "unhandledrejection"} and e.get("level") == "error"]
+if not error_events:
+    raise SystemExit(f"Expected at least one level=error event; events={events}")
+marker_events = [e for e in events if "agent-safari-console-smoke-marker" in str(e.get("message", ""))]
+if not marker_events:
+    raise SystemExit(f"Expected console.error marker event; events={events}")
+print(f"console_events={len(events)} error_events={len(error_events)}")
+PY
+}
+
+assert_console_isolation() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+events_raw = result.get("events", [])
+if isinstance(events_raw, str):
+    events = json.loads(events_raw)
+else:
+    events = events_raw
+tab1_leak = [e for e in events if "tab1-isolation-error" in str(e.get("message", ""))]
+if tab1_leak:
+    raise SystemExit(f"console capture leaked across tabs; tab-2 saw tab-1 events: {tab1_leak}")
+print(f"per-tab isolation verified: tab-2 events={len(events)} no tab-1 leak")
+PY
+}
+
 is_ok_json() {
   python3 - "$1" <<'PY'
 import json
@@ -230,6 +274,14 @@ cat > "$HTML" <<'HTML'
       });
 
       document.getElementById('status').textContent = 'network:done';
+      return true;
+    };
+
+    window.runAgentSafariConsoleSmoke = async () => {
+      console.error('agent-safari-console-smoke-marker');
+      setTimeout(function() { throw new Error('agent-safari-uncaught-error'); }, 0);
+      Promise.reject(new Error('agent-safari-unhandled-rejection'));
+      document.getElementById('status').textContent = 'console:done';
       return true;
     };
   </script>
@@ -433,5 +485,45 @@ else
   log "network commands not advertised; skipping optional network smoke"
 fi
 
+usage_console="$($BIN 2>&1 || true)"
+if printf '%s\n' "$usage_console" | grep -E 'console( |$)|console-(start|stop)' >/dev/null; then
+  log "console commands advertised; verifying console start/list/stop captures errors"
+  response="$(run_cli tab-switch tab-1)"
+  assert_ok_json "$response"
+  response="$(run_cli console start)"
+  assert_ok_json "$response"
+  assert_result_field "$response" "capturing" "true"
+  response="$(run_cli evaluate "window.runAgentSafariConsoleSmoke && window.runAgentSafariConsoleSmoke(); true")"
+  assert_ok_json "$response"
+  response="$(run_cli wait-for-text "console:done" --timeout 5000)"
+  assert_ok_json "$response"
+  response="$(run_cli wait 300)"
+  assert_ok_json "$response"
+  response="$(run_cli console list)"
+  assert_ok_json "$response"
+  assert_console_events "$response"
+  log "verified console-list captured >=2 events including type=error with marker"
+  response="$(run_cli console stop)"
+  assert_ok_json "$response"
+  assert_result_field "$response" "capturing" "false"
+  log "verified console-stop"
+  log "verifying per-tab console isolation: start on tab-2, errors on tab-1 must not appear"
+  response="$(run_cli tab-switch tab-2)"
+  assert_ok_json "$response"
+  response="$(run_cli console start --tab tab-2)"
+  assert_ok_json "$response"
+  response="$(run_cli evaluate "console.error('tab1-isolation-error'); true" --tab tab-1)"
+  assert_ok_json "$response"
+  response="$(run_cli console list --tab tab-2)"
+  assert_ok_json "$response"
+  assert_console_isolation "$response"
+  log "verified per-tab console isolation"
+  response="$(run_cli console stop --tab tab-2)"
+  assert_ok_json "$response"
+else
+  log "console commands not advertised; skipping optional console smoke"
+fi
+
 log "ok"
 log "artifacts: $SMOKE_DIR"
+

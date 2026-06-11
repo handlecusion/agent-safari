@@ -268,6 +268,20 @@ Network capture commands are available as normalized `network <subcommand>` comm
 
 The exported JSON is HAR-like: `log.version`, `log.creator`, `log.entries`, and `agentSafari` metadata. It remains fetch/XHR-only JavaScript instrumentation.
 
+## Console and page-error capture
+
+Console capture uses JavaScript instrumentation to intercept `console.error`, `console.warn`, window error events (`window.onerror`), and unhandled promise rejections. It does not wrap `console.log` (noise) and does not provide full browser DevTools console coverage.
+
+```sh
+.build/debug/agent-safari console start --socket /tmp/agent-safari.sock
+.build/debug/agent-safari console list --socket /tmp/agent-safari.sock
+.build/debug/agent-safari console stop --socket /tmp/agent-safari.sock
+```
+
+Each event entry includes `type` (`"console"`, `"error"`, or `"unhandledrejection"`), `level` (`"error"` or `"warn"`), `message` (stringified args joined with space), `source` (file URL for window errors), `line`, and `ts` (ISO timestamp). The ring buffer is capped at 200 entries; oldest entries are dropped when full. `console stop` disables capture but leaves events readable via `console list`.
+
+Legacy normalized aliases `console-start`, `console-list`, and `console-stop` are also accepted.
+
 ## Agent loop and persistence docs
 
 - `docs/AGENT_LOOP.md` documents the recommended observe -> act -> wait -> verify loop.

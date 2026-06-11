@@ -90,10 +90,18 @@ The current product contract after `v0.0.6` includes:
 - snapshot refs with schema/actionability metadata;
 - click, fill, type, key;
 - stable actionability/native-input JSON-RPC error codes for current click/fill failure classes, raised from structured actionability results before falling back to legacy message classification;
-- waits for URL, title, visible selector, idle, selector, text, and loaded state, with bounded structured timeout failures;
+- waits for URL, title, visible selector, idle, selector, text, loaded state, downloads, and media playback states, with bounded structured timeout failures;
 - JavaScript fetch/XHR instrumentation for network metadata capture, list, stop, and redacted export;
-- network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no downloads, and no default proxy capture;
+- network export may include PerformanceResourceTiming entries for parser-driven resources, but this is not full HAR capture: no WebSocket frames, no service worker internals, no capture of download traffic (file downloads themselves are a separate first-class command surface), and no default proxy capture;
 - network export must keep body preview limits explicit and redaction conservative for sensitive headers and body previews;
+- console/page-error capture (`console start|list|stop`) as JavaScript instrumentation with per-tab isolation, mirroring the network capture honesty limits;
+- JS dialog suppression with per-tab evidence (`suppressedDialogs`, `suppressedDialogCount`) and a per-command `--confirm accept|dismiss` policy;
+- file upload (`upload`) with two-tier delivery: native open-panel on the visible tab when Accessibility permits, deterministic DataTransfer fallback otherwise, with explicit `upload_*` error codes;
+- downloads via WKDownloadDelegate with a no-hang contract (`downloadStarted`/`downloadId` evidence on the triggering command), a `downloads` list, and `wait-for-download`;
+- cookie export/import through WKHTTPCookieStore (0600 export files, session-wide store shared by all tabs, cross-daemon transfer);
+- media observation and control (`media`, `wait-for-media`, `media-control`) limited to in-page element state — no stream reassembly, no DRM handling, no media segment downloading;
+- session snapshot artifacts (`session-snapshot`) recording session/tab/capture state for parallel-run failure reports;
+- parallel multi-tab targeting: every page command accepts `--tab <id>`, commands on different tabs run concurrently, every result reports the `tabId` it acted on, and per-tab state (navigation, captures, evidence) is isolated by tab;
 - modeled session/tab/profile command surface inside one daemon and one native WebKit window: each modeled tab has a `WKWebView`, one tab is active at a time, and all tabs share the daemon's selected persistence mode;
 - public release gates and smoke artifacts.
 

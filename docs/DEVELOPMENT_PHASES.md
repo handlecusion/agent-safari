@@ -288,17 +288,25 @@ Acceptance criteria:
 
 ## Phase 5.6 — Agent Reliability And Evidence Wave (2026-06-11)
 
-Status: Implemented and gate-verified across nine parallel slices; live evidence per slice.
+Status: Closed. Implemented and gate-verified across nine parallel slices developed the
+same day; slices 1–2 merged at `7bcd205`/`d640f3c` and slices 3–9 in the
+`fd14c58..e66a82f` merge train. Product-vision review recorded in
+`docs/reviews/product-vision-review-phase5.6-agent-reliability-2026-06-11.md`.
+Consolidated closing evidence: full gate suite (swift test 60/60, release build, all
+contract tests, `scripts/smoke_cli.sh`, `scripts/smoke_real_world.py`) passed with the
+GUI report at `.tmp/agent-safari-5-scenarios-20260611-202525/REPORT.md`.
 
 Goal: Close the largest remaining "silent no-op" and "missing evidence" gaps an agent hits
 in real pages, keeping every new capability inside the observe → act → wait → verify loop.
 
 Shipped slices (each with its own contract test, smoke coverage, and live verification):
 
-1. Same-document navigation fix — fragment-only `navigate` no longer hangs forever;
-   returns immediately with `sameDocument: true` (`Tests/test_same_document_nav_contract.py`).
-2. Stable error codes — `wait_timeout`, `invalid_url`, and nine more replace the generic
-   `"error"`; the errorCode switch is exhaustive (`Tests/test_error_code_contract.py`).
+1. Same-document navigation fix (merged `d640f3c`) — fragment-only `navigate` no longer
+   hangs forever; returns immediately with `sameDocument: true`
+   (`Tests/test_same_document_nav_contract.py`).
+2. Stable error codes (merged `7bcd205`) — `wait_timeout`, `invalid_url`, and nine more
+   replace the generic `"error"`; the errorCode switch is exhaustive
+   (`Tests/test_error_code_contract.py`).
 3. JS dialog evidence — suppressed alert/confirm/prompt reported per tab in click results
    (`suppressedDialogs`) and `observe`; per-command `--confirm accept|dismiss`
    (`Tests/test_dialog_evidence_contract.py`).

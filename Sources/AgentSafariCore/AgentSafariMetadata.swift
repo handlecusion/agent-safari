@@ -10,6 +10,7 @@ public enum AgentSafariMetadata {
         "wait", "wait-for-selector", "wait-for-text", "wait-for-url", "wait-for-title", "wait-for-visible", "wait-for-idle",
         "back", "forward", "reload", "viewport",
         "network", "network-start", "network-list", "network-stop", "network-export",
+        "console", "console-start", "console-list", "console-stop",
         "session", "tabs", "tab-new", "tab-switch", "tab-close",
         "status", "observe"
     ]

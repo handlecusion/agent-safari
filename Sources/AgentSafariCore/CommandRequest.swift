@@ -137,6 +137,14 @@ public struct CommandRequest: Equatable {
             return CommandRequest(method: "viewport", params: ["width": args[1], "height": args[2]])
         case "network-export":
             return try parseNetworkExportCommand(args)
+        case "console-start":
+            return CommandRequest(method: "consoleStart", params: [:])
+        case "console-stop":
+            return CommandRequest(method: "consoleStop", params: [:])
+        case "console-list":
+            return CommandRequest(method: "consoleList", params: [:])
+        case "console":
+            return try parseConsoleCommand(args)
         case "session":
             return CommandRequest(method: "session", params: [:])
         case "tabs":
@@ -253,6 +261,23 @@ public struct CommandRequest: Equatable {
             }
         }
         return CommandRequest(method: "networkExport", params: params)
+    }
+
+    private static func parseConsoleCommand(_ args: [String]) throws -> CommandRequest {
+        guard args.count >= 2 else { throw CommandRequestError.missingArgument("console subcommand") }
+        switch args[1] {
+        case "start":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "consoleStart", params: [:])
+        case "list":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "consoleList", params: [:])
+        case "stop":
+            guard args.count == 2 else { throw CommandRequestError.unknownArgument(args[2]) }
+            return CommandRequest(method: "consoleStop", params: [:])
+        default:
+            throw CommandRequestError.unknownArgument(args[1])
+        }
     }
 
     private static func parseTimeoutMs(_ args: [String], startingAt startIndex: Int) throws -> String? {

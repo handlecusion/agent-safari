@@ -50,6 +50,9 @@ EXPECTED_TOOLS = {
     "tab_new",
     "tab_switch",
     "tab_close",
+    "console_start",
+    "console_list",
+    "console_stop",
 }
 
 
@@ -94,6 +97,12 @@ def test_tools_json_lists_stable_tool_contract() -> None:
 def test_network_tools_advertise_structured_result_shape() -> None:
     tools = {tool["name"]: tool for tool in load_contract()}
     for name in ("network_start", "network_list", "network_stop"):
+        assert tools[name]["result"] == ["capturing", "count", "events", "tabId"]
+
+
+def test_console_tools_advertise_structured_result_shape() -> None:
+    tools = {tool["name"]: tool for tool in load_contract()}
+    for name in ("console_start", "console_list", "console_stop"):
         assert tools[name]["result"] == ["capturing", "count", "events", "tabId"]
 
 
@@ -178,6 +187,7 @@ def main() -> int:
     for test in (
         test_tools_json_lists_stable_tool_contract,
         test_network_tools_advertise_structured_result_shape,
+        test_console_tools_advertise_structured_result_shape,
         test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs,
         test_failed_cli_payload_preserves_error_code_in_mcp_exception,
     ):

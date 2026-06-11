@@ -49,6 +49,9 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "network_start", "description": "Start JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "start", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
     {"name": "network_list", "description": "Return captured fetch/XHR network entries.", "cli": ["network", "list", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
     {"name": "network_stop", "description": "Stop JavaScript fetch/XHR network capture instrumentation.", "cli": ["network", "stop", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
+    {"name": "console_start", "description": "Start JavaScript console.error/warn and page-error capture instrumentation.", "cli": ["console", "start", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
+    {"name": "console_list", "description": "Return captured console.error/warn and page-error events.", "cli": ["console", "list", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
+    {"name": "console_stop", "description": "Stop JavaScript console/page-error capture instrumentation.", "cli": ["console", "stop", "[--tab <id>]"], "input": ["tab"], "result": ["capturing", "count", "events", "tabId"]},
     {"name": "network_export", "description": "Export captured fetch/XHR entries to a redacted JSON file.", "cli": ["network", "export", "<path>", "[--body-preview-bytes <n>]", "[--max-entries <n>]", "[--tab <id>]"], "input": ["path", "body_preview_bytes", "max_entries", "tab"], "result": ["path", "count", "redacted", "schema", "schemaVersion", "captureType", "limitations", "bodyPreviewBytes", "maxEntries", "entryCount", "eventCount", "resourceTimingCount", "redactionPolicy", "tabId"]},
     {"name": "back", "description": "Navigate back in WebKit history if possible.", "cli": ["back", "[--tab <id>]"], "input": ["tab"], "result": ["url", "tabId"]},
     {"name": "forward", "description": "Navigate forward in WebKit history if possible.", "cli": ["forward", "[--tab <id>]"], "input": ["tab"], "result": ["url", "tabId"]},
@@ -313,6 +316,21 @@ def create_server() -> Any:
     def network_stop(tab: str = "") -> dict[str, Any]:
         """Stop JavaScript fetch/XHR network capture instrumentation."""
         return _run_cli("network", "stop", tab=tab)
+
+    @mcp.tool()
+    def console_start(tab: str = "") -> dict[str, Any]:
+        """Start JavaScript console.error/warn and page-error capture instrumentation."""
+        return _run_cli("console", "start", tab=tab)
+
+    @mcp.tool()
+    def console_list(tab: str = "") -> dict[str, Any]:
+        """Return captured console.error/warn and page-error events."""
+        return _run_cli("console", "list", tab=tab)
+
+    @mcp.tool()
+    def console_stop(tab: str = "") -> dict[str, Any]:
+        """Stop JavaScript console/page-error capture instrumentation."""
+        return _run_cli("console", "stop", tab=tab)
 
     @mcp.tool()
     def network_export(path: str, body_preview_bytes: int | None = None, max_entries: int | None = None, tab: str = "") -> dict[str, Any]:

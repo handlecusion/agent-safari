@@ -113,6 +113,9 @@ hermes mcp add agent-safari \
 - `network_list()`
 - `network_stop()`
 - `network_export(path, body_preview_bytes=None, max_entries=None)`
+- `console_start()` — JavaScript console.error/warn and page-error instrumentation (not full DevTools console)
+- `console_list()`
+- `console_stop()`
 - `back()`
 - `forward()`
 - `reload()`

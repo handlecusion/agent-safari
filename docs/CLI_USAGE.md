@@ -208,6 +208,67 @@ command fails with `upload_panel_not_triggered`.
 Pending upload files are armed per modeled tab; a click on the visible tab
 cannot consume another tab's pending upload files.
 
+### Observe and control media
+
+Agent Safari treats `<video>`/`<audio>` as observable, waitable, controllable
+elements. Scope is deliberately bounded: media support ends at **observation,
+playback state, and control of in-page elements**. There is no stream
+reassembly, no DRM handling, and no download of media segments.
+
+Inventory every media element on the page (read-only):
+
+```sh
+.build/debug/agent-safari media --socket /tmp/agent-safari.sock
+```
+
+The result mirrors `snapshot`: `elements` is a parsed JSON array and `count` is
+its length. Each element reports `index`, `tag`, `id`, `currentSrc`, `duration`,
+`paused`, `ended`, `muted`, `volume`, `currentTime`, `readyState`,
+`videoWidth`, `videoHeight`, and `poster`. Durations (and any other numeric
+field) that are `NaN`/`Infinity` — e.g. before metadata loads — are normalized
+to `-1` ("unknown") so the JSON round-trips cleanly.
+
+Wait until a media element reaches a state:
+
+```sh
+.build/debug/agent-safari wait-for-media '#beep' --state playing --timeout 4000 --socket /tmp/agent-safari.sock
+```
+
+States and their exact semantics:
+
+- `playing`: `!paused && !ended && readyState >= 2` (has current data and is advancing).
+- `paused`: `paused` is true.
+- `ended`: `ended` is true.
+- `canplay`: `readyState >= 3` (enough data to start playing).
+
+The selector may be a CSS selector or a snapshot `@e` ref; resolution reuses the
+same path as `click`/`fill`, so a missing/stale ref returns the matching
+`actionability_*` code. A timeout returns `wait_timeout`. On success the result
+is `{ selector, state, matched: "true", timeoutMs }`.
+
+Control a media element:
+
+```sh
+.build/debug/agent-safari media-control '#beep' play --socket /tmp/agent-safari.sock
+.build/debug/agent-safari media-control '#beep' seek 1.5 --socket /tmp/agent-safari.sock
+```
+
+Actions are `play`, `pause`, `mute`, `unmute`, and `seek`. `seek` requires a
+non-negative, possibly fractional `seconds` argument; an invalid or missing value
+returns the same `invalid_param`/`missing_param` errors as other numeric
+arguments. Every result reports the action plus before/after evidence
+(`pausedBefore`/`pausedAfter`, `currentTimeBefore`/`currentTimeAfter`,
+`mutedBefore`/`mutedAfter`).
+
+`play()` returns a Promise that WebKit can reject (most often an autoplay
+policy). Agent Safari awaits it in the page and surfaces a rejection as the
+structured error `media_play_rejected`, carrying the rejection message.
+
+**Autoplay policy:** the agent-controlled browser sets
+`mediaTypesRequiringUserActionForPlayback = []` on the WebView configuration so
+`play()` works without a real user gesture. This is intentional — an automation
+substrate should be able to start playback programmatically.
+
 ### Wait and observe page state
 
 Use wait commands to make agentic browser control less race-prone after navigation or actions that mutate the DOM:

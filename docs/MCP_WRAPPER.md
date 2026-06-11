@@ -104,6 +104,7 @@ hermes mcp add agent-safari \
 - `click(selector, native=False, fallback=True)`
 - `fill(selector, value)`
 - `upload(selector, paths)` set files on an `<input type=file>`; pass multiple paths only when the input has the `multiple` attribute
+- `media()`, `wait_for_media(selector, state, timeout_ms=10000)`, `media_control(selector, action, seconds=None)` observe `<video>`/`<audio>` playback state, wait for `playing|paused|ended|canplay`, and drive `play|pause|mute|unmute|seek` (observation and in-page control only — no stream/segment download or DRM handling)
 - `key(key)`
 - `type_text(text)`
 - `wait(ms)`

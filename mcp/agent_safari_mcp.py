@@ -31,6 +31,9 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "url", "description": "Return the current document URL.", "cli": ["url", "[--tab <id>]"], "input": ["tab"], "result": ["url", "tabId"]},
     {"name": "content", "description": "Alias for visible page text.", "cli": ["content", "[--tab <id>]"], "input": ["tab"], "result": ["text", "tabId"]},
     {"name": "snapshot", "description": "Return visible/interactable elements with stable @e refs.", "cli": ["snapshot", "[--tab <id>]"], "input": ["tab"], "result": ["schemaVersion", "elements", "tabId"]},
+    {"name": "media", "description": "Inventory <video>/<audio> elements with playback state (read-only).", "cli": ["media", "[--tab <id>]"], "input": ["tab"], "result": ["elements", "count", "tabId"]},
+    {"name": "wait_for_media", "description": "Wait until a media element reaches playing|paused|ended|canplay.", "cli": ["wait-for-media", "<selector-or-ref>", "--state", "<playing|paused|ended|canplay>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["selector", "state", "timeout_ms", "tab"], "result": ["selector", "state", "matched", "timeoutMs", "tabId"]},
+    {"name": "media_control", "description": "Drive a media element: play|pause|mute|unmute|seek (seek needs seconds).", "cli": ["media-control", "<selector-or-ref>", "<play|pause|mute|unmute|seek>", "[seconds]", "[--tab <id>]"], "input": ["selector", "action", "seconds", "tab"], "result": ["selector", "action", "pausedBefore", "currentTimeBefore", "mutedBefore", "pausedAfter", "currentTimeAfter", "mutedAfter", "tabId"]},
     {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>", "[--confirm <accept|dismiss>]", "[--tab <id>]"], "input": ["script", "confirm", "tab"], "result": ["value", "tabId"]},
     {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "strategy", "tabId"]},
     {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "preflightScrollCount", "warnings", "strategy", "tabId"]},
@@ -222,6 +225,24 @@ def create_server() -> Any:
     def snapshot(tab: str = "") -> dict[str, Any]:
         """Return a JSON string snapshot of interactive elements."""
         return _run_cli("snapshot", tab=tab)
+
+    @mcp.tool()
+    def media(tab: str = "") -> dict[str, Any]:
+        """Inventory <video>/<audio> elements with playback state (read-only)."""
+        return _run_cli("media", tab=tab)
+
+    @mcp.tool()
+    def wait_for_media(selector: str, state: str, timeout_ms: int = 10000, tab: str = "") -> dict[str, Any]:
+        """Wait until a media element reaches state playing|paused|ended|canplay."""
+        return _run_cli("wait-for-media", selector, "--state", state, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0, tab=tab)
+
+    @mcp.tool()
+    def media_control(selector: str, action: str, seconds: float | None = None, tab: str = "") -> dict[str, Any]:
+        """Drive a media element: play|pause|mute|unmute|seek (seek requires seconds)."""
+        args = [selector, action]
+        if seconds is not None:
+            args.append(str(seconds))
+        return _run_cli("media-control", *args, tab=tab)
 
     @mcp.tool()
     def evaluate(script: str, tab: str = "", confirm: str = "") -> dict[str, Any]:

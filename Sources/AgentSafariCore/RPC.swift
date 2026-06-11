@@ -63,7 +63,10 @@ public enum JSONValue: Codable, Equatable, Sendable {
 
     public static func fromJSONObject(_ object: Any) -> JSONValue {
         if object is NSNull { return .null }
-        if let value = object as? Bool { return .bool(value) }
+        // NSNumber must be handled before `as? Bool`: JSONSerialization decodes JSON
+        // integers 0/1 as NSNumber that also casts `as? Bool`, which would wrongly turn
+        // numeric fields (e.g. readyState, currentTime, index) into booleans. Only true
+        // JSON booleans carry the CFBoolean type id.
         if let value = object as? NSNumber {
             if CFGetTypeID(value) == CFBooleanGetTypeID() { return .bool(value.boolValue) }
             return .number(value.doubleValue)

@@ -46,7 +46,10 @@ import Testing
         "tab-switch": ["tab-1"],
         "tab-close": ["tab-1"],
         "status": [],
-        "observe": []
+        "observe": [],
+        "media": [],
+        "wait-for-media": ["#beep", "--state", "playing"],
+        "media-control": ["#beep", "play"]
     ]
 
     #expect(Set(commandArguments.keys) == AgentSafariMetadata.clientCommands)

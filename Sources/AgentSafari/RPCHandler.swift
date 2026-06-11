@@ -77,6 +77,22 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
         case "snapshot":
             let snapshot = try await browser.snapshot()["snapshot"] ?? "[]"
             result = .object(["elements": JSONValue.parseJSONText(snapshot), "schemaVersion": .number(2)])
+        case "media":
+            let elements = try await browser.media()["elements"] ?? "[]"
+            let parsed = JSONValue.parseJSONText(elements)
+            let count: Int
+            if case .array(let items) = parsed { count = items.count } else { count = 0 }
+            result = .object(["elements": parsed, "count": .number(Double(count))])
+        case "waitForMedia":
+            guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
+            guard let state = params["state"] else { throw AgentSafariError.missingParam("state") }
+            let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
+            result = JSONValue.fromStringMap(try await browser.waitForMedia(selector: selector, state: state, timeoutMs: timeoutMs))
+        case "mediaControl":
+            guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
+            guard let action = params["action"] else { throw AgentSafariError.missingParam("action") }
+            let seconds = params["seconds"] != nil ? try parseNonNegativeDoubleParam(params, name: "seconds") : nil
+            result = JSONValue.fromStringMap(try await browser.mediaControl(selector: selector, action: action, seconds: seconds))
         case "screenshot":
             let path = params["path"] ?? "\(NSHomeDirectory())/.agent-safari/artifacts/screenshot.png"
             result = JSONValue.fromStringMap(try await browser.screenshot(path: path))

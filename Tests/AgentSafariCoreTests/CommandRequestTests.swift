@@ -143,6 +143,53 @@ import Testing
     #expect(command.params == [:])
 }
 
+@Test func commandRequestParsesMedia() throws {
+    let command = try CommandRequest.parse(["media"])
+
+    #expect(command.method == "media")
+    #expect(command.params == [:])
+}
+
+@Test func commandRequestParsesWaitForMediaWithStateAndDefaultTimeout() throws {
+    let command = try CommandRequest.parse(["wait-for-media", "#beep", "--state", "playing"])
+
+    #expect(command.method == "waitForMedia")
+    #expect(command.params == ["selector": "#beep", "state": "playing", "timeoutMs": "10000"])
+}
+
+@Test func commandRequestParsesWaitForMediaWithTimeout() throws {
+    let command = try CommandRequest.parse(["wait-for-media", "@e1", "--state", "paused", "--timeout", "4000"])
+
+    #expect(command.method == "waitForMedia")
+    #expect(command.params == ["selector": "@e1", "state": "paused", "timeoutMs": "4000"])
+}
+
+@Test func commandRequestRejectsWaitForMediaWithoutState() throws {
+    #expect(throws: CommandRequestError.self) {
+        _ = try CommandRequest.parse(["wait-for-media", "#beep"])
+    }
+}
+
+@Test func commandRequestParsesMediaControlAction() throws {
+    let command = try CommandRequest.parse(["media-control", "#beep", "play"])
+
+    #expect(command.method == "mediaControl")
+    #expect(command.params == ["selector": "#beep", "action": "play"])
+}
+
+@Test func commandRequestParsesMediaControlSeekWithSeconds() throws {
+    let command = try CommandRequest.parse(["media-control", "@e2", "seek", "1.5"])
+
+    #expect(command.method == "mediaControl")
+    #expect(command.params == ["selector": "@e2", "action": "seek", "seconds": "1.5"])
+}
+
+@Test func commandRequestRejectsMediaControlMissingAction() throws {
+    #expect(throws: CommandRequestError.self) {
+        _ = try CommandRequest.parse(["media-control", "#beep"])
+    }
+}
+
 @Test func commandRequestParsesScreenshotFullPath() throws {
     let command = try CommandRequest.parse(["screenshot-full", "/tmp/full-page.png"])
 

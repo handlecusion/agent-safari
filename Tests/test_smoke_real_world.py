@@ -194,7 +194,7 @@ def test_native_click_delivery_metadata_is_explicit() -> None:
 
 def test_bounded_timeout_failure_helper_requires_structured_error() -> None:
     smoke = load_smoke_module()
-    record = {"json": {"ok": False, "error": {"code": "error", "message": "Timed out after 250 ms"}}}
+    record = {"json": {"ok": False, "error": {"code": "wait_timeout", "message": "Timed out after 250 ms"}}}
     assert smoke.assert_bounded_timeout_failure(record, 250) == "Timed out after 250 ms"
 
     try:

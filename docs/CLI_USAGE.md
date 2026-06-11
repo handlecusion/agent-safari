@@ -68,6 +68,17 @@ Click/fill actionability failures are raised from structured WebKit evaluation r
 - `actionability_occluded`
 - `native_click_unverified`
 - `native_input_failed`
+- `wait_timeout` — `wait-for-selector`, `wait-for-text`, or `wait-for-idle` exceeded the timeout
+- `invalid_url` — the provided URL could not be parsed
+- `missing_param` — a required parameter was not supplied
+- `invalid_param` — a parameter value is not a valid integer
+- `unknown_method` — the requested command is not recognised
+- `element_resolution_failed` — the target element could not be resolved to a clickable point
+- `screenshot_failed` — screenshot PNG encoding failed
+- `page_measurement_failed` — page dimension measurement failed
+- `javascript_encoding_failed` — JavaScript string literal encoding failed
+- `socket_error` — Unix socket path is too long or a socket operation failed
+- `unknown_tab` — the referenced tab id does not exist
 
 ## Commands
 

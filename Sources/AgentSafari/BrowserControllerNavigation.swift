@@ -14,6 +14,19 @@ extension BrowserController {
         guard navigationContinuations[key] == nil else {
             throw AgentSafariError.navigationInProgress(tabID(for: target) ?? "unknown")
         }
+        if isSameDocumentNavigation(to: url, in: target) {
+            // WebKit performs same-document navigations (fragment-only changes) without
+            // firing didFinish/didFail, so the load/continuation path would hang forever.
+            // Drive the fragment change via JavaScript and return synchronously instead.
+            let urlLiteral = try javaScriptStringLiteral(urlString)
+            _ = try await target.evaluateJavaScript("location.href = \(urlLiteral)")
+            if target === activeTabWebView { updateAddressBar(target.url?.absoluteString ?? urlString) }
+            return [
+                "url": target.url?.absoluteString ?? "",
+                "title": target.title ?? "",
+                "sameDocument": "true",
+            ]
+        }
         try await withCheckedThrowingContinuation { continuation in
             navigationContinuations[key] = continuation
             if target === activeTabWebView { updateAddressBar(urlString) }
@@ -21,6 +34,23 @@ extension BrowserController {
         }
         if target === activeTabWebView { updateAddressBar(target.url?.absoluteString ?? urlString) }
         return ["url": target.url?.absoluteString ?? "", "title": target.title ?? ""]
+    }
+
+    /// True when navigating to `target` only changes the fragment of the currently
+    /// loaded document. WebKit handles this as a same-document navigation and does
+    /// not invoke the navigation delegate callbacks that resume the continuation.
+    func isSameDocumentNavigation(to target: URL, in webView: WKWebView) -> Bool {
+        guard target.fragment != nil else { return false }
+        guard let current = webView.url else { return false }
+        return urlIgnoringFragment(current) == urlIgnoringFragment(target)
+    }
+
+    private func urlIgnoringFragment(_ url: URL) -> String {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url.absoluteString
+        }
+        components.fragment = nil
+        return components.string ?? url.absoluteString
     }
 
     func evaluate(_ script: String) async throws -> [String: String] {

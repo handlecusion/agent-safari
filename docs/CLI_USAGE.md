@@ -98,6 +98,8 @@ Prefer the normalized `open` command. `navigate` remains as a backward-compatibl
 
 Result fields include the final `url` and document `title` when available.
 
+Fragment-only navigations (the target differs from the current URL only by a `#fragment`) are handled as same-document navigations: they update the location via JavaScript instead of a full page load and return immediately with an extra `sameDocument: true` result field. Cross-document navigations omit `sameDocument` and use the normal load path.
+
 ### Read page text or HTML
 
 ```sh

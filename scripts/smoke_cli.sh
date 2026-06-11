@@ -571,6 +571,8 @@ if printf '%s\n' "$usage_console" | grep -E 'console( |$)|console-(start|stop)' 
   assert_ok_json "$response"
 else
   log "console commands not advertised; skipping optional console smoke"
+fi
+
 log "verifying download handling: attachment navigate + download-link click do not hang and write files"
 cat > "$DOWNLOAD_SERVER" <<'PYSERVER'
 import http.server, socketserver, sys

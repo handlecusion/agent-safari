@@ -335,6 +335,22 @@ if len(tabs) < 2 or not any(tab.get('active') for tab in tabs):
     raise SystemExit(f"expected at least two modeled tabs with one active: {payload}")
 PY
 
+log "verifying same-document (fragment) navigation returns instead of hanging"
+response="$(run_cli navigate "$URL#anchor-smoke")"
+assert_ok_json "$response"
+assert_result_field "$response" "sameDocument" "true"
+assert_result_field "$response" "url" "$URL#anchor-smoke"
+log "verifying full cross-document navigation still uses the load path"
+response="$(run_cli navigate "$URL?side=left")"
+assert_ok_json "$response"
+assert_result_field "$response" "url" "$URL?side=left"
+python3 - "$response" <<'PY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if "sameDocument" in payload.get("result", {}):
+    raise SystemExit(f"full navigation should not report sameDocument: {payload}")
+PY
+
 usage="$($BIN 2>&1 || true)"
 if printf '%s\n' "$usage" | grep -E 'network( |$)|network-(start|stop)' >/dev/null; then
   log "network commands advertised; verifying normalized network start/list/stop capture fetch and XHR"

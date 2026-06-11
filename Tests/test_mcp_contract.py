@@ -107,7 +107,7 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "click": {
             "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]"],
             "input": ["selector", "native", "fallback"],
-            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView"],
+            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView"],
         },
         "fill": {"cli": ["fill", "<selector-or-ref>", "<value>"], "input": ["selector", "value"], "result": ["selector", "value"]},
         "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>"], "input": ["selector", "timeout_ms"], "result": ["selector", "found", "timeoutMs"]},

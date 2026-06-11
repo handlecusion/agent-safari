@@ -15,7 +15,7 @@ extension BrowserController {
         Task { @MainActor in
             do {
                 _ = try await navigate(urlString)
-            } catch {}
+            } catch { fputs("[agent-safari] popup redirect navigation failed: \(error.localizedDescription)\n", stderr) }
         }
         pendingPopupRedirectURL = urlString
         return nil

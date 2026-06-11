@@ -183,6 +183,10 @@ public struct CommandRequest: Equatable {
                 params["timeoutMs"] = timeoutMs
             }
             return CommandRequest(method: "waitForDownload", params: params)
+        case "session-snapshot":
+            guard args.count >= 2 else { throw CommandRequestError.missingArgument("path") }
+            return CommandRequest(method: "sessionSnapshot", params: ["path": args[1]])
+        
         default:
             throw CommandRequestError.unknownCommand(command)
         }

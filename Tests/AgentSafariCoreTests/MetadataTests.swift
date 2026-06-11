@@ -48,7 +48,8 @@ import Testing
         "status": [],
         "observe": [],
         "downloads": [],
-        "wait-for-download": ["--last"]
+        "wait-for-download": ["--last"],
+        "session-snapshot": ["/tmp/session.json"]
     ]
 
     #expect(Set(commandArguments.keys) == AgentSafariMetadata.clientCommands)

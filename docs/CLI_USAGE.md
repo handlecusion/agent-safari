@@ -259,6 +259,26 @@ The daemon exposes a modeled tab set inside one native WebKit window. Each model
 
 `session` reports `sessionId`, `activeTabId`, `profile`, `persistent`, `dataStore`, and `tabCount`. `--profile <name>` is metadata reserved for future named stores; today persistent mode uses WebKit's default data store, and `--ephemeral` uses a non-persistent store. Use separate daemon sockets plus `--ephemeral` for isolated automation runs.
 
+### Session snapshot
+
+Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics:
+
+```sh
+.build/debug/agent-safari session-snapshot /tmp/session.json --socket /tmp/agent-safari.sock
+```
+
+Result fields: `path` (the written artifact path) and `tabCount`.
+
+The artifact JSON contains:
+
+- `schemaVersion`: `1`
+- `sessionId`, `profile`, `persistent`, `dataStore`, `activeTabId`
+- `viewport`: `{"width": N, "height": N}` (from the WebKit container frame)
+- `tabs`: array of `{"id", "active", "url", "title", "loading", "networkCapturing", "consoleCapturing", "pendingSuppressedDialogCount"}`
+
+Unwritable paths throw `artifact_write_failed`. Parent directories are created automatically.
+
+
 ### Parallel multi-tab targeting
 
 Any page command accepts a global `--tab <id>` option that routes it to a modeled tab without changing the active tab. Commands addressed to different tabs run concurrently: a long `wait-for-*` on one tab does not delay commands on another, and parallel `navigate` calls land on their own tabs. Every result reports the `tabId` it acted on.

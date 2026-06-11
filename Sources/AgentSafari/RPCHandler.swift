@@ -175,6 +175,10 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
             guard let id = params["id"] else { throw AgentSafariError.missingParam("id") }
             let timeoutMs = try parseNonNegativeIntParam(params, name: "timeoutMs", defaultValue: 10_000)
             result = JSONValue.fromStringMap(try await browser.waitForDownload(id: id, timeoutMs: timeoutMs))
+        case "sessionSnapshot":
+            guard let path = params["path"] else { throw AgentSafariError.missingParam("path") }
+            result = JSONValue.fromStringMap(try await browser.sessionSnapshot(path: path))
+        
         default:
             throw AgentSafariError.unknownMethod(method)
         }

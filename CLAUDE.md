@@ -47,7 +47,7 @@ Non-GUI baseline gates:
 ```sh
 swift test
 swift build -c release
-python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/smoke_real_world.py Tests/test_agentic_refs_contract.py Tests/test_input_keypath_contract.py Tests/test_browser_chrome_contract.py Tests/test_smoke_real_world.py Tests/test_capture_inspection_contract.py Tests/test_network_capture_contract.py Tests/test_popup_redirect_contract.py Tests/test_multitab_parallel_contract.py Tests/test_error_code_contract.py Tests/test_same_document_nav_contract.py Tests/test_dialog_evidence_contract.py Tests/test_console_capture_contract.py Tests/test_upload_contract.py Tests/test_download_contract.py
+python3 -m py_compile mcp/agent_safari_mcp.py scripts/smoke_mcp_wrapper.py scripts/public_release_audit.py scripts/render_homebrew_formula.py scripts/smoke_real_world.py Tests/test_agentic_refs_contract.py Tests/test_input_keypath_contract.py Tests/test_browser_chrome_contract.py Tests/test_smoke_real_world.py Tests/test_capture_inspection_contract.py Tests/test_network_capture_contract.py Tests/test_popup_redirect_contract.py Tests/test_multitab_parallel_contract.py Tests/test_error_code_contract.py Tests/test_same_document_nav_contract.py Tests/test_dialog_evidence_contract.py Tests/test_console_capture_contract.py Tests/test_upload_contract.py Tests/test_download_contract.py Tests/test_session_snapshot_contract.py
 bash -n scripts/*.sh
 python3 Tests/test_public_release_audit.py
 python3 Tests/test_mcp_contract.py
@@ -65,6 +65,7 @@ python3 Tests/test_dialog_evidence_contract.py
 python3 Tests/test_console_capture_contract.py
 python3 Tests/test_upload_contract.py
 python3 Tests/test_download_contract.py
+python3 Tests/test_session_snapshot_contract.py
 bash scripts/smoke_cli.sh
 ```
 

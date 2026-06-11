@@ -52,6 +52,7 @@ func usage() {
     agent-safari session|tabs|tab-new [--socket /tmp/agent-safari.sock]
     agent-safari tab-switch <id> [--socket /tmp/agent-safari.sock]
     agent-safari tab-close <id> [--socket /tmp/agent-safari.sock]
+    agent-safari session-snapshot <path> [--socket /tmp/agent-safari.sock]
     agent-safari status|observe [--socket /tmp/agent-safari.sock]
     agent-safari downloads [--socket /tmp/agent-safari.sock]
     agent-safari wait-for-download <id|--last> [--timeout <ms>] [--socket /tmp/agent-safari.sock]

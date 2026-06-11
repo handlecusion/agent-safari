@@ -153,4 +153,66 @@ extension BrowserController {
         }
         return ["id": id, "tabId": activeTabID, "closed": "true", "activeTabId": activeTabID, "reason": ""]
     }
+
+    func sessionSnapshot(path: String) async throws -> [String: String] {
+        // Build per-tab snapshot
+        var tabsArray: [JSONValue] = []
+        for tab in tabsModel {
+            let wv = tab.webView
+            let tabKey = ObjectIdentifier(wv)
+            let networkCapturing = networkCaptureActiveByTab[tabKey] ?? false
+            let consoleCapturing = consoleCaptureActiveByTab[tabKey] ?? false
+            let suppressedCount = pendingSuppressedDialogsByTab[tabKey]?.count ?? 0
+            tabsArray.append(.object([
+                "id": .string(tab.id),
+                "active": .bool(tab.id == activeTabID),
+                "url": .string(wv.url?.absoluteString ?? ""),
+                "title": .string(wv.title ?? ""),
+                "loading": .bool(wv.isLoading),
+                "networkCapturing": .bool(networkCapturing),
+                "consoleCapturing": .bool(consoleCapturing),
+                "pendingSuppressedDialogCount": .number(Double(suppressedCount))
+            ]))
+        }
+
+        // Viewport from webContainerView frame
+        let vpWidth = Int(webContainerView.frame.width)
+        let vpHeight = Int(webContainerView.frame.height)
+
+        let artifact: JSONValue = .object([
+            "schemaVersion": .number(1),
+            "sessionId": .string(sessionID),
+            "profile": .string(profileName),
+            "persistent": .bool(!ephemeral),
+            "dataStore": .string(ephemeral ? "nonPersistent" : "default"),
+            "activeTabId": .string(activeTabID),
+            "viewport": .object([
+                "width": .number(Double(vpWidth)),
+                "height": .number(Double(vpHeight))
+            ]),
+            "tabs": .array(tabsArray)
+        ])
+
+        let encoded: Data
+        do {
+            encoded = try JSONEncoder().encode(artifact)
+        } catch {
+            throw AgentSafariError.artifactWriteFailed("JSON encoding failed: \(error.localizedDescription)")
+        }
+
+        let url = URL(fileURLWithPath: path)
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+                attributes: nil
+            )
+            try encoded.write(to: url, options: .atomic)
+        } catch {
+            throw AgentSafariError.artifactWriteFailed(error.localizedDescription)
+        }
+
+        return ["path": path, "tabCount": String(tabsModel.count)]
+    }
+
 }

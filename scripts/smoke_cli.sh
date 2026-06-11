@@ -710,6 +710,43 @@ if [[ -n "$DOWNLOAD_SERVER_PID" ]] && kill -0 "$DOWNLOAD_SERVER_PID" 2>/dev/null
   wait "$DOWNLOAD_SERVER_PID" 2>/dev/null || true
   DOWNLOAD_SERVER_PID=""
 fi
+log "verifying session-snapshot artifact"
+SESSION_SNAP="$SMOKE_DIR/session.json"
+response="$(run_cli session-snapshot "$SESSION_SNAP")"
+assert_ok_json "$response"
+assert_result_field "$response" "path" "$SESSION_SNAP"
+python3 - "$SESSION_SNAP" <<'PY'
+import json, sys
+artifact = json.load(open(sys.argv[1]))
+# Schema version
+if artifact.get("schemaVersion") != 1:
+    raise SystemExit(f"expected schemaVersion=1: {artifact}")
+# Required top-level fields
+for field in ("sessionId", "profile", "persistent", "dataStore", "activeTabId", "viewport", "tabs"):
+    if field not in artifact:
+        raise SystemExit(f"missing field {field!r} in snapshot: {artifact}")
+# Viewport shape
+vp = artifact["viewport"]
+if "width" not in vp or "height" not in vp:
+    raise SystemExit(f"missing viewport dimensions: {vp}")
+# Tabs
+tabs = artifact["tabs"]
+if len(tabs) < 2:
+    raise SystemExit(f"expected >=2 tabs in snapshot; got {len(tabs)}")
+active_tabs = [t for t in tabs if t.get("active")]
+if len(active_tabs) != 1:
+    raise SystemExit(f"expected exactly one active tab; got {active_tabs}")
+if active_tabs[0]["id"] != artifact["activeTabId"]:
+    raise SystemExit(f"activeTabId mismatch: {artifact['activeTabId']!r} vs tab.id {active_tabs[0]['id']!r}")
+# Every tab has required fields
+for tab in tabs:
+    for field in ("id", "active", "url", "title", "loading", "networkCapturing", "consoleCapturing"):
+        if field not in tab:
+            raise SystemExit(f"tab {tab.get('id')!r} missing field {field!r}: {tab}")
+print(f"session-snapshot ok: {len(tabs)} tabs, activeTabId={artifact['activeTabId']!r}, viewport={vp['width']}x{vp['height']}")
+PY
+log "verified session-snapshot artifact"
+
 
 log "ok"
 log "artifacts: $SMOKE_DIR"

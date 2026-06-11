@@ -56,6 +56,7 @@ EXPECTED_TOOLS = {
     "console_stop",
     "downloads",
     "wait_for_download",
+    "session_snapshot",
 }
 
 

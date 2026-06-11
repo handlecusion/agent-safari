@@ -130,6 +130,7 @@ hermes mcp add agent-safari \
 - `tab_close(tab_id)`
 - `downloads()`
 - `wait_for_download(download_id="--last", timeout_ms=10000)`
+- `session_snapshot(path)` — dump full session state as a JSON artifact for failure reports
 
 Most tools return the CLI result object decoded from the JSON-RPC response. For
 example, `text()` returns an object like `{ "text": "..." }`. The wrapper also

@@ -225,7 +225,7 @@ Future work, not part of this closed contract:
 1. Cookie export/import tools using `WKHTTPCookieStore`.
 2. Named profile registry under `~/.agent-safari/profiles/<name>/metadata.json`.
 3. Explicit clear-profile command for destructive test isolation.
-4. Session snapshot artifacts that record active tab id, URLs, viewport, capture settings, and artifact paths.
+4. Session snapshot artifacts that record active tab id, URLs, viewport, capture settings, and artifact paths. **Implemented (2026-06-11)**: `session-snapshot <path>` command writes a schema-version-1 JSON artifact with sessionId, profile, persistent, dataStore, activeTabId, viewport, and per-tab state (url, title, loading, networkCapturing, consoleCapturing, pendingSuppressedDialogCount). Contract-tested in `Tests/test_session_snapshot_contract.py`; smoke-verified in `scripts/smoke_cli.sh`.
 5. True profile/session isolation beyond the current one-daemon model.
 
 Acceptance criteria:

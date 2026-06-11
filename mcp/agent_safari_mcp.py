@@ -62,6 +62,7 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "tabs", "description": "List modeled tabs for the current daemon session.", "cli": ["tabs"], "result": ["tabs", "activeTabId"]},
     {"name": "tab_new", "description": "Create a new modeled WebKit tab and optionally navigate it to a URL.", "cli": ["tab-new", "[url]"], "input": ["url"], "result": ["id", "tabId", "created", "url", "title"]},
     {"name": "tab_switch", "description": "Switch to a modeled tab id.", "cli": ["tab-switch", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "active", "url", "title"]},
+    {"name": "session_snapshot", "description": "Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics.", "cli": ["session-snapshot", "<path>"], "input": ["path"], "result": ["path", "tabCount"]},
     {"name": "tab_close", "description": "Close a modeled tab id when supported.", "cli": ["tab-close", "<id>"], "input": ["tab_id"], "result": ["id", "tabId", "closed", "activeTabId", "reason"]},
     {"name": "downloads", "description": "List downloads observed by this daemon session (daemon-wide, capped at 50).", "cli": ["downloads"], "input": [], "result": ["downloads", "count"]},
     {"name": "wait_for_download", "description": "Wait until a download leaves the pending state; id may be a download id or --last.", "cli": ["wait-for-download", "<id-or---last>", "--timeout", "<ms>"], "input": ["download_id", "timeout_ms"], "result": ["id", "url", "filename", "path", "state", "error", "downloadTabId", "timeoutMs"]},
@@ -405,6 +406,11 @@ def create_server() -> Any:
     def wait_for_download(download_id: str = "--last", timeout_ms: int = 10000) -> dict[str, Any]:
         """Wait until a download leaves the pending state; download_id may be an id or --last."""
         return _run_cli("wait-for-download", download_id, "--timeout", str(timeout_ms), timeout=(float(timeout_ms) / 1000.0) + 5.0)
+
+    @mcp.tool()
+    def session_snapshot(path: str) -> dict[str, Any]:
+        """Dump the full session state as a JSON artifact for failure reports and parallel-run diagnostics."""
+        return _run_cli("session-snapshot", path)
 
     return mcp
 

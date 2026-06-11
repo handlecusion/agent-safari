@@ -94,6 +94,14 @@ private func dispatch(_ method: String, params: [String: String], browser: Brows
             guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
             guard let value = params["value"] else { throw AgentSafariError.missingParam("value") }
             result = JSONValue.fromStringMap(try await browser.fill(selector: selector, value: value))
+        case "upload":
+            guard let selector = params["selector"] else { throw AgentSafariError.missingParam("selector") }
+            guard let pathsJSON = params["paths"] else { throw AgentSafariError.missingParam("paths") }
+            guard let pathsData = pathsJSON.data(using: .utf8),
+                  let paths = try? JSONDecoder().decode([String].self, from: pathsData) else {
+                throw AgentSafariError.invalidIntegerParam("paths", pathsJSON)
+            }
+            result = JSONValue.fromStringMap(try await browser.upload(selector: selector, paths: paths))
         case "key":
             guard let key = params["key"] else { throw AgentSafariError.missingParam("key") }
             result = JSONValue.fromStringMap(try await browser.key(key))

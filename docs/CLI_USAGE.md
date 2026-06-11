@@ -82,6 +82,10 @@ Click/fill actionability failures are raised from structured WebKit evaluation r
 - `navigation_in_progress` — a navigation is already in flight on the target tab
 - `tab_closed_during_command` — the target tab was closed while the command was running
 - `tab_not_active_for_native_input` — native Quartz input requires the visible tab
+- `upload_file_not_found` — an `upload` path does not exist on disk
+- `upload_panel_not_triggered` — the upload click never opened a file panel for the input
+- `upload_multiple_not_allowed` — multiple paths were given for an input without the `multiple` attribute
+- `upload_file_too_large_for_fallback` — a file exceeds the 8 MB DOM-fallback limit and the native open-panel path was unavailable
 
 ## Commands
 
@@ -159,6 +163,50 @@ Keyboard events are dispatched to the active element. `type` inserts text into t
 Native click fallback is explicit in the JSON result. Verified native clicks report `method: "native"`, `nativeVerified: true`, and `fallbackUsed: false`. If default native click cannot be verified and DOM fallback succeeds, the result reports `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters. When a click triggers a `target=_blank` link or `window.open()`, the navigation is redirected to the current active WebView and the result includes `popupRedirectedURL` with the intercepted URL. A bare `window.open()` with no URL is ignored and reports nothing.
 
 JavaScript dialogs (`alert`, `confirm`, `prompt`) are suppressed by default — they never block the daemon and the agent is given evidence instead of a native panel. `alert` returns immediately, `confirm` returns `false` (dismiss), and `prompt` returns `""`. Any dialogs fired during a `click` are reported in the result under `suppressedDialogs`, a JSON array of entries like `"alert: <message>"`, `"confirm(false): <message>"`, or `"prompt(\"\"): <message>"`; `observe` reports the count of pending (undrained) dialogs for the target tab as `suppressedDialogCount`. The global `--confirm <accept|dismiss>` option (default `dismiss`) controls how `confirm()` is answered for that one command: `--confirm accept` makes `confirm()` return `true` and records `confirm(true): <message>`. Dialog evidence is attributed to the tab that fired it (use `--tab <id>`) and is cleared at the start of each `click` so it cannot leak onto a later unrelated action.
+
+### Upload files to a file input
+
+Drive an `<input type="file">` element by setting its files through the WebKit
+open panel. The selector may be a CSS selector or a snapshot `@e` ref:
+
+```sh
+.build/debug/agent-safari upload '#avatar' /path/to/photo.png --socket /tmp/agent-safari.sock
+.build/debug/agent-safari upload '@e4' /path/to/a.txt /path/to/b.txt --socket /tmp/agent-safari.sock
+```
+
+The command validates every path exists, arms the pending files for the target
+tab, clicks the input to open the WebKit file panel, and then verifies the input
+actually received the files. Result fields:
+
+- `selector`: the resolved selector or ref.
+- `fileCount`: the number of files now on the input (`element.files.length`).
+- `files`: a JSON array string of the selected file basenames.
+- `changeEventSynthesized`: `"true"` if agent-safari dispatched `input`/`change`
+  because WebKit did not fire `change` natively, `"false"` if WebKit fired it.
+
+Rules and failures:
+
+- Multiple paths are only allowed when the input has the `multiple` attribute;
+  otherwise the command fails with `upload_multiple_not_allowed`.
+- A missing path fails with `upload_file_not_found` and names the missing path.
+- If the click never opens a file panel, the pending files are disarmed and the
+  command fails with `upload_panel_not_triggered`. This also happens when the
+  selector is not a file input.
+
+Delivery is two-tier, mirroring the native/DOM click contract. WebKit only
+opens the file panel for a real user activation — a synthetic JS click never
+triggers it — so on the visible tab `upload` first tries a native Quartz click
+(`method: "open-panel"`, requires a GUI session and macOS Accessibility
+permission for posted mouse events). When the panel does not fire, or the
+target is a background tab, the files are set deterministically through a
+`DataTransfer` assignment to `input.files` (`method: "dom-datatransfer"`,
+`fallbackUsed: true`). The fallback reads each file into memory and is capped
+at 8 MB per file — larger files fail with `upload_file_too_large_for_fallback`
+and need the native open-panel path. If neither path sets the files the
+command fails with `upload_panel_not_triggered`.
+
+Pending upload files are armed per modeled tab; a click on the visible tab
+cannot consume another tab's pending upload files.
 
 ### Wait and observe page state
 

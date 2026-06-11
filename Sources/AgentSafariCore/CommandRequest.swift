@@ -62,6 +62,17 @@ public struct CommandRequest: Equatable {
         case "fill":
             guard args.count >= 3 else { throw CommandRequestError.missingArgument("selector/value") }
             return CommandRequest(method: "fill", params: ["selector": args[1], "value": args[2]])
+        case "upload":
+            guard args.count >= 3 else { throw CommandRequestError.missingArgument("selector/path") }
+            let selector = args[1]
+            let paths = Array(args.dropFirst(2))
+            // Paths are passed to the daemon as a JSON-encoded array string because RPC
+            // params are [String: String]. The daemon decodes "paths" back to [String].
+            let data = try JSONEncoder().encode(paths)
+            guard let pathsJSON = String(data: data, encoding: .utf8) else {
+                throw CommandRequestError.missingArgument("path")
+            }
+            return CommandRequest(method: "upload", params: ["selector": selector, "paths": pathsJSON])
         case "key":
             guard args.count >= 2 else { throw CommandRequestError.missingArgument("key") }
             return CommandRequest(method: "key", params: ["key": args[1]])

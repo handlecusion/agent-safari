@@ -416,6 +416,251 @@ extension BrowserController {
         return result
     }
 
+    // Resolves a file input and validates the multiple-files rule before the panel
+    // is armed. A change-detection flag is reset so we can tell after the click
+    // whether WebKit fired `change` natively.
+    private func prepareUploadElement(selector: String, fileCount: Int) async throws {
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const target = \(selectorLiteral);
+          const fileCount = \(fileCount);
+          const fail = (code, message) => ({ ok: false, code, message });
+          const isFailure = (value) => value && value.ok === false;
+          const refs = window.__agentSafariSnapshotRefs;
+          const resolveElement = (target) => {
+            if (target.startsWith('@e')) {
+              if (!refs || typeof refs.get !== 'function') {
+                return fail('actionability_refs_unavailable', `Snapshot refs are not available for ${target}; run snapshot first.`);
+              }
+              const candidates = [...document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'), ...document.querySelectorAll('*')];
+              const seen = new Set();
+              for (const element of candidates) {
+                if (seen.has(element)) continue;
+                seen.add(element);
+                if (refs.get(element) === target) return element;
+              }
+              return fail('actionability_stale_ref', `No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
+            }
+            const element = document.querySelector(target);
+            if (!element) return fail('actionability_missing_selector', `No element found for selector: ${target}`);
+            return element;
+          };
+          const element = resolveElement(target);
+          if (isFailure(element)) return element;
+          if (!(element instanceof HTMLInputElement) || element.type !== 'file') {
+            return fail('element_resolution_failed', `Element is not an <input type=file>: ${target}`);
+          }
+          if (element.disabled) return fail('actionability_disabled', `Element is disabled: ${target}`);
+          if (fileCount > 1 && !element.multiple) {
+            return fail('upload_multiple_not_allowed', `Element does not accept multiple files: ${target}`);
+          }
+          window.__agentSafariUploadChangeFired = false;
+          element.addEventListener('change', () => { window.__agentSafariUploadChangeFired = true; }, { capture: true, once: true });
+          element.scrollIntoView({ block: 'center', inline: 'center' });
+          if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+          return { ok: true, multiple: !!element.multiple };
+        })()
+        """
+        guard let outcome = try await webView.evaluateJavaScript(script) as? [String: Any] else {
+            throw AgentSafariError.elementResolutionFailed(selector)
+        }
+        if let ok = outcome["ok"] as? Bool, ok == false {
+            let code = stringifyJavaScriptValue(outcome["code"] as Any)
+            let message = stringifyJavaScriptValue(outcome["message"] as Any)
+            if code == "upload_multiple_not_allowed" {
+                throw AgentSafariError.uploadMultipleNotAllowed(selector)
+            }
+            if code.hasPrefix("actionability_") {
+                throw AgentSafariError.actionabilityFailed(code: code, message: message)
+            }
+            throw AgentSafariError.elementResolutionFailed(message.isEmpty ? selector : message)
+        }
+    }
+
+    // Reports the element's selected files plus whether WebKit fired `change` natively.
+    private func uploadVerification(selector: String) async throws -> (count: Int, names: [String], changeFiredNatively: Bool) {
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const target = \(selectorLiteral);
+          const refs = window.__agentSafariSnapshotRefs;
+          const resolveElement = (target) => {
+            if (target.startsWith('@e')) {
+              if (!refs || typeof refs.get !== 'function') return null;
+              const candidates = [...document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'), ...document.querySelectorAll('*')];
+              const seen = new Set();
+              for (const element of candidates) {
+                if (seen.has(element)) continue;
+                seen.add(element);
+                if (refs.get(element) === target) return element;
+              }
+              return null;
+            }
+            return document.querySelector(target);
+          };
+          const element = resolveElement(target);
+          if (!element || !(element instanceof HTMLInputElement)) return { count: 0, names: [], changeFired: false };
+          const names = Array.from(element.files || []).map((file) => file.name);
+          return { count: names.length, names, changeFired: !!window.__agentSafariUploadChangeFired };
+        })()
+        """
+        guard let outcome = try await webView.evaluateJavaScript(script) as? [String: Any] else {
+            throw AgentSafariError.elementResolutionFailed(selector)
+        }
+        let count = (outcome["count"] as? NSNumber)?.intValue ?? 0
+        let names = (outcome["names"] as? [Any])?.map { stringifyJavaScriptValue($0) } ?? []
+        let changeFired = (outcome["changeFired"] as? Bool) ?? false
+        return (count, names, changeFired)
+    }
+
+    private func synthesizeUploadChangeEvent(selector: String) async throws {
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const target = \(selectorLiteral);
+          const refs = window.__agentSafariSnapshotRefs;
+          const resolveElement = (target) => {
+            if (target.startsWith('@e')) {
+              if (!refs || typeof refs.get !== 'function') return null;
+              const candidates = [...document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'), ...document.querySelectorAll('*')];
+              const seen = new Set();
+              for (const element of candidates) {
+                if (seen.has(element)) continue;
+                seen.add(element);
+                if (refs.get(element) === target) return element;
+              }
+              return null;
+            }
+            return document.querySelector(target);
+          };
+          const element = resolveElement(target);
+          if (!element) return false;
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+          element.dispatchEvent(new Event('change', { bubbles: true }));
+          return true;
+        })()
+        """
+        _ = try await webView.evaluateJavaScript(script)
+    }
+
+    func upload(selector: String, paths: [String]) async throws -> [String: String] {
+        guard !paths.isEmpty else { throw AgentSafariError.missingParam("paths") }
+        let fileURLs: [URL] = try paths.map { path in
+            guard FileManager.default.fileExists(atPath: path) else {
+                throw AgentSafariError.uploadFileNotFound(path)
+            }
+            return URL(fileURLWithPath: path)
+        }
+
+        let targetWebView = webView
+        try await prepareUploadElement(selector: selector, fileCount: fileURLs.count)
+
+        // WebKit only raises the open panel for a real user activation — a synthetic
+        // JS click never triggers runOpenPanelWith. A native Quartz click can, but it
+        // requires the visible tab AND macOS Accessibility permission; when either is
+        // missing the events never reach the page. So: try the native open-panel path
+        // when eligible, then fall back to setting input.files via DataTransfer.
+        var method = "dom-datatransfer"
+        if targetWebView === activeTabWebView {
+            armPendingUploadFileURLs(fileURLs, for: targetWebView)
+            do {
+                let hitTarget = try await elementHitTarget(selector: selector)
+                _ = try dispatchNativeClick(at: hitTarget)
+            } catch {
+                disarmPendingUploadFileURLs(for: targetWebView)
+                throw error
+            }
+            // The open panel is delivered asynchronously; poll until the delegate
+            // consumed the armed URLs or the bounded window elapses.
+            for _ in 0..<20 where pendingUploadFileURLs(for: targetWebView) != nil {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            if pendingUploadFileURLs(for: targetWebView) == nil {
+                method = "open-panel"
+            } else {
+                disarmPendingUploadFileURLs(for: targetWebView)
+            }
+        }
+
+        if method == "dom-datatransfer" {
+            try await setUploadFilesViaDataTransfer(selector: selector, fileURLs: fileURLs)
+        }
+
+        var verification = try await uploadVerification(selector: selector)
+        for _ in 0..<10 where verification.count != fileURLs.count {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            verification = try await uploadVerification(selector: selector)
+        }
+        guard verification.count == fileURLs.count else {
+            throw AgentSafariError.uploadPanelNotTriggered(selector)
+        }
+
+        var changeEventSynthesized = false
+        if !verification.changeFiredNatively {
+            try await synthesizeUploadChangeEvent(selector: selector)
+            changeEventSynthesized = true
+        }
+
+        let namesJSON = (try? String(data: JSONEncoder().encode(verification.names), encoding: .utf8)) ?? "[]"
+        return [
+            "selector": selector,
+            "files": namesJSON,
+            "fileCount": String(verification.count),
+            "changeEventSynthesized": changeEventSynthesized ? "true" : "false",
+            "method": method,
+            "fallbackUsed": method == "dom-datatransfer" ? "true" : "false",
+            "strategy": "upload-open-panel"
+        ]
+    }
+
+    /// Deterministic upload delivery: builds File objects from the on-disk bytes and
+    /// assigns them to the input via DataTransfer. Works without user activation,
+    /// Accessibility permission, or the visible tab, but loads each file into memory —
+    /// capped so a runaway path cannot balloon the JS heap.
+    static let uploadFallbackMaxBytesPerFile = 8 * 1024 * 1024
+
+    private func setUploadFilesViaDataTransfer(selector: String, fileURLs: [URL]) async throws {
+        var filesJS: [String] = []
+        for url in fileURLs {
+            let data = try Data(contentsOf: url)
+            guard data.count <= Self.uploadFallbackMaxBytesPerFile else {
+                throw AgentSafariError.uploadFileTooLargeForFallback(url.path)
+            }
+            let nameLiteral = try javaScriptStringLiteral(url.lastPathComponent)
+            filesJS.append("new File([Uint8Array.from(atob('\(data.base64EncodedString())'), (c) => c.charCodeAt(0))], \(nameLiteral))")
+        }
+        let selectorLiteral = try javaScriptStringLiteral(selector)
+        let script = """
+        (() => {
+          const target = \(selectorLiteral);
+          const refs = window.__agentSafariSnapshotRefs;
+          const resolveElement = (target) => {
+            if (target.startsWith('@e')) {
+              if (!refs || typeof refs.get !== 'function') throw new Error(`Snapshot refs are not available for ${target}; run snapshot first.`);
+              const candidates = [...document.querySelectorAll('a,button,input,select,textarea,summary,label,[role],[onclick],[tabindex],[contenteditable]'), ...document.querySelectorAll('*')];
+              const seen = new Set();
+              for (const element of candidates) {
+                if (seen.has(element)) continue;
+                seen.add(element);
+                if (refs.get(element) === target) return element;
+              }
+              throw new Error(`No element found for snapshot ref: ${target}. Run snapshot first or refresh it with snapshot.`);
+            }
+            const element = document.querySelector(target);
+            if (!element) throw new Error(`No element found for selector: ${target}`);
+            return element;
+          };
+          const element = resolveElement(target);
+          const dataTransfer = new DataTransfer();
+          for (const file of [\(filesJS.joined(separator: ", "))]) dataTransfer.items.add(file);
+          element.files = dataTransfer.files;
+          return element.files.length;
+        })()
+        """
+        _ = try await webView.evaluateJavaScript(script)
+    }
+
     func fill(selector: String, value: String) async throws -> [String: String] {
         let selectorLiteral = try javaScriptStringLiteral(selector)
         let valueLiteral = try javaScriptStringLiteral(value)

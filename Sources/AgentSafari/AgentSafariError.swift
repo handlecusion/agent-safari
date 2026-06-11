@@ -12,6 +12,10 @@ enum AgentSafariError: Error, LocalizedError {
     case actionabilityFailed(code: String, message: String)
     case nativeClickUnverified(String)
     case nativeInputFailed(String)
+    case uploadFileNotFound(String)
+    case uploadPanelNotTriggered(String)
+    case uploadMultipleNotAllowed(String)
+    case uploadFileTooLargeForFallback(String)
     case unknownMethod(String)
     case unknownTab(String)
     case navigationInProgress(String)
@@ -33,6 +37,10 @@ enum AgentSafariError: Error, LocalizedError {
         case .actionabilityFailed(_, let message): return message
         case .nativeClickUnverified(let message): return "Native input failed: \(message)"
         case .nativeInputFailed(let message): return "Native input failed: \(message)"
+        case .uploadFileNotFound(let path): return "Upload file not found: \(path)"
+        case .uploadPanelNotTriggered(let target): return "Upload click did not open a file panel: \(target)"
+        case .uploadMultipleNotAllowed(let target): return "Element does not accept multiple files: \(target)"
+        case .uploadFileTooLargeForFallback(let path): return "Upload file exceeds the 8 MB DOM-fallback limit (grant Accessibility permission for native open-panel upload): \(path)"
         case .unknownMethod(let method): return "Unknown method: \(method)"
         case .unknownTab(let id): return "Unknown tab id: \(id)"
         case .navigationInProgress(let id): return "Navigation already in progress on tab \(id); wait for it or target another tab"
@@ -51,6 +59,14 @@ enum AgentSafariError: Error, LocalizedError {
             return "native_click_unverified"
         case .nativeInputFailed:
             return "native_input_failed"
+        case .uploadFileNotFound:
+            return "upload_file_not_found"
+        case .uploadPanelNotTriggered:
+            return "upload_panel_not_triggered"
+        case .uploadMultipleNotAllowed:
+            return "upload_multiple_not_allowed"
+        case .uploadFileTooLargeForFallback:
+            return "upload_file_too_large_for_fallback"
         case .waitTimedOut:
             return "wait_timeout"
         case .invalidURL:

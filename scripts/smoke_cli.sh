@@ -9,6 +9,7 @@ HTML="$SMOKE_DIR/smoke.html"
 SHOT="$SMOKE_DIR/full-page.png"
 ELEMENT_SHOT="$SMOKE_DIR/element.png"
 NETWORK_EXPORT="$SMOKE_DIR/network.har.json"
+UPLOAD_FILE="$SMOKE_DIR/upload-sample.txt"
 DAEMON_PID=""
 
 cleanup() {
@@ -248,10 +249,17 @@ cat > "$HTML" <<'HTML'
     <input id="name" name="name" placeholder="type here">
     <button id="commit" type="button">Commit</button>
     <output id="status">waiting</output>
+    <input type="file" id="upload" name="upload">
+    <output id="upload-status">no-upload</output>
   </main>
   <script>
     document.getElementById('commit').addEventListener('click', () => {
       document.getElementById('status').textContent = 'clicked:' + document.getElementById('name').value;
+    });
+    document.getElementById('upload').addEventListener('change', () => {
+      const input = document.getElementById('upload');
+      const first = input.files[0] ? input.files[0].name : '';
+      document.getElementById('upload-status').textContent = 'uploaded:' + input.files.length + ':' + first;
     });
 
     window.runAgentSafariNetworkSmoke = async () => {
@@ -352,6 +360,40 @@ value = payload.get("result", {}).get("value")
 if value != "clicked:smoke-value":
     raise SystemExit(f"Unexpected status text: {value!r}")
 PY
+
+log "verifying file upload validation and open-panel delivery"
+printf 'agent-safari upload smoke\n' > "$UPLOAD_FILE"
+# Deterministic validation failures fire regardless of GUI/headless environment.
+response="$(run_cli upload "#upload" "$SMOKE_DIR/missing-file.txt" || true)"
+python3 - "$response" <<'UPLOADPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if payload.get("ok") or payload.get("error", {}).get("code") != "upload_file_not_found":
+    raise SystemExit(f"expected upload_file_not_found error: {payload}")
+UPLOADPY
+response="$(run_cli upload "#upload" "$UPLOAD_FILE" "$UPLOAD_FILE" || true)"
+python3 - "$response" <<'UPLOADPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+if payload.get("ok") or payload.get("error", {}).get("code") != "upload_multiple_not_allowed":
+    raise SystemExit(f"expected upload_multiple_not_allowed error: {payload}")
+UPLOADPY
+# Open-panel delivery uses a native Quartz click (real user activation), so it
+# carries the same GUI-session requirement as the click --native smoke above.
+response="$(run_cli upload "#upload" "$UPLOAD_FILE")"
+assert_ok_json "$response"
+python3 - "$response" <<'UPLOADPY'
+import json, sys
+payload = json.loads(sys.argv[1])
+result = payload.get("result", {})
+if str(result.get("fileCount")) != "1":
+    raise SystemExit(f"upload fileCount != 1: {result}")
+files_raw = result.get("files", "[]")
+files = json.loads(files_raw) if isinstance(files_raw, str) else files_raw
+if files != ["upload-sample.txt"]:
+    raise SystemExit(f"unexpected upload files metadata: {result}")
+print(f"upload set files via method={result.get('method')}")
+UPLOADPY
 
 log "capturing full-page screenshot"
 response="$(run_cli screenshot --full --out "$SHOT")"

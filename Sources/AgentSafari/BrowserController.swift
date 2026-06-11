@@ -40,6 +40,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var consoleCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
     private var pendingSuppressedDialogsByTab: [ObjectIdentifier: [String]] = [:]
+    private var pendingUploadFileURLsByTab: [ObjectIdentifier: [URL]] = [:]
     let sessionID = UUID().uuidString
     let profileName: String
     let ephemeral: Bool
@@ -119,6 +120,28 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         pendingSuppressedDialogsByTab[key] = entries
     }
 
+    func armPendingUploadFileURLs(_ urls: [URL], for webView: WKWebView) {
+        pendingUploadFileURLsByTab[ObjectIdentifier(webView)] = urls
+    }
+
+    var pendingUploadFileURLs: [URL]? {
+        pendingUploadFileURLsByTab[ObjectIdentifier(webView)]
+    }
+
+    func pendingUploadFileURLs(for webView: WKWebView) -> [URL]? {
+        pendingUploadFileURLsByTab[ObjectIdentifier(webView)]
+    }
+
+    func disarmPendingUploadFileURLs(for webView: WKWebView) {
+        pendingUploadFileURLsByTab.removeValue(forKey: ObjectIdentifier(webView))
+    }
+
+    /// Consumes pending upload URLs for the given webView (open-panel delivery is
+    /// one-shot per arming). Returns nil when nothing was armed for that tab.
+    func consumePendingUploadFileURLs(for webView: WKWebView) -> [URL]? {
+        pendingUploadFileURLsByTab.removeValue(forKey: ObjectIdentifier(webView))
+    }
+
     func clearPerTabState(for webView: WKWebView) {
         let key = ObjectIdentifier(webView)
         networkUserScriptInstalledByTab.removeValue(forKey: key)
@@ -127,6 +150,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         consoleCaptureActiveByTab.removeValue(forKey: key)
         pendingPopupRedirectURLByTab.removeValue(forKey: key)
         pendingSuppressedDialogsByTab.removeValue(forKey: key)
+        pendingUploadFileURLsByTab.removeValue(forKey: key)
     }
 
     init(focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false) {

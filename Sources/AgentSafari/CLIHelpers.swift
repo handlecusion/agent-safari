@@ -37,6 +37,7 @@ func usage() {
     agent-safari screenshot-full <path> [--socket /tmp/agent-safari.sock]
     agent-safari click <selector> [--native] [--no-fallback] [--socket /tmp/agent-safari.sock]
     agent-safari fill <selector> <value> [--socket /tmp/agent-safari.sock]
+    agent-safari upload <selector-or-ref> <path> [<path>...] [--socket /tmp/agent-safari.sock]
     agent-safari key <key> [--socket /tmp/agent-safari.sock]
     agent-safari type <text> [--socket /tmp/agent-safari.sock]
     agent-safari wait <ms> [--socket /tmp/agent-safari.sock]

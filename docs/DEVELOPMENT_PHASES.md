@@ -286,6 +286,44 @@ Acceptance criteria:
   single-window limits explicitly.
 - Product-vision review passes for the slice.
 
+## Phase 5.6 — Agent Reliability And Evidence Wave (2026-06-11)
+
+Status: Implemented and gate-verified across nine parallel slices; live evidence per slice.
+
+Goal: Close the largest remaining "silent no-op" and "missing evidence" gaps an agent hits
+in real pages, keeping every new capability inside the observe → act → wait → verify loop.
+
+Shipped slices (each with its own contract test, smoke coverage, and live verification):
+
+1. Same-document navigation fix — fragment-only `navigate` no longer hangs forever;
+   returns immediately with `sameDocument: true` (`Tests/test_same_document_nav_contract.py`).
+2. Stable error codes — `wait_timeout`, `invalid_url`, and nine more replace the generic
+   `"error"`; the errorCode switch is exhaustive (`Tests/test_error_code_contract.py`).
+3. JS dialog evidence — suppressed alert/confirm/prompt reported per tab in click results
+   (`suppressedDialogs`) and `observe`; per-command `--confirm accept|dismiss`
+   (`Tests/test_dialog_evidence_contract.py`).
+4. Console/page-error capture — `console start|list|stop` mirroring the network trio,
+   per-tab isolation verified live (`Tests/test_console_capture_contract.py`).
+5. File upload — `upload` command with two-tier delivery: native open-panel on the visible
+   tab when Accessibility permits, deterministic DataTransfer fallback otherwise (8 MB/file
+   cap, `upload_*` error codes). The original synthetic-click design never opened the panel
+   — WebKit requires real user activation — and was caught by live verification
+   (`Tests/test_upload_contract.py`).
+6. Downloads — WKDownloadDelegate with the no-hang contract: a navigate that becomes a
+   download resumes with `downloadStarted`/`downloadId` evidence; `downloads` +
+   `wait-for-download`; files land under `~/.agent-safari/downloads/<id>/`
+   (`Tests/test_download_contract.py`).
+7. Session snapshot — `session-snapshot <path>` dumps session/tab/capture state for
+   parallel-run failure reports (Phase 5 future item 4, `Tests/test_session_snapshot_contract.py`).
+8. Cookie export/import — WKHTTPCookieStore transfer with 0600 exports and cross-daemon
+   import verified live (Phase 5 future item 1, `Tests/test_cookie_transfer_contract.py`).
+   The smoke for this section runs exclusively on throwaway `--ephemeral` daemons after a
+   review catch: exporting from the shared persistent store dumps the user's real cookies.
+9. Media observation and control — `media` inventory, `wait-for-media` predicates,
+   `media-control play|pause|mute|unmute|seek` with `media_play_rejected` evidence;
+   programmatic playback enabled by configuration. Scope ends at observation/control per
+   the media hard boundary (`Tests/test_media_contract.py`).
+
 ## Phase 6 — Productization And Distribution
 
 Status: Planned.

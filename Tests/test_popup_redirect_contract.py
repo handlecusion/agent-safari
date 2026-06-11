@@ -62,6 +62,22 @@ def test_popup_redirect_url_reported_in_click_result() -> None:
     assert drain_count >= 6, f"Expected >=6 drain sites, found {drain_count}"
 
 
+
+def test_js_dialog_handlers_suppress_and_log() -> None:
+    source = read(UI_DELEGATE)
+    # alert: completionHandler() with no argument
+    assert "runJavaScriptAlertPanelWithMessage" in source
+    assert "alert suppressed" in source
+    # confirm: completionHandler(false)
+    assert "runJavaScriptConfirmPanelWithMessage" in source
+    assert "completionHandler(false)" in source
+    assert "confirm suppressed" in source
+    # prompt: completionHandler("")
+    assert "runJavaScriptTextInputPanelWithPrompt" in source
+    assert 'completionHandler("")' in source
+    assert "prompt suppressed" in source
+
+
 def main() -> int:
     test_wkuidelegate_conformance_on_class_declaration()
     test_pending_popup_redirect_url_property_exists()
@@ -69,6 +85,7 @@ def main() -> int:
     test_create_web_view_with_is_implemented()
     test_popup_redirect_navigates_current_webview_and_returns_nil()
     test_popup_redirect_url_reported_in_click_result()
+    test_js_dialog_handlers_suppress_and_log()
     print("popup redirect contract tests passed")
     return 0
 

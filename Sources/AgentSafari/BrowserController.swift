@@ -50,11 +50,20 @@ enum DialogPolicy {
 @MainActor
 final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKDownloadDelegate {
     let window: NSWindow
-    let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 764))
-    let chromeView = NSView(frame: NSRect(x: 0, y: 720, width: 1280, height: 44))
+    let rootView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 796))
+    let chromeView = NSView(frame: NSRect(x: 0, y: 720, width: 1280, height: 76))
+    let tabStripView = NSView(frame: NSRect(x: 14, y: 6, width: 1216, height: 28))
+    let sidebarButton = NSButton(frame: NSRect(x: 14, y: 42, width: 34, height: 28))
+    let backButton = NSButton(frame: NSRect(x: 58, y: 42, width: 34, height: 28))
+    let forwardButton = NSButton(frame: NSRect(x: 94, y: 42, width: 34, height: 28))
+    let shareButton = NSButton(frame: NSRect(x: 1152, y: 42, width: 34, height: 28))
+    let tabOverviewButton = NSButton(frame: NSRect(x: 1194, y: 42, width: 34, height: 28))
+    let newTabButton = NSButton(frame: NSRect(x: 1238, y: 8, width: 28, height: 24))
     let addressField = NSTextField(frame: NSRect(x: 14, y: 8, width: 1252, height: 28))
     let webContainerView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))
     static let addressBarHeight: CGFloat = 44
+    static let tabStripHeight: CGFloat = 32
+    static let chromeHeight: CGFloat = addressBarHeight + tabStripHeight
     var tabsModel: [BrowserTab] = []
     var navigationContinuations: [ObjectIdentifier: CheckedContinuation<Void, Error>] = [:]
     private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
@@ -74,6 +83,8 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
     let profileName: String
     let ephemeral: Bool
     var activeTabID: String
+    private var tabButtonsByID: [String: NSButton] = [:]
+    private var closeButtonsByID: [String: NSButton] = [:]
 
     /// Resolves to the command's target tab (TabTarget TaskLocal) or the active tab.
     /// The RPC layer validates unknown tab ids before dispatch and re-checks after
@@ -205,7 +216,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         self.ephemeral = ephemeral
         self.activeTabID = "tab-1"
         self.window = NSWindow(
-            contentRect: NSRect(x: 100, y: 100, width: 1280, height: 764),
+            contentRect: NSRect(x: 100, y: 100, width: 1280, height: 796),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -217,6 +228,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         attachWebViewToContainer(initialWebView)
         window.contentView = rootView
         window.title = "Agent Safari"
+        updateTabStrip()
         if focusWindow {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -245,6 +257,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         activeTabID = id
         attachWebViewToContainer(tab.webView)
         updateAddressBar(tab.webView.url?.absoluteString ?? "")
+        updateTabStrip()
         window.title = tab.webView.title.map { "Agent Safari — \($0)" } ?? "Agent Safari"
     }
 
@@ -255,6 +268,23 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         chromeView.autoresizingMask = [.width, .minYMargin]
         chromeView.wantsLayer = true
         chromeView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+
+        configureToolbarButton(sidebarButton, title: "▣", identifier: "agent-safari-sidebar-button", action: nil)
+        configureToolbarButton(backButton, title: "‹", identifier: "agent-safari-back-button", action: #selector(backButtonPressed(_:)))
+        configureToolbarButton(forwardButton, title: "›", identifier: "agent-safari-forward-button", action: #selector(forwardButtonPressed(_:)))
+        configureToolbarButton(shareButton, title: "⇧", identifier: "agent-safari-share-button", action: nil)
+        configureToolbarButton(tabOverviewButton, title: "▢", identifier: "agent-safari-tab-overview-button", action: nil)
+
+        tabStripView.setAccessibilityIdentifier("agent-safari-tab-strip")
+        tabStripView.autoresizingMask = [.width]
+
+        newTabButton.title = "+"
+        newTabButton.bezelStyle = .texturedRounded
+        newTabButton.setButtonType(.momentaryPushIn)
+        newTabButton.setAccessibilityIdentifier("agent-safari-new-tab-button")
+        newTabButton.target = self
+        newTabButton.action = #selector(newTabButtonPressed(_:))
+        newTabButton.autoresizingMask = [.minXMargin]
 
         addressField.placeholderString = "Enter URL or search"
         addressField.setAccessibilityIdentifier("agent-safari-address-bar")
@@ -268,17 +298,57 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
         webContainerView.autoresizingMask = [.width, .height]
         rootView.addSubview(webContainerView)
         rootView.addSubview(chromeView)
+        chromeView.addSubview(sidebarButton)
+        chromeView.addSubview(backButton)
+        chromeView.addSubview(forwardButton)
+        chromeView.addSubview(shareButton)
+        chromeView.addSubview(tabOverviewButton)
+        chromeView.addSubview(tabStripView)
+        chromeView.addSubview(newTabButton)
         chromeView.addSubview(addressField)
         layoutBrowserChrome()
     }
 
+    func configureToolbarButton(_ button: NSButton, title: String, identifier: String, action: Selector?) {
+        button.title = title
+        button.bezelStyle = .texturedRounded
+        button.setButtonType(.momentaryPushIn)
+        button.setAccessibilityIdentifier(identifier)
+        button.font = NSFont.systemFont(ofSize: 18, weight: .regular)
+        button.target = action == nil ? nil : self
+        button.action = action
+    }
+
     func layoutBrowserChrome() {
         let bounds = rootView.bounds
-        let chromeHeight = BrowserController.addressBarHeight
+        let chromeHeight = BrowserController.chromeHeight
         chromeView.frame = NSRect(x: 0, y: max(0, bounds.height - chromeHeight), width: bounds.width, height: chromeHeight)
-        addressField.frame = NSRect(x: 14, y: 8, width: max(120, bounds.width - 28), height: 28)
+        let newTabButtonWidth: CGFloat = 28
+        let chromePadding: CGFloat = 14
+        let tabButtonGap: CGFloat = 8
+        sidebarButton.frame = NSRect(x: 14, y: 42, width: 34, height: 28)
+        backButton.frame = NSRect(x: 62, y: 42, width: 34, height: 28)
+        forwardButton.frame = NSRect(x: 98, y: 42, width: 34, height: 28)
+        tabOverviewButton.frame = NSRect(x: max(170, bounds.width - 48), y: 42, width: 34, height: 28)
+        shareButton.frame = NSRect(x: max(132, bounds.width - 90), y: 42, width: 34, height: 28)
+        let addressLeft = max(146, bounds.width * 0.30)
+        let addressRight = min(bounds.width - 104, bounds.width * 0.70)
+        addressField.frame = NSRect(x: addressLeft, y: 42, width: max(220, addressRight - addressLeft), height: 28)
+        tabStripView.frame = NSRect(
+            x: chromePadding,
+            y: 6,
+            width: max(120, bounds.width - (chromePadding * 2) - newTabButtonWidth - tabButtonGap),
+            height: 28
+        )
+        newTabButton.frame = NSRect(
+            x: tabStripView.frame.maxX + tabButtonGap,
+            y: 8,
+            width: newTabButtonWidth,
+            height: 24
+        )
         webContainerView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: max(1, bounds.height - chromeHeight))
         webView.frame = webContainerView.bounds
+        updateTabStrip()
     }
 
     func attachWebViewToContainer(_ targetWebView: WKWebView) {
@@ -295,6 +365,76 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
 
     func updateAddressBar(_ urlString: String) {
         addressField.stringValue = urlString
+    }
+
+    func updateTabStrip() {
+        for subview in tabStripView.subviews {
+            subview.removeFromSuperview()
+        }
+        tabButtonsByID.removeAll(keepingCapacity: true)
+        closeButtonsByID.removeAll(keepingCapacity: true)
+
+        let availableWidth = max(120, tabStripView.bounds.width)
+        let segmentWidth = max(112, min(220, floor(availableWidth / CGFloat(max(1, tabsModel.count)))))
+        for (index, tab) in tabsModel.enumerated() {
+            let x = CGFloat(index) * segmentWidth
+            let tabFrame = NSRect(x: x, y: 0, width: max(96, segmentWidth - 1), height: 28)
+            let tabButton = makeTabButton(for: tab, frame: tabFrame)
+            tabStripView.addSubview(tabButton)
+            tabButtonsByID[tab.id] = tabButton
+
+            let closeButton = makeTabCloseButton(for: tab, frame: NSRect(x: x + 7, y: 6, width: 16, height: 16))
+            tabStripView.addSubview(closeButton)
+            closeButtonsByID[tab.id] = closeButton
+        }
+    }
+
+    func makeTabButton(for tab: BrowserTab, frame: NSRect) -> NSButton {
+        let button = NSButton(frame: frame)
+        button.title = "   \(tabTitle(for: tab))"
+        button.toolTip = tab.webView.url?.absoluteString ?? tab.id
+        button.setAccessibilityIdentifier("agent-safari-tab-\(tab.id)")
+        button.bezelStyle = .regularSquare
+        button.isBordered = false
+        button.alignment = .center
+        button.lineBreakMode = .byTruncatingTail
+        button.font = NSFont.systemFont(ofSize: 12)
+        button.target = self
+        button.action = #selector(tabButtonPressed(_:))
+        button.identifier = NSUserInterfaceItemIdentifier(tab.id)
+        button.wantsLayer = true
+        button.layer?.cornerRadius = 8
+        button.layer?.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        button.layer?.backgroundColor = tab.id == activeTabID
+            ? NSColor.controlBackgroundColor.withAlphaComponent(0.96).cgColor
+            : NSColor.windowBackgroundColor.withAlphaComponent(0.35).cgColor
+        button.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(tab.id == activeTabID ? 0.55 : 0.25).cgColor
+        button.layer?.borderWidth = 0.5
+        return button
+    }
+
+    func makeTabCloseButton(for tab: BrowserTab, frame: NSRect) -> NSButton {
+        let button = NSButton(frame: frame)
+        button.title = "x"
+        button.toolTip = "Close \(tabTitle(for: tab))"
+        button.setAccessibilityIdentifier("agent-safari-close-\(tab.id)")
+        button.bezelStyle = .circular
+        button.isBordered = false
+        button.font = NSFont.systemFont(ofSize: 10)
+        button.target = self
+        button.action = #selector(tabCloseButtonPressed(_:))
+        button.identifier = NSUserInterfaceItemIdentifier(tab.id)
+        button.isHidden = tabsModel.count <= 1
+        return button
+    }
+
+    func tabTitle(for tab: BrowserTab) -> String {
+        let rawTitle = tab.webView.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallback = tab.webView.url?.host ?? tab.id
+        let title = (rawTitle?.isEmpty == false ? rawTitle : fallback) ?? tab.id
+        if title.count <= 24 { return title }
+        let prefix = title.prefix(21)
+        return "\(prefix)..."
     }
 
     func normalizedAddressBarURL(_ rawValue: String) -> String? {
@@ -315,6 +455,40 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate, WKD
             } catch {
                 updateAddressBar(destination)
             }
+        }
+    }
+
+    @objc func tabButtonPressed(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        do {
+            try activateTab(id: id)
+        } catch {
+            updateTabStrip()
+        }
+    }
+
+    @objc func tabCloseButtonPressed(_ sender: NSButton) {
+        guard let id = sender.identifier?.rawValue else { return }
+        Task { @MainActor in
+            _ = try? await tabClose(id: id)
+        }
+    }
+
+    @objc func newTabButtonPressed(_ sender: NSButton) {
+        Task { @MainActor in
+            _ = try? await tabNew()
+        }
+    }
+
+    @objc func backButtonPressed(_ sender: NSButton) {
+        Task { @MainActor in
+            _ = try? await back()
+        }
+    }
+
+    @objc func forwardButtonPressed(_ sender: NSButton) {
+        Task { @MainActor in
+            _ = try? await forward()
         }
     }
 

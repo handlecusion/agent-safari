@@ -22,10 +22,42 @@ def test_window_keeps_visible_address_bar_above_webview() -> None:
     assert "NSSearchField" in source or "NSTextField" in source
     assert "placeholderString = \"Enter URL or search\"" in source
     assert "setAccessibilityIdentifier(\"agent-safari-address-bar\")" in source
-    assert "NSRect(x: 100, y: 100, width: 1280, height: 764)" in source
+    assert "NSRect(x: 100, y: 100, width: 1280, height: 796)" in source
     assert "webContainerView = NSView(frame: NSRect(x: 0, y: 0, width: 1280, height: 720))" in source
     assert "window.contentView = rootView" in source
     assert "attachWebViewToContainer" in source
+
+
+def test_window_shows_modeled_tabs_in_tab_strip() -> None:
+    source = read(CONTROLLER)
+    session = read(ROOT / "Sources" / "AgentSafari" / "BrowserControllerSession.swift")
+    delegate = read(DELEGATE)
+
+    assert "tabStripView = NSView" in source
+    assert "newTabButton = NSButton" in source
+    assert "sidebarButton = NSButton" in source
+    assert "backButton = NSButton" in source
+    assert "forwardButton = NSButton" in source
+    assert "shareButton = NSButton" in source
+    assert "tabOverviewButton = NSButton" in source
+    assert "setAccessibilityIdentifier(\"agent-safari-tab-strip\")" in source
+    assert "setAccessibilityIdentifier(\"agent-safari-new-tab-button\")" in source
+    assert '"agent-safari-back-button"' in source
+    assert '"agent-safari-forward-button"' in source
+    assert "func updateTabStrip()" in source
+    assert "func configureToolbarButton" in source
+    assert "func makeTabButton" in source
+    assert "func makeTabCloseButton" in source
+    assert "func tabButtonPressed" in source
+    assert "func tabCloseButtonPressed" in source
+    assert "func newTabButtonPressed" in source
+    assert "func backButtonPressed" in source
+    assert "func forwardButtonPressed" in source
+    assert "try activateTab(id: id)" in source
+    assert "try? await tabClose(id: id)" in source
+    assert "BrowserController.chromeHeight" in NAVIGATION.read_text(encoding="utf-8")
+    assert "updateTabStrip()" in session
+    assert "updateTabStrip()" in delegate
 
 
 def test_navigation_keeps_address_bar_in_sync() -> None:
@@ -51,6 +83,7 @@ def test_native_click_clears_focused_text_input_before_mouse_events() -> None:
 
 def main() -> int:
     test_window_keeps_visible_address_bar_above_webview()
+    test_window_shows_modeled_tabs_in_tab_strip()
     test_navigation_keeps_address_bar_in_sync()
     test_native_click_clears_focused_text_input_before_mouse_events()
     print("browser chrome contract tests passed")

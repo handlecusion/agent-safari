@@ -126,9 +126,11 @@ extension BrowserController {
         let newWebView = makeWebView()
         tabsModel.append(BrowserTab(id: id, webView: newWebView, createdAt: Date()))
         try activateTab(id: id)
+        updateTabStrip()
         if let url, !url.isEmpty {
             _ = try await navigate(url, in: newWebView)
         }
+        updateTabStrip()
         return ["id": id, "tabId": id, "created": "true", "url": newWebView.url?.absoluteString ?? "", "title": newWebView.title ?? ""]
     }
 
@@ -150,6 +152,8 @@ extension BrowserController {
         if activeTabID == id {
             let replacement = tabsModel[min(index, tabsModel.count - 1)].id
             try activateTab(id: replacement)
+        } else {
+            updateTabStrip()
         }
         return ["id": id, "tabId": activeTabID, "closed": "true", "activeTabId": activeTabID, "reason": ""]
     }

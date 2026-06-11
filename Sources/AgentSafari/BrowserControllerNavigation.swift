@@ -101,7 +101,7 @@ extension BrowserController {
 
     func viewport(width: Int, height: Int) async throws -> [String: String] {
         let size = NSSize(width: max(1, width), height: max(1, height))
-        window.setContentSize(NSSize(width: size.width, height: size.height + BrowserController.addressBarHeight))
+        window.setContentSize(NSSize(width: size.width, height: size.height + BrowserController.chromeHeight))
         layoutBrowserChrome()
         webContainerView.setFrameSize(size)
         webView.setFrameSize(size)

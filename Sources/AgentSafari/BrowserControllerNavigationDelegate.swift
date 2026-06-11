@@ -8,7 +8,9 @@ extension BrowserController {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if webView === activeTabWebView {
             updateAddressBar(webView.url?.absoluteString ?? "")
+            window.title = webView.title.map { "Agent Safari — \($0)" } ?? "Agent Safari"
         }
+        updateTabStrip()
         navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume()
     }
 
@@ -48,6 +50,7 @@ extension BrowserController {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        updateTabStrip()
         navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume(throwing: error)
     }
 
@@ -57,9 +60,11 @@ extension BrowserController {
         // turned into a download. Resume successfully so navigate() reports the download
         // (via didBecome evidence) instead of a spurious "Frame load interrupted" error.
         if nsError.domain == "WebKitErrorDomain" && nsError.code == 102 {
+            updateTabStrip()
             navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume()
             return
         }
+        updateTabStrip()
         navigationContinuations.removeValue(forKey: ObjectIdentifier(webView))?.resume(throwing: error)
     }
 }

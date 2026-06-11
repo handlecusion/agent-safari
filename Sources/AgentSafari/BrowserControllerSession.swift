@@ -78,6 +78,7 @@ extension BrowserController {
             "isLoading": webView.isLoading ? "true" : "false",
             "networkCapturing": networkCaptureActive ? "true" : "false",
             "pendingNetworkCount": stringifyJavaScriptValue((pageState?["pendingNetworkCount"] ?? 0) as Any),
+            "suppressedDialogCount": String(pendingSuppressedDialogs.count),
             "selectedText": stringifyJavaScriptValue((pageState?["selectedText"] ?? "") as Any),
             "viewportWidth": stringifyJavaScriptValue((pageState?["viewportWidth"] ?? 0) as Any),
             "viewportHeight": stringifyJavaScriptValue((pageState?["viewportHeight"] ?? 0) as Any),

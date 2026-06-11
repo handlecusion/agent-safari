@@ -63,3 +63,16 @@ import Testing
 
     #expect(options.tabID == nil)
 }
+
+@Test func cliOptionsParsesConfirmFlag() {
+    let options = CLIOptions.parse(["click", "#btn", "--confirm", "accept"])
+
+    #expect(options.confirm == "accept")
+    #expect(options.positionalArguments == ["click", "#btn"])
+}
+
+@Test func cliOptionsDefaultsToNoConfirm() {
+    let options = CLIOptions.parse(["click", "#btn"])
+
+    #expect(options.confirm == nil)
+}

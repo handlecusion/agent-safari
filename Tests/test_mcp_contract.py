@@ -105,9 +105,14 @@ def test_agent_loop_tools_advertise_exact_cli_shapes_and_inputs() -> None:
         "screenshot_full": {"cli": ["screenshot", "--full", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"]},
         "screenshot_element": {"cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>", "[--tab <id>]"], "input": ["selector", "path", "tab"]},
         "click": {
-            "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--tab <id>]"],
-            "input": ["selector", "native", "fallback", "tab"],
-            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"],
+            "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--confirm <accept|dismiss>]", "[--tab <id>]"],
+            "input": ["selector", "native", "fallback", "confirm", "tab"],
+            "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "suppressedDialogs", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"],
+        },
+        "evaluate": {
+            "cli": ["evaluate", "<script>", "[--confirm <accept|dismiss>]", "[--tab <id>]"],
+            "input": ["script", "confirm", "tab"],
+            "result": ["value", "tabId"],
         },
         "fill": {"cli": ["fill", "<selector-or-ref>", "<value>", "[--tab <id>]"], "input": ["selector", "value", "tab"], "result": ["selector", "value", "tabId"]},
         "wait_for_selector": {"cli": ["wait-for-selector", "<selector>", "--timeout", "<ms>", "[--tab <id>]"], "input": ["selector", "timeout_ms", "tab"], "result": ["selector", "found", "timeoutMs", "tabId"]},

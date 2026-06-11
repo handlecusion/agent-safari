@@ -17,7 +17,9 @@ func handle(_ request: RPCRequest, browser: BrowserController) async -> RPCRespo
             throw AgentSafariError.unknownTab(requestedTabID)
         }
         var result = try await TabTarget.$tabID.withValue(requestedTabID) {
-            try await dispatch(request.method, params: params, browser: browser)
+            try await DialogPolicy.$confirm.withValue(params["confirm"]) {
+                try await dispatch(request.method, params: params, browser: browser)
+            }
         }
         if let requestedTabID, !browser.hasTab(requestedTabID) {
             throw AgentSafariError.tabClosedDuringCommand(requestedTabID)

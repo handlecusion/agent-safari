@@ -32,6 +32,7 @@ extension BrowserController {
         completionHandler: @escaping () -> Void
     ) {
         fputs("[agent-safari] alert suppressed: \(message)\n", stderr)
+        appendSuppressedDialog("alert: \(message)", for: webView)
         completionHandler()
     }
 
@@ -41,8 +42,16 @@ extension BrowserController {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping (Bool) -> Void
     ) {
-        fputs("[agent-safari] confirm suppressed (returning false): \(message)\n", stderr)
-        completionHandler(false)
+        // Default policy dismisses (returns false); per-command "accept" returns true.
+        if DialogPolicy.confirm == "accept" {
+            fputs("[agent-safari] confirm accepted (returning true): \(message)\n", stderr)
+            appendSuppressedDialog("confirm(true): \(message)", for: webView)
+            completionHandler(true)
+        } else {
+            fputs("[agent-safari] confirm suppressed (returning false): \(message)\n", stderr)
+            appendSuppressedDialog("confirm(false): \(message)", for: webView)
+            completionHandler(false)
+        }
     }
 
     func webView(
@@ -53,6 +62,7 @@ extension BrowserController {
         completionHandler: @escaping (String?) -> Void
     ) {
         fputs("[agent-safari] prompt suppressed (returning \"\"): \(prompt)\n", stderr)
+        appendSuppressedDialog("prompt(\"\"): \(prompt)", for: webView)
         completionHandler("")
     }
 }

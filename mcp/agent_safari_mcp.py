@@ -31,11 +31,11 @@ TOOL_CONTRACTS: list[dict[str, Any]] = [
     {"name": "url", "description": "Return the current document URL.", "cli": ["url", "[--tab <id>]"], "input": ["tab"], "result": ["url", "tabId"]},
     {"name": "content", "description": "Alias for visible page text.", "cli": ["content", "[--tab <id>]"], "input": ["tab"], "result": ["text", "tabId"]},
     {"name": "snapshot", "description": "Return visible/interactable elements with stable @e refs.", "cli": ["snapshot", "[--tab <id>]"], "input": ["tab"], "result": ["schemaVersion", "elements", "tabId"]},
-    {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>", "[--tab <id>]"], "input": ["script", "tab"], "result": ["value", "tabId"]},
+    {"name": "evaluate", "description": "Evaluate JavaScript in the current page.", "cli": ["evaluate", "<script>", "[--confirm <accept|dismiss>]", "[--tab <id>]"], "input": ["script", "confirm", "tab"], "result": ["value", "tabId"]},
     {"name": "screenshot", "description": "Capture a viewport screenshot as a PNG file.", "cli": ["screenshot", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "strategy", "tabId"]},
     {"name": "screenshot_full", "description": "Capture a full-page screenshot as a PNG file.", "cli": ["screenshot", "--full", "--out", "<path>", "[--tab <id>]"], "input": ["path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "preflightScrollCount", "warnings", "strategy", "tabId"]},
     {"name": "screenshot_element", "description": "Capture a screenshot clipped to a CSS selector or snapshot ref.", "cli": ["screenshot-element", "<selector-or-ref>", "--out", "<path>", "[--tab <id>]"], "input": ["selector", "path", "tab"], "result": ["path", "outputPath", "width", "height", "fullPage", "viewportWidth", "viewportHeight", "pageWidth", "pageHeight", "scale", "tileCount", "warnings", "element", "strategy", "tabId"]},
-    {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--tab <id>]"], "input": ["selector", "native", "fallback", "tab"], "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"]},
+    {"name": "click", "description": "Click a CSS selector or snapshot ref.", "cli": ["click", "<selector-or-ref>", "[--native]", "[--no-fallback]", "[--confirm <accept|dismiss>]", "[--tab <id>]"], "input": ["selector", "native", "fallback", "confirm", "tab"], "result": ["selector", "result", "strategy", "method", "nativeVerified", "fallbackUsed", "nativeError", "nativeErrorCode", "popupRedirectedURL", "suppressedDialogs", "coordinateStrategy", "viewportX", "viewportY", "boundsX", "boundsY", "boundsWidth", "boundsHeight", "viewportWidth", "viewportHeight", "scrollDeltaX", "scrollDeltaY", "scrolledIntoView", "tabId"]},
     {"name": "fill", "description": "Fill an input-like element matching a CSS selector or snapshot ref.", "cli": ["fill", "<selector-or-ref>", "<value>", "[--tab <id>]"], "input": ["selector", "value", "tab"], "result": ["selector", "value", "tabId"]},
     {"name": "key", "description": "Dispatch synthetic DOM keyboard events.", "cli": ["key", "<key>", "[--tab <id>]"], "input": ["key", "tab"], "result": ["key", "tabId"]},
     {"name": "type_text", "description": "Insert text into the active input, textarea, or contenteditable element.", "cli": ["type", "<text>", "[--tab <id>]"], "input": ["text", "tab"], "result": ["text", "tabId"]},
@@ -93,7 +93,7 @@ class AgentSafariCLIError(RuntimeError):
         super().__init__(f"agent-safari {command} error{code_label}: {message}")
 
 
-def _run_cli(command: str, *args: str, timeout: float = 30.0, tab: str = "") -> dict[str, Any]:
+def _run_cli(command: str, *args: str, timeout: float = 30.0, tab: str = "", confirm: str = "") -> dict[str, Any]:
     """Run agent-safari CLI and return the decoded JSON-RPC response."""
     binary = agent_safari_bin()
     socket_path = agent_safari_socket()
@@ -104,7 +104,7 @@ def _run_cli(command: str, *args: str, timeout: float = 30.0, tab: str = "") -> 
             "or set AGENT_SAFARI_BIN."
         )
 
-    argv = [binary, command, *[str(arg) for arg in args], *(["--tab", tab] if tab else []), "--socket", socket_path]
+    argv = [binary, command, *[str(arg) for arg in args], *(["--tab", tab] if tab else []), *(["--confirm", confirm] if confirm else []), "--socket", socket_path]
     try:
         completed = subprocess.run(
             argv,
@@ -220,9 +220,9 @@ def create_server() -> Any:
         return _run_cli("snapshot", tab=tab)
 
     @mcp.tool()
-    def evaluate(script: str, tab: str = "") -> dict[str, Any]:
-        """Evaluate JavaScript in the current page."""
-        return _run_cli("evaluate", script, tab=tab)
+    def evaluate(script: str, tab: str = "", confirm: str = "") -> dict[str, Any]:
+        """Evaluate JavaScript in the current page; set confirm=accept|dismiss to control how JS confirm() dialogs are answered (default dismiss)."""
+        return _run_cli("evaluate", script, tab=tab, confirm=confirm)
 
     @mcp.tool()
     def screenshot(path: str = DEFAULT_SCREENSHOT_PATH, tab: str = "") -> dict[str, Any]:
@@ -240,14 +240,14 @@ def create_server() -> Any:
         return _run_cli("screenshot-element", selector, "--out", path, timeout=60.0, tab=tab)
 
     @mcp.tool()
-    def click(selector: str, native: bool = False, fallback: bool = True, tab: str = "") -> dict[str, Any]:
-        """Click a CSS selector or snapshot ref; set native=True for native coordinate click and fallback=False to fail if native verification fails."""
+    def click(selector: str, native: bool = False, fallback: bool = True, tab: str = "", confirm: str = "") -> dict[str, Any]:
+        """Click a CSS selector or snapshot ref; set native=True for native coordinate click, fallback=False to fail if native verification fails, and confirm=accept|dismiss to control how JS confirm() dialogs are answered (default dismiss)."""
         args = [selector]
         if native:
             args.append("--native")
         if not fallback:
             args.append("--no-fallback")
-        return _run_cli("click", *args, tab=tab)
+        return _run_cli("click", *args, tab=tab, confirm=confirm)
 
     @mcp.tool()
     def fill(selector: str, value: str, tab: str = "") -> dict[str, Any]:

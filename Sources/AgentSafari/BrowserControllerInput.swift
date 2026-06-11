@@ -291,6 +291,17 @@ extension BrowserController {
         _ = try await webView.evaluateJavaScript(script)
     }
 
+    // Drains per-tab suppressed-dialog evidence into a click result as a JSON
+    // array string, then clears it so it cannot reattach to a later click.
+    private func drainSuppressedDialogs(into result: inout [String: String]) {
+        let dialogs = pendingSuppressedDialogs
+        guard !dialogs.isEmpty else { return }
+        if let data = try? JSONEncoder().encode(dialogs), let json = String(data: data, encoding: .utf8) {
+            result["suppressedDialogs"] = json
+        }
+        pendingSuppressedDialogs = []
+    }
+
     // WebKit delivers createWebViewWith asynchronously for anchor-driven popups; give it a
     // bounded window so the redirect is reported on the click that caused it.
     private func settlePendingPopupRedirect(expected: Bool) async {
@@ -302,8 +313,9 @@ extension BrowserController {
     }
 
     func click(selector: String, native: Bool = false, fallbackPolicy: String = "js") async throws -> [String: String] {
-        // Discard popup evidence from earlier actions so it cannot attach to this click.
+        // Discard popup and dialog evidence from earlier actions so it cannot attach to this click.
         pendingPopupRedirectURL = nil
+        pendingSuppressedDialogs = []
         if native {
             // Quartz events land on the visible tab; refuse rather than click the wrong page.
             guard webView === activeTabWebView else {
@@ -334,6 +346,7 @@ extension BrowserController {
                         result["nativeError"] = nativeError
                         result["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                         if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                        drainSuppressedDialogs(into: &result)
                         return result
                     }
                     throw error
@@ -345,6 +358,7 @@ extension BrowserController {
                     result["nativeVerified"] = "true"
                     result["fallbackUsed"] = "false"
                     if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                    drainSuppressedDialogs(into: &result)
                     return result
                 }
                 let afterURL = webView.url?.absoluteString ?? ""
@@ -358,6 +372,7 @@ extension BrowserController {
                     result["beforeURL"] = beforeURL
                     result["afterURL"] = afterURL
                     if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                    drainSuppressedDialogs(into: &result)
                     return result
                 }
                 if fallbackPolicy == "none" {
@@ -373,6 +388,7 @@ extension BrowserController {
                 fallback["nativeErrorCode"] = "native_click_unverified"
                 fallback.merge(target.resultFields) { current, _ in current }
                 if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                drainSuppressedDialogs(into: &fallback)
                 return fallback
             } catch {
                 if fallbackPolicy == "none" {
@@ -388,6 +404,7 @@ extension BrowserController {
                 fallback["nativeError"] = nativeError
                 fallback["nativeErrorCode"] = agentSafariErrorCode(nativeError)
                 if let u = pendingPopupRedirectURL { fallback["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+                drainSuppressedDialogs(into: &fallback)
                 return fallback
             }
         }
@@ -395,6 +412,7 @@ extension BrowserController {
         var result = try await javaScriptClick(selector: selector)
         result["selector"] = selector
         if let u = pendingPopupRedirectURL { result["popupRedirectedURL"] = u; pendingPopupRedirectURL = nil }
+        drainSuppressedDialogs(into: &result)
         return result
     }
 

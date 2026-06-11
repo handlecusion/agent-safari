@@ -17,6 +17,13 @@ enum TabTarget {
     @TaskLocal static var tabID: String?
 }
 
+/// Per-command JS dialog confirm policy. Confirm dialogs fire synchronously
+/// inside the command's JS evaluation, so a task-local applies for the duration
+/// of one command Task. Values: "accept" | "dismiss" (nil = dismiss).
+enum DialogPolicy {
+    @TaskLocal static var confirm: String?
+}
+
 @MainActor
 final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     let window: NSWindow
@@ -30,6 +37,7 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var networkUserScriptInstalledByTab: [ObjectIdentifier: Bool] = [:]
     private var networkCaptureActiveByTab: [ObjectIdentifier: Bool] = [:]
     private var pendingPopupRedirectURLByTab: [ObjectIdentifier: String] = [:]
+    private var pendingSuppressedDialogsByTab: [ObjectIdentifier: [String]] = [:]
     let sessionID = UUID().uuidString
     let profileName: String
     let ephemeral: Bool
@@ -82,11 +90,29 @@ final class BrowserController: NSObject, WKNavigationDelegate, WKUIDelegate {
         pendingPopupRedirectURLByTab[ObjectIdentifier(webView)] = url
     }
 
+    var pendingSuppressedDialogs: [String] {
+        get { pendingSuppressedDialogsByTab[ObjectIdentifier(webView)] ?? [] }
+        set { pendingSuppressedDialogsByTab[ObjectIdentifier(webView)] = newValue }
+    }
+
+    // Records suppressed-dialog evidence keyed by the DELEGATE's webView, which is
+    // the originating (possibly background) tab — not necessarily the active one.
+    // Capped at 20 entries per tab (oldest dropped) so runaway dialog loops can't
+    // grow the buffer without bound.
+    func appendSuppressedDialog(_ entry: String, for webView: WKWebView) {
+        let key = ObjectIdentifier(webView)
+        var entries = pendingSuppressedDialogsByTab[key] ?? []
+        entries.append(entry)
+        if entries.count > 20 { entries.removeFirst(entries.count - 20) }
+        pendingSuppressedDialogsByTab[key] = entries
+    }
+
     func clearPerTabState(for webView: WKWebView) {
         let key = ObjectIdentifier(webView)
         networkUserScriptInstalledByTab.removeValue(forKey: key)
         networkCaptureActiveByTab.removeValue(forKey: key)
         pendingPopupRedirectURLByTab.removeValue(forKey: key)
+        pendingSuppressedDialogsByTab.removeValue(forKey: key)
     }
 
     init(focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false) {

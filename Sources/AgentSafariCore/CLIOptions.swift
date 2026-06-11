@@ -8,14 +8,16 @@ public struct CLIOptions: Equatable {
     public let profileName: String
     public let ephemeral: Bool
     public let tabID: String?
+    public let confirm: String?
     public let positionalArguments: [String]
 
-    public init(socketPath: String, focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false, tabID: String? = nil, positionalArguments: [String]) {
+    public init(socketPath: String, focusWindow: Bool = false, profileName: String = "default", ephemeral: Bool = false, tabID: String? = nil, confirm: String? = nil, positionalArguments: [String]) {
         self.socketPath = socketPath
         self.focusWindow = focusWindow
         self.profileName = profileName
         self.ephemeral = ephemeral
         self.tabID = tabID
+        self.confirm = confirm
         self.positionalArguments = positionalArguments
     }
 
@@ -25,6 +27,7 @@ public struct CLIOptions: Equatable {
         var profileName = "default"
         var ephemeral = false
         var tabID: String?
+        var confirm: String?
         var positional: [String] = []
         var index = 0
 
@@ -48,12 +51,15 @@ public struct CLIOptions: Equatable {
             } else if arg == "--tab", index + 1 < args.count {
                 tabID = args[index + 1]
                 index += 2
+            } else if arg == "--confirm", index + 1 < args.count {
+                confirm = args[index + 1]
+                index += 2
             } else {
                 positional.append(arg)
                 index += 1
             }
         }
 
-        return CLIOptions(socketPath: socketPath, focusWindow: focusWindow, profileName: profileName, ephemeral: ephemeral, tabID: tabID, positionalArguments: positional)
+        return CLIOptions(socketPath: socketPath, focusWindow: focusWindow, profileName: profileName, ephemeral: ephemeral, tabID: tabID, confirm: confirm, positionalArguments: positional)
     }
 }

@@ -22,6 +22,7 @@ if args.first == "--version" || args.first == "version" {
         let command = try CommandRequest.parse(args)
         var params = command.params
         if let tabID = options.tabID { params["tab"] = tabID }
+        if let confirm = options.confirm { params["confirm"] = confirm }
         try sendClient(method: command.method, params: params, socketPath: options.socketPath)
     } catch {
         fputs("\(error.localizedDescription)\n", stderr)

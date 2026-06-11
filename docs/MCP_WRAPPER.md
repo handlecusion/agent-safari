@@ -59,7 +59,7 @@ Override them with environment variables:
 
 ## Action result contract
 
-The MCP wrapper mirrors CLI result fields instead of inventing a separate browser protocol. `click` advertises native/fallback metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError`, `nativeErrorCode`) plus viewport, bounds, scroll, and coordinate fields emitted by the Swift daemon. `fill` returns `selector` and `value`, matching the CLI. Failed CLI payloads preserve the daemon's stable `error.code` in the wrapper exception message and `AgentSafariCLIError.code`.
+The MCP wrapper mirrors CLI result fields instead of inventing a separate browser protocol. `click` advertises native/fallback metadata (`method`, `nativeVerified`, `fallbackUsed`, `nativeError`, `nativeErrorCode`, and `popupRedirectedURL` when a popup or `target=_blank` navigation was intercepted) plus viewport, bounds, scroll, and coordinate fields emitted by the Swift daemon. `fill` returns `selector` and `value`, matching the CLI. Failed CLI payloads preserve the daemon's stable `error.code` in the wrapper exception message and `AgentSafariCLIError.code`.
 
 ## Hermes config example
 

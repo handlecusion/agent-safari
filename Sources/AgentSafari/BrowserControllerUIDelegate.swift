@@ -9,7 +9,10 @@ extension BrowserController {
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        guard let url = navigationAction.request.url else { return nil }
+        guard let url = navigationAction.request.url, !url.absoluteString.isEmpty else {
+            fputs("[agent-safari] popup with no URL ignored (bare window.open())\n", stderr)
+            return nil
+        }
         let urlString = url.absoluteString
         Task { @MainActor in
             do {

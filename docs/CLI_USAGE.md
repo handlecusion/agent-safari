@@ -140,7 +140,7 @@ Keyboard events are dispatched to the active element. `type` inserts text into t
 .build/debug/agent-safari type 'hello' --socket /tmp/agent-safari.sock
 ```
 
-Native click fallback is explicit in the JSON result. Verified native clicks report `method: "native"`, `nativeVerified: true`, and `fallbackUsed: false`. If default native click cannot be verified and DOM fallback succeeds, the result reports `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters. When a click triggers a `target=_blank` link or `window.open()`, the navigation is redirected to the current active WebView and the result includes `popupRedirectedURL` with the intercepted URL.
+Native click fallback is explicit in the JSON result. Verified native clicks report `method: "native"`, `nativeVerified: true`, and `fallbackUsed: false`. If default native click cannot be verified and DOM fallback succeeds, the result reports `method: "dom-fallback"`, `nativeVerified: false`, `fallbackUsed: true`, `nativeError`, and `nativeErrorCode`. Use `--no-fallback` when native-only verification matters. When a click triggers a `target=_blank` link or `window.open()`, the navigation is redirected to the current active WebView and the result includes `popupRedirectedURL` with the intercepted URL. A bare `window.open()` with no URL is ignored and reports nothing.
 
 ### Wait and observe page state
 

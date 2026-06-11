@@ -49,8 +49,22 @@ def test_popup_redirect_navigates_current_webview_and_returns_nil() -> None:
     # Must load URL into current WebView via navigate(), not create a new WKWebView
     assert "navigate(" in source
     assert "return nil" in source
-    # Bare window.open() (nil URL) must be a no-op — guard on url being non-nil
-    assert "guard let url" in source or "navigationAction.request.url" in source
+    # Bare window.open() yields a non-nil but EMPTY request URL in WebKit — must be
+    # ignored without navigating or recording a pending redirect
+    assert "guard let url" in source
+    assert "!url.absoluteString.isEmpty" in source
+    assert "popup with no URL ignored" in source
+
+
+def test_click_discards_stale_popup_redirect_and_settles_async_popups() -> None:
+    source = read(INPUT)
+    # Stale popup evidence from earlier actions must be cleared at click entry
+    click_body = source.split("func click(selector:")[1]
+    assert "pendingPopupRedirectURL = nil" in click_body.split("if native {")[0]
+    # Anchor-driven popups arrive async — js click must wait (bounded) when expected
+    assert "func settlePendingPopupRedirect(expected: Bool)" in source
+    assert "settlePendingPopupRedirect(expected: popupExpected)" in source
+    assert "closest('a[target]')" in source
 
 
 def test_popup_redirect_url_reported_in_click_result() -> None:
@@ -84,6 +98,7 @@ def main() -> int:
     test_uidelegete_assigned_in_make_web_view()
     test_create_web_view_with_is_implemented()
     test_popup_redirect_navigates_current_webview_and_returns_nil()
+    test_click_discards_stale_popup_redirect_and_settles_async_popups()
     test_popup_redirect_url_reported_in_click_result()
     test_js_dialog_handlers_suppress_and_log()
     print("popup redirect contract tests passed")

@@ -219,11 +219,15 @@ extension BrowserController {
           };
           const element = resolveElement(target);
           if (typeof element.focus === 'function') element.focus({ preventScroll: true });
+          const anchor = typeof element.closest === 'function' ? element.closest('a[target]') : null;
+          const anchorTarget = anchor ? anchor.getAttribute('target') : null;
+          const popupExpected = !!anchorTarget && !['_self', '_parent', '_top'].includes(anchorTarget);
           element.click();
-          return true;
+          return popupExpected;
         })()
         """
-        _ = try await webView.evaluateJavaScript(script)
+        let popupExpected = (try await webView.evaluateJavaScript(script) as? Bool) ?? false
+        await settlePendingPopupRedirect(expected: popupExpected)
         var result = target.resultFields
         result.merge([
             "strategy": "js-click",
@@ -287,7 +291,19 @@ extension BrowserController {
         _ = try await webView.evaluateJavaScript(script)
     }
 
+    // WebKit delivers createWebViewWith asynchronously for anchor-driven popups; give it a
+    // bounded window so the redirect is reported on the click that caused it.
+    private func settlePendingPopupRedirect(expected: Bool) async {
+        guard expected, pendingPopupRedirectURL == nil else { return }
+        for _ in 0..<12 {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            if pendingPopupRedirectURL != nil { return }
+        }
+    }
+
     func click(selector: String, native: Bool = false, fallbackPolicy: String = "js") async throws -> [String: String] {
+        // Discard popup evidence from earlier actions so it cannot attach to this click.
+        pendingPopupRedirectURL = nil
         if native {
             do {
                 let target = try await elementHitTarget(selector: selector)
